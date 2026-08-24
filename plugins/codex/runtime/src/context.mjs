@@ -88,11 +88,18 @@ export async function collectContext(repoRoot, delegation, options = {}) {
     });
   }
   files.sort((a, b) => a.path.localeCompare(b.path));
-  const totalChars = files.reduce((sum, file) => sum + file.content.length, 0);
+  const fileBreakdown = files.map((file) => ({
+    path: file.path,
+    role: file.role,
+    size_bytes: file.size_bytes,
+    estimated_tokens: Math.ceil(file.size_bytes / 4),
+  }));
+  const totalBytes = files.reduce((sum, file) => sum + file.size_bytes, 0);
   return {
     files,
     repositoryTree: files.map((file) => file.path),
     embedded_bytes: embeddedBytes,
-    estimated_tokens: Math.ceil(totalChars / 4),
+    estimated_tokens: Math.ceil(totalBytes / 4),
+    file_breakdown: fileBreakdown,
   };
 }

@@ -41,7 +41,7 @@ for (const provider of ['claude-code', 'codex']) {
 test('Claude Code plugin uses the current plugin manifest and namespaced user skills', async () => {
   const manifest = await readJson('plugins/claude-code/.claude-plugin/plugin.json');
   assert.equal(manifest.name, 'task-bridge');
-  assert.equal(manifest.version, '0.1.0');
+  assert.equal(manifest.version, (await readJson('package.json')).version);
   assert.equal(manifest.skills, './skills/');
 
   for (const name of ['export-chatgpt', 'import-chatgpt']) {
@@ -54,16 +54,20 @@ test('Claude Code plugin uses the current plugin manifest and namespaced user sk
   assert.match(exportSkill, /editable_scope/);
   assert.match(exportSkill, /acceptance_criteria/);
   assert.match(exportSkill, /agent-task-bridge\.mjs" export/);
+  assert.match(exportSkill, /kickoff\.md|--max-tokens/);
   const importSkill = await readFile(path.join(root, 'plugins', 'claude-code', 'skills', 'import-chatgpt', 'SKILL.md'), 'utf8');
   assert.match(importSkill, /agent-task-bridge\.mjs" import/);
   assert.match(importSkill, /never/i);
   assert.match(importSkill, /active working tree/i);
+  assert.match(importSkill, /review/);
+  assert.match(importSkill, /follow-up/);
+  assert.match(importSkill, /integrate.*confirm/i);
 });
 
 test('Codex plugin declares the shared skills and self-contained runtime contract', async () => {
   const manifest = await readJson('plugins/codex/.codex-plugin/plugin.json');
   assert.equal(manifest.name, 'task-bridge');
-  assert.equal(manifest.version, '0.1.0');
+  assert.equal(manifest.version, (await readJson('package.json')).version);
   assert.equal(manifest.skills, './skills/');
   assert.equal(manifest.interface.displayName, 'Agent Task Bridge');
   assert.equal(manifest.interface.category, 'Developer Tools');
@@ -78,9 +82,13 @@ test('Codex plugin declares the shared skills and self-contained runtime contrac
   assert.match(exportSkill, /editable_scope/);
   assert.match(exportSkill, /acceptance_criteria/);
   assert.match(exportSkill, / export --delegation /);
+  assert.match(exportSkill, /kickoff\.md|--max-tokens/);
   const importSkill = await readFile(path.join(root, 'plugins', 'codex', 'skills', 'import-chatgpt', 'SKILL.md'), 'utf8');
   assert.match(importSkill, / import /);
   assert.match(importSkill, /active working tree/i);
+  assert.match(importSkill, /review/);
+  assert.match(importSkill, /follow-up/);
+  assert.match(importSkill, /integrate.*confirm/i);
 });
 
 test('Codex documentation provides an explicit local marketplace install flow', async () => {
@@ -93,6 +101,7 @@ test('release package includes verification scripts and architecture documentati
   const pkg = await readJson('package.json');
   assert.ok(pkg.files.includes('scripts'));
   assert.ok(pkg.files.includes('docs/architecture.md'));
+  assert.ok(pkg.files.includes('docs/releases/v0.2.0.md'));
 });
 
 test('repository ships local marketplace catalogs for both providers', async () => {
@@ -118,7 +127,8 @@ test('protocol, example, license, and user documentation ship with the package',
     'protocol/RESULT-CAPSULE-v1.md',
     'examples/delegation.example.json',
     'plugins/claude-code/README.md',
-    'plugins/codex/README.md'
+    'plugins/codex/README.md',
+    'docs/releases/v0.2.0.md'
   ];
   for (const relative of required) {
     const content = await readFile(path.join(root, relative), 'utf8');
@@ -150,4 +160,23 @@ test('protocol documentation describes schema, integrity, statuses, privacy, and
   assert.match(resultProtocol, /REPORT\.md/);
   assert.match(readme, /--max-tokens/);
   assert.match(readme, /acceptance criteria/i);
+});
+
+test('v0.2 documentation records the shipped safety boundaries and deferred transport', async () => {
+  const readme = await readFile(path.join(root, 'README.md'), 'utf8');
+  const architecture = await readFile(path.join(root, 'docs', 'architecture.md'), 'utf8');
+  const release = await readFile(path.join(root, 'docs', 'releases', 'v0.2.0.md'), 'utf8');
+  for (const content of [readme, architecture, release]) {
+    assert.match(content, /(external|outside).{0,40}staging/i);
+    assert.match(content, /privacy/i);
+    assert.match(content, /(block|confirmation)/i);
+    assert.match(content, /schema.{0,20}1\.1/i);
+    assert.match(content, /receipt/i);
+    assert.match(content, /follow-up/i);
+    assert.match(content, /integrate.{0,40}confirm/i);
+  }
+  assert.match(release, /manual file upload/i);
+  assert.match(release, /automatic (API|transport).*(deferred|outside)/is);
+  assert.match(release, /OS-level sandboxing.*deferred/is);
+  assert.match(release, /same-volume fallback/i);
 });

@@ -12,6 +12,9 @@ import { AtbError } from './errors.mjs';
 import { captureValidationSnapshot, runValidation, validationConfigChanged } from './validation.mjs';
 import { abortReason } from './process.mjs';
 import { buildAcceptanceEvidence } from './evidence.mjs';
+import { loadLifecycle, transitionLifecycle, writeLifecycle } from './lifecycle.mjs';
+import { createReceipt, writeImmutableReceipt } from './receipts.mjs';
+import { buildReviewData } from './review.mjs';
 
 async function currentState(repoRoot, repoPath) {
   const full = path.join(repoRoot, ...repoPath.split('/'));
@@ -92,6 +95,7 @@ export async function importResult({
   let taskId = null;
   let task = null;
   let result = null;
+  let lifecycleRecord = null;
   let originalError = null;
   let stagingAttempted = false;
   try {
@@ -101,6 +105,15 @@ export async function importResult({
     task = await loadStoredTask(root, result.manifest.task_id);
     throwIfAborted(signal);
     taskId = task.manifest.task_id;
+    lifecycleRecord = {
+      taskId,
+      importId,
+      state: 'exported',
+      events: [{ state: 'exported', at: new Date().toISOString(), source: 'import' }],
+    };
+    lifecycleRecord = transitionLifecycle(lifecycleRecord, 'result-received', { resultStatus: result.manifest.status });
+    lifecycleRecord = transitionLifecycle(lifecycleRecord, 'inspected', { resultStatus: result.manifest.status });
+    await writeLifecycle(root, lifecycleRecord);
     const taskBase = task.manifest.project?.base_commit;
     if (result.manifest.source_base_commit !== taskBase) {
       throw new AtbError('RESULT_BASE_MISMATCH', `Result source base commit does not match stored task baseline (${result.manifest.source_base_commit} != ${taskBase})`);
@@ -235,6 +248,25 @@ export async function importResult({
       }
       if (task && result && report) report.acceptance = buildAcceptanceEvidence(task, result, report);
       report.reportPath = await persistImportReport(root, { taskId, importId, report });
+      if (lifecycleRecord) {
+        const recorded = new Set(lifecycleRecord.events.map((event) => event.state));
+        for (const state of report.lifecycleHistory ?? [report.lifecycle]) {
+          if (state === lifecycleRecord.state || recorded.has(state)) continue;
+          const details = report.error ? { error: report.error } : { resultStatus: report.resultStatus };
+          lifecycleRecord = transitionLifecycle(lifecycleRecord, state, details);
+          recorded.add(state);
+        }
+        await writeLifecycle(root, lifecycleRecord);
+      }
+      if (task && result && taskId) {
+        const receipt = createReceipt({ task, result, importReport: report, lifecycle: lifecycleRecord, observedZipHash: result.archive_sha256 });
+        report.receiptPath = await writeImmutableReceipt(root, taskId, importId, receipt);
+        const review = await buildReviewData({ repoRoot: root, importReport: report, lifecycle: lifecycleRecord, receipt });
+        const reviewPath = path.join(atbRoot(root), 'tasks', taskId, 'imports', importId, 'review.json');
+        await writeFile(reviewPath, JSON.stringify(review, null, 2), 'utf8');
+        report.reviewPath = reviewPath;
+        await writeFile(report.reportPath, JSON.stringify(report, null, 2), 'utf8');
+      }
     } catch (error) {
       if (!originalError) throw error;
       originalError.reportPersistenceError = failureMetadata(error, signal);

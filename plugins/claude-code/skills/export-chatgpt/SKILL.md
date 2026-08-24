@@ -28,9 +28,9 @@ Use this when the developer wants to delegate a well-bounded part of the current
 5. Never include secrets or credentials to make an export succeed. If the bridge blocks a file as sensitive, choose a non-secret contract/example or tell the user what context cannot be exported.
 6. Run the bundled deterministic exporter from the repository root:
 
-   `node "${CLAUDE_PLUGIN_ROOT}/runtime/bin/agent-task-bridge.mjs" export --delegation "<temporary-json-path>" --repo . --source-agent claude-code`
+   `node "${CLAUDE_PLUGIN_ROOT}/runtime/bin/agent-task-bridge.mjs" export --delegation "<temporary-json-path>" --repo . --source-agent claude-code --max-tokens <budget>`
 
 7. Delete the temporary delegation JSON after a successful export if it was created outside the bridge's own local storage.
-8. Report the generated Task Capsule path, delegated scope, file count, and estimated context size. Tell the user to upload that single Markdown file to a fresh ChatGPT conversation.
+8. Report the generated `task.md` and `kickoff.md` paths, delegated scope, file count, and estimated context size. Tell the user to upload the Task Capsule and use the generated kickoff prompt in a fresh ChatGPT conversation.
 
 Do not implement the delegated unit locally after exporting it unless the developer separately asks you to continue that same work.

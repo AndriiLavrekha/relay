@@ -10,6 +10,8 @@ import { storeTask } from './storage.mjs';
 import { AtbError } from './errors.mjs';
 import { discoverValidationCommands } from './validation.mjs';
 import { scanText } from './privacy.mjs';
+import { writeLifecycle } from './lifecycle.mjs';
+import { createHandoffBundle } from './handoff.mjs';
 
 function makeTaskId() {
   return `atb_${Date.now().toString(36)}_${crypto.randomBytes(5).toString('hex')}`;
@@ -85,9 +87,12 @@ export async function exportTask({
   const manifest = {
     atb_protocol: '1.0',
     capsule_type: 'task',
+    schema_version: '1.1',
+    bridge_version: '0.2.0',
+    hash_algorithm: 'sha256',
     task_id: taskId,
     created_at: new Date().toISOString(),
-    exporter_version: '0.1.0',
+    exporter_version: '0.2.0',
     source_agent: sourceAgent,
     project: {
       name: fingerprint.project_name,
@@ -129,6 +134,20 @@ export async function exportTask({
   const privacy = scanRenderedTaskCapsule(capsuleText, { policy: privacyPolicy, confirmed: privacyConfirmed });
   if (privacy.blocked || (privacy.requiresConfirmation && !privacyConfirmed)) throw privacyError(privacy);
   const stored = await storeTask(root, taskId, capsuleText);
+  const lifecycle = {
+    taskId,
+    state: 'exported',
+    events: [{ state: 'exported', at: new Date().toISOString(), source: 'export' }],
+  };
+  const lifecyclePath = await writeLifecycle(root, lifecycle);
+  const handoff = await createHandoffBundle({
+    repoRoot: root,
+    taskId,
+    capsuleText,
+    manifest,
+    delegation,
+    contextSummary: manifest.context,
+  });
   let outputPath = stored.outputPath;
   if (outPath) {
     outputPath = path.isAbsolute(outPath) ? outPath : path.resolve(root, outPath);
@@ -139,6 +158,8 @@ export async function exportTask({
     taskId,
     outputPath,
     storedTaskPath: stored.taskPath,
+    lifecyclePath,
+    handoff,
     manifest,
     contextSummary: {
       ...manifest.context,

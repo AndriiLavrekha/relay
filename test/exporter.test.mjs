@@ -40,9 +40,14 @@ test('exportTask writes a self-contained dirty-state capsule and durable task hi
   const result = await exportTask({ repoRoot: root, delegationPath, sourceAgent: 'claude-code' });
   assert.match(result.taskId, /^atb_[a-z0-9_]+$/);
   assert.ok(result.outputPath.endsWith(`task-${result.taskId}.md`));
+  assert.match(await readFile(result.handoff.files.kickoff, 'utf8'), /complete resulting files/i);
+  assert.match(await readFile(result.handoff.files.uploadChecklist, 'utf8'), /Upload only/);
 
   const capsuleText = await readFile(result.outputPath, 'utf8');
   const parsed = parseTaskCapsule(capsuleText);
+  assert.equal(parsed.manifest.schema_version, '1.1');
+  assert.equal(parsed.manifest.bridge_version, '0.2.0');
+  assert.equal(parsed.manifest.hash_algorithm, 'sha256');
   assert.equal(parsed.manifest.source_agent, 'claude-code');
   assert.equal(parsed.manifest.project.dirty, true);
   assert.match(parsed.manifest.project.base_commit, /^[0-9a-f]{40}$/);

@@ -20,9 +20,9 @@ The plugin is self-contained. Resolve the **plugin root** as the directory that 
 5. Do not include secrets/credentials when the bridge reports them as sensitive.
 6. From the repository root run:
 
-   `node "<plugin root>/runtime/bin/agent-task-bridge.mjs" export --delegation "<temporary-json-path>" --repo . --source-agent codex`
+   `node "<plugin root>/runtime/bin/agent-task-bridge.mjs" export --delegation "<temporary-json-path>" --repo . --source-agent codex --max-tokens <budget>`
 
 7. Delete the temporary input JSON when appropriate.
-8. Return the Task Capsule path, delegated boundaries, file count, and estimated context size. The developer should upload that one Markdown file into a fresh ChatGPT conversation.
+8. Return the generated `task.md` and `kickoff.md` paths, delegated boundaries, file count, and estimated context size. The developer should upload the Task Capsule and use the kickoff prompt in a fresh ChatGPT conversation.
 
 Do not continue implementing the same delegated unit locally unless the developer explicitly asks for parallel work and accepts the merge risk.

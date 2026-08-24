@@ -63,6 +63,24 @@ Codex       → ChatGPT → Claude Code
 
 The agent performing the import does **not** need to be the agent that performed the export.
 
+### v0.2 implemented reliability boundary
+
+The v0.2 runtime keeps the v1.0 transport and adds an additive schema 1.1 contract. New Task and Result Capsules carry `schema_version: "1.1"`, `bridge_version`, and explicit SHA-256 provenance. Result files declare `sha256` and `size_bytes`; the importer verifies those values against the raw ZIP entry before decoding it. Legacy results remain readable but are marked with a legacy-integrity warning.
+
+Export scans the fully rendered Task Capsule, including objective, architecture context, project metadata, validation commands, and embedded files. Privacy findings are classified as block, confirmation-required warning, allow, or metadata-only redact. Returned source files and `REPORT.md` are scanned before staging.
+
+Import is transactional and active-tree preserving. Clean in-scope files from a result—including a partial result—may be staged and reviewed independently of the worker-reported status. Staging is outside the repository by default, with a same-volume fallback for Windows. Validation uses captured trusted commands, a scrubbed environment, bounded output, timeouts, and process-tree termination; `safe`, `prompt`, and `skip` policies make execution explicit. Worker claims are kept separate from local evidence, and an immutable receipt records the capsule hashes, baseline, import, and validation provenance.
+
+The lifecycle is orthogonal to result status:
+
+```text
+exported → result-received → inspected → staged → reviewed → integrated
+                                      ├→ follow-up (partial/blocked/unverified work)
+                                      └→ rejected | failed | interrupted
+```
+
+`review`, `follow-up`, and confirmation-gated `integrate` are explicit local workflow boundaries. The bridge does not claim integration merely because staging or validation succeeded.
+
 ---
 
 ## 2. Product Positioning
@@ -578,7 +596,10 @@ atb_protocol: "1.0"
 capsule_type: task
 task_id: "atb_01JXYZ..."
 created_at: "2026-08-23T17:30:00+02:00"
-exporter_version: "0.1.0"
+  schema_version: "1.1"
+  bridge_version: "0.2.0"
+  hash_algorithm: "sha256"
+  exporter_version: "0.2.0"
 source_agent: "claude-code"
 project:
   name: "example-service"
@@ -899,11 +920,12 @@ BASELINE_MISSING
 
 Preferred implementation:
 
-**Git worktree** when the repository supports it cleanly.
+**Git worktree** when the repository supports it cleanly, created outside the repository so normal project lint/format commands cannot recursively scan a staged duplicate.
 
 Fallback:
 
-- temporary clone/index/staging directory depending on repository state.
+- temporary clone/index/staging directory depending on repository state;
+- on Windows, a same-volume staging root when the OS temp directory is on another drive.
 
 Do not immediately write returned content into the developer's active working tree.
 
@@ -940,7 +962,7 @@ Recommended order:
 6. build;
 7. integration/e2e tests when appropriate.
 
-Commands may be auto-discovered and/or configured.
+Commands are captured from trusted repository configuration before returned files are applied. Configuration changes are discovered recursively across monorepos and block authoritative validation. Execution supports a scrubbed environment with credentials and agent variables removed, optional confirmation (`prompt`), explicit skip, hard timeouts, bounded stdout/stderr, and platform-specific process-tree termination. Validation output is local evidence; worker-reported tests and token usage remain claims.
 
 ### 16.9 Final report
 
@@ -952,7 +974,7 @@ Task: API-key storage/service
 Task ID: atb_01JXYZ...
 
 Result match: PASS
-Protocol: 1.0
+Protocol: 1.0 / schema 1.1
 Base repository changed since export: YES
 
 Returned files: 4
@@ -971,7 +993,7 @@ Conflict:
   src/auth/types.ts changed locally after export.
   Semantic integration required.
 
-No changes have been applied to the active worktree.
+No changes have been applied to the active worktree. A separate `integrate --confirm` action is required after review.
 ```
 
 Final integration follows the provider's normal permission/review model.

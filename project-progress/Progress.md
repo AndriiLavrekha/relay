@@ -1,17 +1,17 @@
 ---
 session_id: 01a032e8-9bd4-7370-a2f8-44c4638eb698
-checkpoint_at: 2026-08-24T08:27:46Z
-worktree_dirty: true
+checkpoint_at: 2026-08-24T09:00:00Z
+worktree_dirty: false
 base_branch: main
-base_commit: 2a7fe736a6f175df16c565720260959d4a055f72
-handoff: interrupted
+base_commit: b0d7d789edcb3042339c6be23708009c7643c7a4
+handoff: active implementation
 gate_deploy: done
 gate_review: done
-gate_tests: done
+gate_tests: failing
 gate_implementation: done
 project: agent-task-bridge
 progress_schema_version: 1
-status: done
+status: active
 path: D:/depot/agent-task-bridge
 agent_last_used: unknown
 updated: 2026-08-24
@@ -26,23 +26,24 @@ commit_progress: true
 
 ## Resume Snapshot
 
-Readiness fixes and the README redesign remain complete and verified. The first public `v0.1.0` release is tagged, published, and installed locally in both Claude Code and Codex. README.md now includes three concrete delegation examples with copy-pasteable export, ChatGPT handoff, inspect, and import snippets.
+The approved v0.2 reliability design is implemented in the isolated `feature/v0.2-reliability` worktree. Import safety, privacy/integrity, validation hardening, handoff/review UX, integration boundaries, provider bundles, and release documentation are complete.
 
 ## Current State
 
-The implementation fixes are complete and reviewed. The project is locally verified and pushed to `origin/main` at `01c20b5`. This repository is configured as the `awesome-task-bridge` marketplace and exposes its plugin as `task-bridge`.
+The worktree starts from `b0d7d78`; all v0.2 changes remain isolated here. Provider runtimes have been regenerated from canonical source and pass byte-parity checks. No publication or push was performed.
 
 ## Last Session
 
-Implemented and tested the Windows command resolution, validation trust boundary, Node engine assertion, Codex install documentation, and generated runtime synchronization.
+Completed all five implementation plans with inline checkpoints. Full tests, cross-provider smoke, bundle parity, and package dry-run pass. Four Windows symlink/reparse-point tests remain intentionally skipped on this host.
 
 ## Next Action
 
-No further action for the approved README examples scope; future work can plan the next release or add more provider coverage.
+Keep the branch ready for user review or an explicitly authorized release action. If publishing, tag `v0.2.0`, publish the package/release, and refresh marketplace references as a separate deployment step.
 
 ## Remaining Work
 
-- [ ] Confirm remaining features and release requirements with the user.
+- [x] Implement and review the five v0.2 plans in dependency order.
+- [x] Run the final whole-branch review and release verification.
 - [x] Add public Claude and Codex marketplace entries for `task-bridge`.
 
 ## Done
@@ -57,10 +58,13 @@ No further action for the approved README examples scope; future work can plan t
 - [x] Blocked validation when returned package-manager configuration changes.
 - [x] Updated Codex local marketplace installation documentation.
 - [x] Added public `task-bridge@awesome-task-bridge` installation documentation and marketplace entries.
+- [x] Added complete Task Capsule privacy scanning, token budgeting, and schema 1.1 result integrity.
+- [x] Added scrubbed bounded validation, lifecycle/receipt/review/follow-up workflow, and confirmation-gated integration.
+- [x] Regenerated Claude/Codex runtimes and aligned v0.2.0 release metadata and documentation.
 
 ## Blockers
 
-No blockers known. Three symlink security tests remain skipped on Windows by design. CI remains intentionally out of scope.
+No implementation blockers remain. Deployment is intentionally not performed in this session; publication/tagging remains user-authorized work.
 
 ## Deployment
 
@@ -72,6 +76,7 @@ Pushed to `origin/main`: `f2b9c4f` (`release: prepare v0.1.0`). Published GitHub
 - Architecture and provider integration findings are recorded.
 - Approved fixes are implemented and verified locally.
 - Feature/readiness checklist is reviewed with the user.
+- `npm test`, `npm run smoke`, `npm run bundle:plugins`, and `npm pack --dry-run` pass for v0.2.0.
 
 ## Verification
 

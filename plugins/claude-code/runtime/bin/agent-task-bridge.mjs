@@ -7,10 +7,13 @@ import { importResult } from '../src/importer.mjs';
 import { parseTaskCapsule } from '../src/task-capsule.mjs';
 import { inspectResultCapsule } from '../src/result-capsule.mjs';
 import { findGitRoot } from '../src/repository.mjs';
-import { listStoredTasks } from '../src/storage.mjs';
+import { findImportArtifacts, listStoredTasks, loadStoredTask } from '../src/storage.mjs';
 import { discoverValidationCommands, runValidation } from '../src/validation.mjs';
-import { formatImportReport } from '../src/reporting.mjs';
+import { formatImportReport, formatReviewReport } from '../src/reporting.mjs';
 import { AtbError } from '../src/errors.mjs';
+import { createFollowUpCapsule, formatTaskSummary } from '../src/handoff.mjs';
+import { loadLifecycle, writeLifecycle } from '../src/lifecycle.mjs';
+import { integrateImport } from '../src/integration.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(await readFile(path.join(here, '..', 'package.json'), 'utf8'));
@@ -31,7 +34,7 @@ function parseArgs(args) {
 }
 
 function help() {
-  console.log(`Agent Task Bridge ${pkg.version}\n\nUsage:\n  agent-task-bridge export --delegation <file> [--repo <dir>] [--out <file>] [--source-agent <name>]\n  agent-task-bridge import <result.zip> [--repo <dir>] [--json]\n  agent-task-bridge inspect-task <task.md>\n  agent-task-bridge inspect-result <result.zip>\n  agent-task-bridge validate [--dir <dir>]\n  agent-task-bridge status [--repo <dir>]\n  agent-task-bridge version`);
+  console.log(`Agent Task Bridge ${pkg.version}\n\nUsage:\n  agent-task-bridge export --delegation <file> [--repo <dir>] [--out <file>] [--source-agent <name>] [--max-tokens <n>] [--privacy <mode>] [--confirm-privacy]\n  agent-task-bridge import <result.zip> [--repo <dir>] [--json] [--validation-policy <safe|prompt|skip>] [--confirm-validation]\n  agent-task-bridge task show <task-id> [--repo <dir>] [--json]\n  agent-task-bridge review <import-id> [--repo <dir>] [--json]\n  agent-task-bridge follow-up <import-id> [--repo <dir>] [--json]\n  agent-task-bridge integrate <import-id> --mode branch --branch <name> --confirm\n  agent-task-bridge inspect-task <task.md>\n  agent-task-bridge inspect-result <result.zip>\n  agent-task-bridge validate [--dir <dir>]\n  agent-task-bridge status [--repo <dir>]\n  agent-task-bridge version`);
 }
 
 async function main() {
@@ -41,14 +44,27 @@ async function main() {
   const args = parseArgs(rest);
   if (command === 'export') {
     if (!args.delegation) throw new AtbError('MISSING_ARGUMENT', '--delegation is required');
-    const result = await exportTask({ repoRoot: args.repo, delegationPath: args.delegation, outPath: args.out, sourceAgent: args['source-agent'] ?? 'unknown' });
+    const result = await exportTask({
+      repoRoot: args.repo,
+      delegationPath: args.delegation,
+      outPath: args.out,
+      sourceAgent: args['source-agent'] ?? 'unknown',
+      maxTokens: args['max-tokens'],
+      privacyPolicy: args.privacy ?? 'default',
+      privacyConfirmed: args['confirm-privacy'] === true,
+    });
     console.log(JSON.stringify(result, null, 2));
     return;
   }
   if (command === 'import') {
     const file = args._[0];
     if (!file) throw new AtbError('MISSING_ARGUMENT', 'import requires a Result Capsule ZIP path');
-    const report = await importResult({ repoRoot: args.repo, resultPath: file });
+    const report = await importResult({
+      repoRoot: args.repo,
+      resultPath: file,
+      validationPolicy: args['validation-policy'] ?? 'safe',
+      validationConfirmed: args['confirm-validation'] === true,
+    });
     console.log(args.json ? JSON.stringify(report, null, 2) : formatImportReport(report));
     return;
   }
@@ -75,6 +91,52 @@ async function main() {
   if (command === 'status') {
     const root = await findGitRoot(args.repo ?? process.cwd());
     console.log(JSON.stringify(await listStoredTasks(root), null, 2));
+    return;
+  }
+  if (command === 'task' && args._[0] === 'show') {
+    const taskId = args._[1];
+    if (!taskId) throw new AtbError('MISSING_ARGUMENT', 'task show requires a task ID');
+    const root = await findGitRoot(args.repo ?? process.cwd());
+    const task = await loadStoredTask(root, taskId);
+    const lifecycle = await loadLifecycle(root, taskId);
+    const summary = formatTaskSummary({ manifest: task.manifest, delegation: task.delegation, lifecycle: lifecycle?.state ?? 'exported', contextSummary: task.manifest.context });
+    console.log(JSON.stringify(summary, null, 2));
+    return;
+  }
+  if (command === 'review') {
+    const importId = args._[0];
+    if (!importId) throw new AtbError('MISSING_ARGUMENT', 'review requires an import ID');
+    const root = await findGitRoot(args.repo ?? process.cwd());
+    const artifacts = await findImportArtifacts(root, importId);
+    if (!artifacts?.review) throw new AtbError('IMPORT_NOT_FOUND', `Review not found for import: ${importId}`);
+    console.log(args.json ? JSON.stringify(artifacts.review, null, 2) : formatReviewReport(artifacts.review));
+    return;
+  }
+  if (command === 'follow-up') {
+    const importId = args._[0];
+    if (!importId) throw new AtbError('MISSING_ARGUMENT', 'follow-up requires an import ID');
+    const root = await findGitRoot(args.repo ?? process.cwd());
+    const artifacts = await findImportArtifacts(root, importId);
+    if (!artifacts?.review) throw new AtbError('IMPORT_NOT_FOUND', `Review not found for import: ${importId}`);
+    const result = await createFollowUpCapsule({ repoRoot: root, importId, review: artifacts.review });
+    if (artifacts.lifecycle) {
+      await writeLifecycle(root, { ...artifacts.lifecycle, events: [...(artifacts.lifecycle.events ?? []), { state: artifacts.lifecycle.state, at: new Date().toISOString(), continuationOf: result.taskId }] });
+    }
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+  if (command === 'integrate') {
+    const importId = args._[0];
+    if (!importId) throw new AtbError('MISSING_ARGUMENT', 'integrate requires an import ID');
+    const root = await findGitRoot(args.repo ?? process.cwd());
+    const result = await integrateImport({
+      repoRoot: root,
+      importId,
+      mode: args.mode ?? 'branch',
+      branchName: args.branch,
+      confirmed: args.confirm === true,
+    });
+    console.log(JSON.stringify(result, null, 2));
     return;
   }
   throw new AtbError('UNKNOWN_COMMAND', `Unknown command: ${command}`);

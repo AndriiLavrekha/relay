@@ -2,12 +2,12 @@
 
 This directory is a self-contained Codex plugin bundle with `.codex-plugin/plugin.json`, export/import skills, and a generated copy of the deterministic bridge runtime.
 
-## Install the v0.1.0 release
+## Install the v0.2.0 release
 
 Add the public GitHub marketplace pinned to the release tag, then install the plugin:
 
 ```text
-codex plugin marketplace add AndriiLavrekha/task-bridge --ref v0.1.0
+codex plugin marketplace add AndriiLavrekha/task-bridge --ref v0.2.0
 codex plugin add task-bridge@awesome-task-bridge
 ```
 

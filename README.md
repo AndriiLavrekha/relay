@@ -45,17 +45,17 @@ Choose the path that matches your agent:
 
 ### Install the Claude Code plugin
 
-From Claude Code, add the public `v0.1.0` marketplace release and install the plugin:
+From Claude Code, add the public `v0.2.0` marketplace release and install the plugin:
 
 ```text
-/plugin marketplace add AndriiLavrekha/task-bridge@v0.1.0
+/plugin marketplace add AndriiLavrekha/task-bridge@v0.2.0
 /plugin install task-bridge@awesome-task-bridge
 ```
 
 Or use the CLI:
 
 ```bash
-claude plugin marketplace add AndriiLavrekha/task-bridge@v0.1.0
+claude plugin marketplace add AndriiLavrekha/task-bridge@v0.2.0
 claude plugin install task-bridge@awesome-task-bridge
 ```
 
@@ -73,14 +73,14 @@ codex plugin marketplace add /absolute/path/to/agent-task-bridge
 codex plugin add task-bridge@awesome-task-bridge
 ```
 
-For the public GitHub marketplace, pin the first release with `--ref v0.1.0`:
+For the public GitHub marketplace, pin the v0.2.0 release with `--ref v0.2.0`:
 
 ```bash
-codex plugin marketplace add AndriiLavrekha/task-bridge --ref v0.1.0
+codex plugin marketplace add AndriiLavrekha/task-bridge --ref v0.2.0
 codex plugin add task-bridge@awesome-task-bridge
 ```
 
-Start a new Codex session after installation so the plugin and skills reload. See [`plugins/codex/README.md`](plugins/codex/README.md) for workspace-local marketplace details. Release notes: [`v0.1.0`](https://github.com/AndriiLavrekha/task-bridge/releases/tag/v0.1.0).
+Start a new Codex session after installation so the plugin and skills reload. See [`plugins/codex/README.md`](plugins/codex/README.md) for workspace-local marketplace details. Release notes: [`v0.2.0`](https://github.com/AndriiLavrekha/task-bridge/releases/tag/v0.2.0).
 
 ## Upgrade
 
@@ -116,15 +116,16 @@ Start a new Codex session after the update. If prompted, review and trust the up
 
 1. Work normally in Claude Code or Codex.
 2. Invoke the provider's export skill and specify one bounded unit of work.
-3. The bridge writes one Task Capsule Markdown file under `.agent-task-bridge/exports/`.
+3. The bridge writes one Task Capsule Markdown file under the repository task history and generates a kickoff prompt, upload checklist, result contract, and token/file summary beside it. An explicit `--out` path may still be used for a copy.
 4. Upload that file to a fresh ChatGPT conversation and ask for Result Capsule v1 as a ZIP.
 5. Invoke the provider's import skill with the downloaded ZIP.
 6. The bridge validates the archive, task ID, source baseline, paths, scope, and repository drift.
-7. Clean candidates are applied only to an isolated Git worktree; conflicts and out-of-scope files are withheld for review.
-8. Supported Node project scripts run locally in staging.
-9. The coding agent reviews the diff and evidence before choosing whether to integrate it.
+7. Clean candidates are applied only to an isolated, external staging worktree; conflicts and out-of-scope files are withheld for review.
+8. Supported Node project scripts run locally in staging with a scrubbed environment, bounded output, timeouts, and policy-controlled execution.
+9. The coding agent reviews the diff, lifecycle, receipt, drift, validation, privacy, and acceptance evidence before choosing whether to integrate it.
+10. Use `review <import-id>` for the persisted review, `follow-up <import-id>` for unresolved work, and `integrate <import-id> --confirm` for the separate integration boundary.
 
-The same protocol supports Claude Code → ChatGPT → Codex and Codex → ChatGPT → Claude Code because essential state lives in the Task Capsule and local task history, not in a provider's conversation database.
+The same protocol supports Claude Code → ChatGPT → Codex and Codex → ChatGPT → Claude Code because essential state lives in the Task Capsule and local task history, not in a provider's conversation database. A result status (`complete`, `partial`, `blocked`, or `research-only`) is orthogonal to lifecycle staging: safe in-scope files from partial results may still be staged and reviewed, while follow-up work records the unresolved criteria.
 
 ## Usage examples
 
@@ -137,7 +138,7 @@ Every delegation follows the same handoff:
 4. Upload that single .md file to a fresh ChatGPT conversation.
 5. Ask ChatGPT to return one Result Capsule v1 .zip file.
 6. Give the ZIP to the provider's import skill.
-7. Review the isolated staging report and diff before integrating anything.
+7. Review the isolated staging report and diff before integrating anything. The bridge stores an immutable receipt containing the Task Capsule hash, Result Capsule hash, baseline, import ID, and local validation evidence.
 ```
 
 The provider skills create the delegation JSON for you. If you use the CLI directly, the minimum shape looks like this:
@@ -196,6 +197,10 @@ When the ZIP is back, inspect and import it without manually extracting it:
 ```bash
 node bin/agent-task-bridge.mjs inspect-result result.zip
 node bin/agent-task-bridge.mjs import result.zip --repo . --json
+
+# inspect the persisted review and integrate only after explicit confirmation
+node bin/agent-task-bridge.mjs review <import-id> --repo .
+node bin/agent-task-bridge.mjs integrate <import-id> --repo . --mode branch --branch bridge/retry-backoff --confirm
 ```
 
 Check the task ID, source baseline, drift status, withheld files, validation results, staging path, and `activeWorktreeModifiedByImport` before reviewing the staged diff.
@@ -354,6 +359,9 @@ Expected result: report-only findings stay out of the worktree; documentation ca
 - **Safe imports:** reject dangerous archive paths, symlinks, duplicate entries, encryption, unsupported compression, CRC corruption, and undeclared payloads.
 - **Drift awareness:** withhold locally changed, deleted, conflicting, or out-of-scope files instead of silently overwriting them.
 - **Validation trust boundary:** capture validation commands before applying returned files and block validation when package-manager configuration changes in staging.
+- **Privacy boundary:** scan the complete rendered Task Capsule, including metadata and validation context, with block, confirmation, allow, and metadata-only redact policies. Returned files and `REPORT.md` are scanned before staging.
+- **Protocol integrity:** schema 1.1 Result Capsules declare SHA-256 and byte length for every returned file; the importer verifies the raw ZIP entries before decoding.
+- **Evidence boundary:** worker-reported tests, models, token usage, and acceptance claims remain untrusted claims beside local validation and acceptance evidence.
 - **Explicit integration:** imports never modify the active working tree directly.
 
 ## CLI
@@ -423,7 +431,7 @@ Project-specific `.agent-task-bridge` configuration overrides are not implemente
 | [`examples/delegation.example.json`](examples/delegation.example.json) | Example delegation input |
 | [`plugins/claude-code/README.md`](plugins/claude-code/README.md) | Claude Code plugin details |
 | [`plugins/codex/README.md`](plugins/codex/README.md) | Codex plugin and local marketplace details |
-| [`docs/releases/v0.1.0.md`](docs/releases/v0.1.0.md) | First release notes |
+| [`docs/releases/v0.2.0.md`](docs/releases/v0.2.0.md) | v0.2 reliability release notes |
 | [`protocol/`](protocol/) | Task and Result Capsule specifications |
 | [`src/`](src/) | Canonical bridge runtime |
 | [`AGENTS.md`](AGENTS.md) | Repository structure and contribution conventions |

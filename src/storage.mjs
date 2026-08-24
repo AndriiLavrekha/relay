@@ -105,7 +105,7 @@ export async function loadStoredTask(repoRoot, taskId) {
   let text;
   try { text = await readFile(taskPath, 'utf8'); }
   catch { throw new AtbError('TASK_NOT_FOUND', `Stored task not found: ${taskId}`); }
-  return parseTaskCapsule(text);
+  return { ...parseTaskCapsule(text), capsuleText: text };
 }
 
 export async function persistImportReport(repoRoot, { taskId = null, importId, report }) {
@@ -139,4 +139,22 @@ export async function listStoredTasks(repoRoot) {
     } catch {}
   }
   return tasks.sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+}
+
+export async function findImportArtifacts(repoRoot, importId) {
+  await assertSafeStorageRoot(repoRoot);
+  const tasksDir = path.join(atbRoot(repoRoot), 'tasks');
+  let tasks;
+  try { tasks = await readdir(tasksDir, { withFileTypes: true }); }
+  catch { return null; }
+  for (const task of tasks) {
+    if (!task.isDirectory()) continue;
+    const directory = path.join(tasksDir, task.name, 'imports', importId);
+    try {
+      const report = JSON.parse(await readFile(path.join(directory, 'report.json'), 'utf8'));
+      const readJson = async (name) => { try { return JSON.parse(await readFile(path.join(directory, name), 'utf8')); } catch { return null; } };
+      return { taskId: task.name, importId, directory, report, receipt: await readJson('receipt.json'), review: await readJson('review.json'), lifecycle: await readJson('lifecycle.json') };
+    } catch {}
+  }
+  return null;
 }

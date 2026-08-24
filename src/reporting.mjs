@@ -45,3 +45,24 @@ export function formatImportReport(report) {
   else lines.push('', 'Active-tree comparison: unchanged.', 'No changes have been applied to the active worktree.');
   return `${lines.join('\n')}\n`;
 }
+
+export function formatReviewReport(review) {
+  const lines = [
+    'Agent Task Bridge Review',
+    `Task ID: ${review.task?.taskId ?? 'unknown'}`,
+    `Lifecycle: ${review.lifecycle ?? 'unknown'}`,
+    `Result status: ${review.result?.status ?? 'unknown'}`,
+    `Partial review: ${review.partial ? 'YES' : 'NO'}`,
+    '',
+    'Diff stat:',
+    review.diffStat ?? 'No diff available.',
+    '',
+    `Changed files: ${review.changedFiles?.length ?? 0}`,
+  ];
+  for (const file of review.changedFiles ?? []) lines.push(`  ${file.status}: ${file.path}`);
+  lines.push('', `Withheld files: ${review.withheldFiles?.length ?? 0}`);
+  for (const file of review.withheldFiles ?? []) lines.push(`  ${file}`);
+  lines.push('', `Validation: ${review.validation?.blocked ? `blocked (${review.validation.reason ?? 'unknown'})` : review.validation?.passed === true ? 'passed' : 'not fully verified'}`);
+  lines.push(`Acceptance criteria: ${review.acceptance?.overallStatus ?? 'not recorded'}`);
+  return `${lines.join('\n')}\n`;
+}
