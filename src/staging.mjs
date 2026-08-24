@@ -51,13 +51,14 @@ export async function assertOutsideRepository(repoRoot, candidate) {
 }
 
 async function prepareStagingParent(repoRoot, candidate) {
-  const resolvedCandidate = await assertOutsideRepository(repoRoot, candidate);
   try {
+    const resolvedCandidate = await assertOutsideRepository(repoRoot, candidate);
     await mkdir(resolvedCandidate, { recursive: true });
+    return await assertOutsideRepository(repoRoot, resolvedCandidate);
   } catch (error) {
-    throw stagingLocationUnavailable(repoRoot, { candidate: resolvedCandidate, cause: error?.message });
+    if (error?.code === 'UNSAFE_STAGING_LOCATION' || error?.code === 'STAGING_LOCATION_UNAVAILABLE') throw error;
+    throw stagingLocationUnavailable(repoRoot, { candidate, cause: error?.message });
   }
-  return assertOutsideRepository(repoRoot, resolvedCandidate);
 }
 
 async function isSameFilesystem(repoRoot, candidate) {
