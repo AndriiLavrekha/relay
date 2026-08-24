@@ -244,3 +244,15 @@ test('importResult persists an interrupted lifecycle for a pre-aborted signal', 
   assert.equal(report.stagingRoot, null);
   assert.equal(report.cleanup, null);
 });
+
+test('importResult normalizes a reasonless pre-abort to ABORT_ERR', async () => {
+  const { root, task } = await makeRepo();
+  const zip = await resultZip(root, task, [{ path: 'src/a.js', operation: 'modify', content: 'export const a = 2;\n' }]);
+  const controller = new AbortController();
+  controller.abort();
+
+  await assert.rejects(
+    () => importResult({ repoRoot: root, resultPath: zip, signal: controller.signal }),
+    (error) => error.code === 'ABORT_ERR'
+  );
+});

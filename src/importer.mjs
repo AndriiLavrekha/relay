@@ -10,6 +10,7 @@ import { classifyDrift } from './drift.mjs';
 import { createIsolatedStaging, cleanupIsolatedStaging, applyStagedFile, fingerprintActiveTree, isSafeStagingPath } from './staging.mjs';
 import { AtbError } from './errors.mjs';
 import { captureValidationSnapshot, runValidation, validationConfigChanged } from './validation.mjs';
+import { abortReason } from './process.mjs';
 
 async function currentState(repoRoot, repoPath) {
   const full = path.join(repoRoot, ...repoPath.split('/'));
@@ -40,16 +41,16 @@ function activeTreeChanged(before, after) {
   return !isDeepStrictEqual(activeTreeIdentity(before), activeTreeIdentity(after));
 }
 
-function failureMetadata(error) {
-  return { code: interrupted(error) ? 'ABORT_ERR' : error?.code ?? 'IMPORT_FAILED' };
+function failureMetadata(error, signal) {
+  return { code: interrupted(error, signal) ? 'ABORT_ERR' : error?.code ?? 'IMPORT_FAILED' };
 }
 
-function interrupted(error) {
-  return error?.code === 'ABORT_ERR' || error?.name === 'AbortError';
+function interrupted(error, signal) {
+  return signal?.aborted || error?.code === 'ABORT_ERR' || error?.name === 'AbortError';
 }
 
 function throwIfAborted(signal) {
-  if (signal?.aborted) throw signal.reason ?? new AtbError('ABORT_ERR', 'Import interrupted');
+  if (signal?.aborted) throw abortReason(signal, 'Import interrupted');
 }
 
 function setLifecycle(report, lifecycle) {
@@ -185,8 +186,8 @@ export async function importResult({ repoRoot, resultPath, stagingDir, signal } 
       report.stagingRetained = true;
     } catch (error) {
       originalError = error;
-      setLifecycle(report, interrupted(error) ? 'interrupted' : 'failed');
-      report.error = failureMetadata(error);
+      setLifecycle(report, interrupted(error, signal) ? 'interrupted' : 'failed');
+      report.error = failureMetadata(error, signal);
     } finally {
       if (!report.stagingRetained && report.stagingRoot) {
         report.cleanup = await cleanupIsolatedStaging({ repoRoot: root, stagingRoot: report.stagingRoot });
@@ -194,8 +195,8 @@ export async function importResult({ repoRoot, resultPath, stagingDir, signal } 
     }
   } catch (error) {
     originalError = error;
-    setLifecycle(report, interrupted(error) ? 'interrupted' : stagingAttempted || report.stagingRoot ? 'failed' : 'rejected');
-    report.error = failureMetadata(error);
+    setLifecycle(report, interrupted(error, signal) ? 'interrupted' : stagingAttempted || report.stagingRoot ? 'failed' : 'rejected');
+    report.error = failureMetadata(error, signal);
   } finally {
     try {
       if (report.activeTreeBefore) {
@@ -206,7 +207,7 @@ export async function importResult({ repoRoot, resultPath, stagingDir, signal } 
       report.reportPath = await persistImportReport(root, { taskId, importId, report });
     } catch (error) {
       if (!originalError) throw error;
-      originalError.reportPersistenceError = failureMetadata(error);
+      originalError.reportPersistenceError = failureMetadata(error, signal);
     }
   }
   if (originalError) throw originalError;

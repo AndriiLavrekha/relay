@@ -1,6 +1,6 @@
 import { readFile, access } from 'node:fs/promises';
 import path from 'node:path';
-import { runProcess } from './process.mjs';
+import { abortReason, runProcess } from './process.mjs';
 import { AtbError } from './errors.mjs';
 import { sha256Buffer } from './hash.mjs';
 
@@ -9,7 +9,7 @@ const VALIDATION_CONFIG_FILES = ['package.json', 'package-lock.json', 'npm-shrin
 async function exists(file) { try { await access(file); return true; } catch { return false; } }
 
 function throwIfAborted(signal) {
-  if (signal?.aborted) throw signal.reason ?? new AtbError('ABORT_ERR', 'Validation interrupted');
+  if (signal?.aborted) throw abortReason(signal, 'Validation interrupted');
 }
 
 async function packageManager(root, pkg) {
@@ -93,6 +93,7 @@ export async function runValidation(stagingRoot, commands, { signal } = {}) {
         durationMs: Date.now() - started,
       });
     } catch (error) {
+      if (signal?.aborted) throw abortReason(signal, 'Validation interrupted');
       if (error instanceof AtbError && error.code === 'PROCESS_START_FAILED') {
         results.push({ name: spec.name, command: spec.display ?? spec.command, status: 'SKIPPED', exitCode: null, stdout: '', stderr: error.message, durationMs: Date.now() - started });
       } else throw error;

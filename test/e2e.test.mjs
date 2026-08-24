@@ -7,7 +7,6 @@ import { runProcess } from '../src/process.mjs';
 import { exportTask } from '../src/exporter.mjs';
 import { createZip } from '../src/zip.mjs';
 import { importResult } from '../src/importer.mjs';
-import { AtbError } from '../src/errors.mjs';
 
 async function exists(file) { try { await access(file); return true; } catch { return false; } }
 
@@ -212,9 +211,10 @@ test('E2E interrupts validation, cleans staging, and persists active-tree observ
   const controller = new AbortController();
   const importPromise = importResult({ repoRoot: root, resultPath, signal: controller.signal });
   await waitFor(markerPath);
-  controller.abort(new AtbError('ABORT_ERR', 'Test validation cancellation'));
+  const abortReason = new Error('Test validation cancellation');
+  controller.abort(abortReason);
 
-  await assert.rejects(importPromise, (error) => error.code === 'ABORT_ERR');
+  await assert.rejects(importPromise, (error) => error === abortReason);
 
   const importsRoot = path.join(root, '.agent-task-bridge', 'tasks', task.taskId, 'imports');
   const [importId] = await readdir(importsRoot);
