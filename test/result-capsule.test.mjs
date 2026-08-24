@@ -61,3 +61,13 @@ test('inspectResultCapsule supports delete operations without a file payload and
   const bad = await writeResult([{ name: 'manifest.json', data: Buffer.from(JSON.stringify({ ...manifest([]), atb_protocol: '9.9' })) }]);
   await assert.rejects(() => inspectResultCapsule(bad), /protocol|unsupported/i);
 });
+
+test('inspectResultCapsule rejects unsupported operations before import', async () => {
+  const file = await writeResult([
+    { name: 'manifest.json', data: Buffer.from(JSON.stringify(manifest([{ path: 'src/a.js', operation: 'rename' }]))) },
+  ]);
+  await assert.rejects(
+    () => inspectResultCapsule(file),
+    (error) => error.code === 'INVALID_OPERATION_PRECONDITION'
+  );
+});

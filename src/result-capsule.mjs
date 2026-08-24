@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { AtbError } from './errors.mjs';
+import { AtbError, invalidOperationPrecondition } from './errors.mjs';
 import { normalizeRepoPath } from './path-safety.mjs';
 import { readZip } from './zip.mjs';
 
@@ -20,7 +20,7 @@ function validateManifest(value) {
   const files = value.files.map((file) => {
     if (!file || typeof file !== 'object') throw new AtbError('INVALID_RESULT_MANIFEST', 'Result file declaration must be an object');
     const repoPath = normalizeRepoPath(file.path);
-    if (!['create', 'modify', 'delete'].includes(file.operation)) throw new AtbError('INVALID_RESULT_MANIFEST', `Unsupported operation for ${repoPath}: ${file.operation}`);
+    if (!['create', 'modify', 'delete'].includes(file.operation)) throw invalidOperationPrecondition(repoPath, file.operation);
     if (seen.has(repoPath)) throw new AtbError('INVALID_RESULT_MANIFEST', `Duplicate result manifest path: ${repoPath}`);
     seen.add(repoPath);
     return { path: repoPath, operation: file.operation };

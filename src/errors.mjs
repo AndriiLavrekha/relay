@@ -18,3 +18,11 @@ export function stagingLocationUnavailable(repoRoot, details = undefined) {
     details
   );
 }
+
+export function invalidOperationPrecondition(path, operation) {
+  return new AtbError(
+    'INVALID_OPERATION_PRECONDITION',
+    `Unsupported operation for ${path}: ${operation}`,
+    { path, operation }
+  );
+}
