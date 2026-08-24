@@ -177,17 +177,10 @@ test('E2E interrupts validation, cleans staging, and persists active-tree observ
   const markerDir = await mkdtemp(path.join(tmpdir(), 'atb-abort-marker-'));
   const markerPath = path.join(markerDir, 'validation-started');
   t.after(() => rm(markerDir, { force: true, recursive: true }));
-  const previousMarker = process.env.ATB_ABORT_MARKER;
-  process.env.ATB_ABORT_MARKER = markerPath;
-  t.after(() => {
-    if (previousMarker === undefined) delete process.env.ATB_ABORT_MARKER;
-    else process.env.ATB_ABORT_MARKER = previousMarker;
-  });
-
   const packagePath = path.join(root, 'package.json');
   const packageJson = JSON.parse(await readFile(packagePath, 'utf8'));
   packageJson.packageManager = 'node';
-  await writeFile(path.join(root, 'run'), "import { writeFileSync } from 'node:fs';\nwriteFileSync(process.env.ATB_ABORT_MARKER, 'started');\nsetTimeout(() => process.exit(0), 2000);\n");
+  await writeFile(path.join(root, 'run'), `import { writeFileSync } from 'node:fs';\nwriteFileSync(${JSON.stringify(markerPath)}, 'started');\nsetTimeout(() => process.exit(0), 2000);\n`);
   await writeFile(packagePath, JSON.stringify(packageJson, null, 2));
   await runProcess('git', ['add', 'package.json', 'run'], { cwd: root });
   await runProcess('git', ['commit', '-m', 'make validation cancellable'], { cwd: root });

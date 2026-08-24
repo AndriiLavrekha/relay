@@ -76,7 +76,16 @@ function rejectedReport(importId) {
   };
 }
 
-export async function importResult({ repoRoot, resultPath, stagingDir, signal } = {}) {
+export async function importResult({
+  repoRoot,
+  resultPath,
+  stagingDir,
+  signal,
+  validationPolicy = 'safe',
+  validationConfirmed = false,
+  validationTimeoutMs = 120_000,
+  validationMaxOutputBytes = 512_000,
+} = {}) {
   const root = repoRoot ? await findGitRoot(repoRoot) : await findGitRoot(process.cwd());
   const importId = `import_${Date.now().toString(36)}_${crypto.randomBytes(3).toString('hex')}`;
   let report = rejectedReport(importId);
@@ -171,15 +180,31 @@ export async function importResult({ repoRoot, resultPath, stagingDir, signal } 
       report.conflicts = fileReports.filter((file) => !file.appliedToStaging).map((file) => ({ path: file.path, status: file.status }));
       setLifecycle(report, 'staged');
       throwIfAborted(signal);
-      if (await validationConfigChanged(report.stagingRoot, validationSnapshot)) {
+      const configChange = await validationConfigChanged(report.stagingRoot, validationSnapshot);
+      if (configChange.changed) {
         report.validation = {
           passed: null,
           blocked: true,
           reason: 'VALIDATION_CONFIG_CHANGED',
+          paths: configChange.paths,
+          results: [],
+        };
+      } else if (validationPolicy === 'prompt' && !validationConfirmed) {
+        report.validation = {
+          passed: null,
+          blocked: true,
+          reason: 'VALIDATION_CONFIRMATION_REQUIRED',
           results: [],
         };
       } else {
-        report.validation = await runValidation(report.stagingRoot, validationSnapshot.commands, { signal });
+        report.validation = await runValidation(report.stagingRoot, validationSnapshot.commands, {
+          signal,
+          policy: validationPolicy,
+          confirmed: validationConfirmed,
+          timeoutMs: validationTimeoutMs,
+          maxOutputBytes: validationMaxOutputBytes,
+          repoRoot: report.stagingRoot,
+        });
         report.validation.blocked = false;
         const skipped = report.validation.results.find((entry) => entry.status === 'SKIPPED');
         if (skipped) throw new AtbError('VALIDATION_PROCESS_FAILED', `Validation command could not start: ${skipped.name}`);

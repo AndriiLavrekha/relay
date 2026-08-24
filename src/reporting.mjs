@@ -21,7 +21,13 @@ export function formatImportReport(report) {
   if (report.validation?.blocked) lines.push(`  Validation blocked: ${report.validation.reason ?? 'UNSPECIFIED'}.`);
   else if (!report.validation || report.validation.results.length === 0) lines.push('  No validation commands discovered.');
   else {
+    if (report.validation.policy) lines.push(`  Policy: ${report.validation.policy}`);
+    if (report.validation.environment?.removedNames?.length) lines.push(`  Scrubbed environment variables: ${report.validation.environment.removedNames.length}`);
     for (const result of report.validation.results) lines.push(`  ${result.name}: ${result.status}${result.exitCode === null ? '' : ` (exit ${result.exitCode})`}`);
+    for (const result of report.validation.results) {
+      if (result.stdoutTruncated || result.stderrTruncated) lines.push(`  ${result.name}: output truncated`);
+      if (result.timedOut) lines.push(`  ${result.name}: timed out; tree termination ${result.killMethod ?? 'unknown'}`);
+    }
     if (report.validation.partial) lines.push('  Note: validation is partial because one or more returned files were withheld for conflict/scope review.');
   }
   lines.push('', 'Worker claims:');
