@@ -1,12 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, readFile } from 'node:fs/promises';
+import { access, mkdtemp, mkdir, writeFile, readFile, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { runProcess } from '../src/process.mjs';
 import { exportTask } from '../src/exporter.mjs';
 import { createZip } from '../src/zip.mjs';
 import { importResult } from '../src/importer.mjs';
+
+async function exists(file) { try { await access(file); return true; } catch { return false; } }
 
 async function makeRepo() {
   const root = await mkdtemp(path.join(tmpdir(), 'atb-e2e-'));
@@ -120,4 +122,44 @@ test('import blocks validation when returned package configuration changes', asy
   const report = await importResult({ repoRoot: root, resultPath });
   assert.equal(report.validation.blocked, true);
   assert.equal(report.validation.results.length, 0);
+});
+
+test('E2E removes staging and keeps a failed report when validation cannot start', async () => {
+  const root = await makeRepo();
+  const packagePath = path.join(root, 'package.json');
+  const packageJson = JSON.parse(await readFile(packagePath, 'utf8'));
+  packageJson.packageManager = 'atb-missing-manager@1.0.0';
+  await writeFile(packagePath, JSON.stringify(packageJson, null, 2));
+  await runProcess('git', ['add', 'package.json'], { cwd: root });
+  await runProcess('git', ['commit', '-m', 'use unavailable validation manager'], { cwd: root });
+
+  const delegation = path.join(root, 'validation-failure-delegation.json');
+  await writeFile(delegation, JSON.stringify({
+    objective: 'Change value', work_unit: 'Update the value module', work_type: 'code', editable_scope: ['src/**'],
+    acceptance_criteria: ['Validation starts'], files: { editable: ['src/value.js'], reference: [], contract: [], validation: [], configuration: ['package.json'] }
+  }));
+  const task = await exportTask({ repoRoot: root, delegationPath: delegation, sourceAgent: 'codex' });
+  const resultPath = path.join(root, 'validation-failure-result.zip');
+  await writeFile(resultPath, createZip([
+    { name: 'manifest.json', data: Buffer.from(JSON.stringify({
+      atb_protocol: '1.0', capsule_type: 'result', task_id: task.taskId, source_base_commit: task.manifest.project.base_commit,
+      result_type: 'code', summary: 'Change value', files: [{ path: 'src/value.js', operation: 'modify' }],
+      validation: { executed: [], not_executed: [] }, assumptions: [], unresolved: []
+    })) },
+    { name: 'files/src/value.js', data: Buffer.from('export const value = 2;\n') },
+  ]));
+
+  await assert.rejects(
+    () => importResult({ repoRoot: root, resultPath }),
+    (error) => error.code === 'VALIDATION_PROCESS_FAILED'
+  );
+
+  const importsRoot = path.join(root, '.agent-task-bridge', 'tasks', task.taskId, 'imports');
+  const [importId] = await readdir(importsRoot);
+  const report = JSON.parse(await readFile(path.join(importsRoot, importId, 'report.json'), 'utf8'));
+  assert.equal(report.lifecycle, 'failed');
+  assert.equal(report.error.code, 'VALIDATION_PROCESS_FAILED');
+  assert.equal(report.stagingRetained, false);
+  assert.equal(report.cleanup.removed, true);
+  assert.equal(await exists(report.stagingRoot), false);
 });

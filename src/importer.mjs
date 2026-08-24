@@ -3,11 +3,11 @@ import { mkdir, readFile, writeFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { findGitRoot, getGitState } from './repository.mjs';
-import { loadStoredTask, atbRoot } from './storage.mjs';
+import { loadStoredTask, atbRoot, persistImportReport } from './storage.mjs';
 import { inspectResultCapsule } from './result-capsule.mjs';
 import { sha256Buffer } from './hash.mjs';
 import { classifyDrift } from './drift.mjs';
-import { createIsolatedStaging, applyStagedFile, fingerprintActiveTree, isSafeStagingPath } from './staging.mjs';
+import { createIsolatedStaging, cleanupIsolatedStaging, applyStagedFile, fingerprintActiveTree, isSafeStagingPath } from './staging.mjs';
 import { AtbError } from './errors.mjs';
 import { captureValidationSnapshot, runValidation, validationConfigChanged } from './validation.mjs';
 
@@ -40,99 +40,159 @@ function activeTreeChanged(before, after) {
   return !isDeepStrictEqual(activeTreeIdentity(before), activeTreeIdentity(after));
 }
 
-export async function importResult({ repoRoot, resultPath }) {
-  const root = repoRoot ? await findGitRoot(repoRoot) : await findGitRoot(process.cwd());
-  const result = await inspectResultCapsule(path.resolve(resultPath));
-  const task = await loadStoredTask(root, result.manifest.task_id);
-  const taskBase = task.manifest.project?.base_commit;
-  if (result.manifest.source_base_commit !== taskBase) {
-    throw new AtbError('RESULT_BASE_MISMATCH', `Result source base commit does not match stored task baseline (${result.manifest.source_base_commit} != ${taskBase})`);
-  }
-  const baseline = new Map(task.files.map((file) => [file.path, file]));
-  const currentGit = await getGitState(root);
-  const validationSnapshot = await captureValidationSnapshot(root);
-  const fileReports = [];
-  for (const file of result.files) {
-    const current = await currentState(root, file.path);
-    const status = classifyDrift({ path: file.path, operation: file.operation, baseline, current, editableScope: task.delegation.editable_scope ?? [] });
-    fileReports.push({ path: file.path, operation: file.operation, status, current });
-  }
+function failureMetadata(error) {
+  return { code: error?.code ?? 'IMPORT_FAILED' };
+}
 
-  const importId = `import_${Date.now().toString(36)}_${crypto.randomBytes(3).toString('hex')}`;
-  const importRoot = path.join(atbRoot(root), 'tasks', result.manifest.task_id, 'imports', importId);
-  const candidateRoot = path.join(importRoot, 'candidates');
-  const activeTreeBefore = await fingerprintActiveTree(root);
-  const report = {
+function interrupted(error) {
+  return error?.code === 'ABORT_ERR' || error?.name === 'AbortError';
+}
+
+function setLifecycle(report, lifecycle) {
+  report.lifecycle = lifecycle;
+  if (!report.lifecycleHistory.includes(lifecycle)) report.lifecycleHistory.push(lifecycle);
+}
+
+function rejectedReport(importId) {
+  return {
     protocol: '1.0',
-    taskId: result.manifest.task_id,
     importId,
-    sourceAgent: task.manifest.source_agent,
-    sourceBaseCommit: taskBase,
-    currentHead: currentGit.head,
-    repositoryBaseChanged: currentGit.head !== taskBase,
+    lifecycle: 'rejected',
+    lifecycleHistory: ['rejected'],
+    resultStatus: null,
     stagingRoot: null,
-    candidateRoot,
-    resultSummary: result.manifest.summary ?? '',
-    files: fileReports,
-    stagedFiles: [],
-    conflicts: [],
-    validation: null,
+    stagingRetained: false,
+    cleanup: null,
     error: null,
-    activeTreeBefore,
+    activeTreeBefore: null,
     activeTreeAfter: null,
     activeWorktreeModifiedByImport: null,
   };
+}
+
+export async function importResult({ repoRoot, resultPath, stagingDir } = {}) {
+  const root = repoRoot ? await findGitRoot(repoRoot) : await findGitRoot(process.cwd());
+  const importId = `import_${Date.now().toString(36)}_${crypto.randomBytes(3).toString('hex')}`;
+  let report = rejectedReport(importId);
+  let taskId = null;
   let originalError = null;
+  let stagingAttempted = false;
   try {
-    const { stagingRoot } = await createIsolatedStaging(root, result.manifest.task_id, {
-      selectedPaths: task.files.map((file) => file.path),
-    });
-    report.stagingRoot = stagingRoot;
-    await mkdir(candidateRoot, { recursive: true });
-    for (let i = 0; i < result.files.length; i++) {
-      const file = result.files[i];
-      let status = fileReports[i].status;
-      if ((status === 'CLEAN_UNCHANGED' || status === 'NEW_EXPECTED') && !(await isSafeStagingPath(stagingRoot, file.path))) {
-        status = 'UNSAFE_SYMLINK_PATH';
-        fileReports[i].status = status;
+    const result = await inspectResultCapsule(path.resolve(resultPath));
+    const task = await loadStoredTask(root, result.manifest.task_id);
+    taskId = task.manifest.task_id;
+    const taskBase = task.manifest.project?.base_commit;
+    if (result.manifest.source_base_commit !== taskBase) {
+      throw new AtbError('RESULT_BASE_MISMATCH', `Result source base commit does not match stored task baseline (${result.manifest.source_base_commit} != ${taskBase})`);
+    }
+    const baseline = new Map(task.files.map((file) => [file.path, file]));
+    const [currentGit, validationSnapshot] = await Promise.all([
+      getGitState(root),
+      captureValidationSnapshot(root),
+    ]);
+    const fileReports = [];
+    for (const file of result.files) {
+      const current = await currentState(root, file.path);
+      const status = classifyDrift({ path: file.path, operation: file.operation, baseline, current, editableScope: task.delegation.editable_scope ?? [] });
+      fileReports.push({ path: file.path, operation: file.operation, status, current });
+    }
+
+    const candidateRoot = path.join(atbRoot(root), 'tasks', taskId, 'imports', importId, 'candidates');
+    const activeTreeBefore = await fingerprintActiveTree(root);
+    report = {
+      protocol: '1.0',
+      taskId,
+      importId,
+      lifecycle: 'inspected',
+      lifecycleHistory: ['inspected'],
+      resultStatus: result.manifest.status ?? 'legacy',
+      sourceAgent: task.manifest.source_agent,
+      sourceBaseCommit: taskBase,
+      currentHead: currentGit.head,
+      repositoryBaseChanged: currentGit.head !== taskBase,
+      stagingRoot: null,
+      stagingRetained: false,
+      cleanup: null,
+      excludedPaths: [],
+      candidateRoot,
+      resultSummary: result.manifest.summary ?? '',
+      files: fileReports,
+      stagedFiles: [],
+      conflicts: [],
+      validation: null,
+      error: null,
+      activeTreeBefore,
+      activeTreeAfter: null,
+      activeWorktreeModifiedByImport: null,
+    };
+
+    try {
+      stagingAttempted = true;
+      const staging = await createIsolatedStaging(root, taskId, {
+        selectedPaths: task.files.map((file) => file.path),
+        stagingDir,
+      });
+      report.stagingRoot = staging.stagingRoot;
+      report.excludedPaths = staging.excludedWorkingTreePaths;
+      await mkdir(candidateRoot, { recursive: true });
+      for (let i = 0; i < result.files.length; i++) {
+        const file = result.files[i];
+        let status = fileReports[i].status;
+        if ((status === 'CLEAN_UNCHANGED' || status === 'NEW_EXPECTED') && !(await isSafeStagingPath(report.stagingRoot, file.path))) {
+          status = 'UNSAFE_SYMLINK_PATH';
+          fileReports[i].status = status;
+        }
+        if (status === 'CLEAN_UNCHANGED' || status === 'NEW_EXPECTED') {
+          await applyStagedFile(report.stagingRoot, file);
+          report.stagedFiles.push(file.path);
+          fileReports[i].appliedToStaging = true;
+        } else {
+          fileReports[i].candidatePath = await saveCandidate(candidateRoot, file);
+          fileReports[i].appliedToStaging = false;
+        }
       }
-      if (status === 'CLEAN_UNCHANGED' || status === 'NEW_EXPECTED') {
-        await applyStagedFile(stagingRoot, file);
-        report.stagedFiles.push(file.path);
-        fileReports[i].appliedToStaging = true;
+      report.conflicts = fileReports.filter((file) => !file.appliedToStaging).map((file) => ({ path: file.path, status: file.status }));
+      setLifecycle(report, 'staged');
+      if (await validationConfigChanged(report.stagingRoot, validationSnapshot)) {
+        report.validation = {
+          passed: null,
+          blocked: true,
+          reason: 'VALIDATION_CONFIG_CHANGED',
+          results: [],
+        };
       } else {
-        fileReports[i].candidatePath = await saveCandidate(candidateRoot, file);
-        fileReports[i].appliedToStaging = false;
+        report.validation = await runValidation(report.stagingRoot, validationSnapshot.commands);
+        report.validation.blocked = false;
+        const skipped = report.validation.results.find((entry) => entry.status === 'SKIPPED');
+        if (skipped) throw new AtbError('VALIDATION_PROCESS_FAILED', `Validation command could not start: ${skipped.name}`);
+      }
+      report.validation.partial = report.conflicts.length > 0;
+      setLifecycle(report, 'reviewed');
+      report.stagingRetained = true;
+    } catch (error) {
+      originalError = error;
+      setLifecycle(report, interrupted(error) ? 'interrupted' : 'failed');
+      report.error = failureMetadata(error);
+    } finally {
+      if (!report.stagingRetained && report.stagingRoot) {
+        report.cleanup = await cleanupIsolatedStaging({ repoRoot: root, stagingRoot: report.stagingRoot });
       }
     }
-    report.conflicts = fileReports.filter((file) => !file.appliedToStaging).map((file) => ({ path: file.path, status: file.status }));
-    if (await validationConfigChanged(stagingRoot, validationSnapshot)) {
-      report.validation = {
-        passed: null,
-        blocked: true,
-        reason: 'VALIDATION_CONFIG_CHANGED',
-        results: [],
-      };
-    } else {
-      report.validation = await runValidation(stagingRoot, validationSnapshot.commands);
-      report.validation.blocked = false;
-    }
-    report.validation.partial = report.conflicts.length > 0;
   } catch (error) {
     originalError = error;
-    report.error = { code: error?.code ?? 'IMPORT_FAILED', message: error?.message ?? String(error) };
+    setLifecycle(report, stagingAttempted || report.stagingRoot ? (interrupted(error) ? 'interrupted' : 'failed') : 'rejected');
+    report.error = failureMetadata(error);
   } finally {
     try {
-      const activeTreeAfter = await fingerprintActiveTree(root);
-      report.activeTreeAfter = activeTreeAfter;
-      report.activeWorktreeModifiedByImport = activeTreeChanged(activeTreeBefore, activeTreeAfter);
-      await mkdir(importRoot, { recursive: true });
-      const reportPath = path.join(importRoot, 'report.json');
-      report.reportPath = reportPath;
-      await writeFile(reportPath, JSON.stringify(report, null, 2), 'utf8');
+      if (report.activeTreeBefore) {
+        const activeTreeAfter = await fingerprintActiveTree(root);
+        report.activeTreeAfter = activeTreeAfter;
+        report.activeWorktreeModifiedByImport = activeTreeChanged(report.activeTreeBefore, activeTreeAfter);
+      }
+      report.reportPath = await persistImportReport(root, { taskId, importId, report });
     } catch (error) {
       if (!originalError) throw error;
-      originalError.reportPersistenceError = { code: error?.code ?? 'REPORT_PERSIST_FAILED', message: error?.message ?? String(error) };
+      originalError.reportPersistenceError = failureMetadata(error);
     }
   }
   if (originalError) throw originalError;

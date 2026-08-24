@@ -108,6 +108,17 @@ export async function loadStoredTask(repoRoot, taskId) {
   return parseTaskCapsule(text);
 }
 
+export async function persistImportReport(repoRoot, { taskId = null, importId, report }) {
+  await assertSafeStorageRoot(repoRoot);
+  const importRoot = taskId
+    ? path.join(atbRoot(repoRoot), 'tasks', taskId, 'imports', importId)
+    : path.join(atbRoot(repoRoot), 'imports', importId);
+  await mkdir(importRoot, { recursive: true });
+  const reportPath = path.join(importRoot, 'report.json');
+  await writeFile(reportPath, JSON.stringify(report, null, 2), 'utf8');
+  return reportPath;
+}
+
 export async function listStoredTasks(repoRoot) {
   await assertSafeStorageRoot(repoRoot);
   const tasksDir = path.join(atbRoot(repoRoot), 'tasks');

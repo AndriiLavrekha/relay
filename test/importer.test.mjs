@@ -7,8 +7,19 @@ import { runProcess } from '../src/process.mjs';
 import { exportTask } from '../src/exporter.mjs';
 import { createZip } from '../src/zip.mjs';
 import { importResult } from '../src/importer.mjs';
+import { formatImportReport } from '../src/reporting.mjs';
 
 async function exists(file) { try { await access(file); return true; } catch { return false; } }
+
+async function worktreePaths(root) {
+  const { stdout } = await runProcess('git', ['worktree', 'list', '--porcelain'], { cwd: root });
+  return stdout.split(/\r?\n/).filter((line) => line.startsWith('worktree ')).map((line) => line.slice('worktree '.length));
+}
+
+function isInside(parent, candidate) {
+  const relative = path.relative(parent, candidate);
+  return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
+}
 
 async function makeRepo() {
   const root = await mkdtemp(path.join(tmpdir(), 'atb-import-'));
@@ -59,6 +70,7 @@ test('importResult stages clean and expected-new files without mutating the acti
   assert.equal(await readFile(path.join(report.stagingRoot, 'src', 'a.js'), 'utf8'), 'export const a = 2;\n');
   assert.equal(await readFile(path.join(report.stagingRoot, 'src', 'new.js'), 'utf8'), 'export const n = 1;\n');
   assert.equal(report.stagedFiles.length, 2);
+  assert.deepEqual(report.lifecycleHistory, ['inspected', 'staged', 'reviewed']);
 });
 
 test('importResult records observed active-tree invariance before and after staging', async () => {
@@ -135,4 +147,66 @@ test('importResult rejects a result whose source baseline does not match the sto
   const { root, task } = await makeRepo();
   const zip = await resultZip(root, task, [{ path: 'src/a.js', operation: 'modify', content: 'x\n' }], 'b'.repeat(40));
   await assert.rejects(() => importResult({ repoRoot: root, resultPath: zip }), /base|baseline|commit|task/i);
+});
+
+test('importResult records a rejected lifecycle for an invalid result without copying result payload metadata', async () => {
+  const { root } = await makeRepo();
+  const resultPath = path.join(root, 'invalid-result.zip');
+  await writeFile(resultPath, createZip([{ name: 'manifest.json', data: Buffer.from('{ not json') }]));
+
+  await assert.rejects(
+    () => importResult({ repoRoot: root, resultPath }),
+    (error) => error.code === 'INVALID_RESULT_MANIFEST'
+  );
+
+  const rejectedRoot = path.join(root, '.agent-task-bridge', 'imports');
+  const [importId] = await readdir(rejectedRoot);
+  const report = JSON.parse(await readFile(path.join(rejectedRoot, importId, 'report.json'), 'utf8'));
+  assert.equal(report.lifecycle, 'rejected');
+  assert.equal(report.error.code, 'INVALID_RESULT_MANIFEST');
+  assert.equal('resultSummary' in report, false);
+  assert.equal('files' in report, false);
+});
+
+test('importResult records a failed staging-location lifecycle without creating a repository worktree', async () => {
+  const { root, task } = await makeRepo();
+  const zip = await resultZip(root, task, [{ path: 'src/a.js', operation: 'modify', content: 'export const a = 2;\n' }]);
+  const stagingDir = path.join(root, 'unsafe-staging');
+
+  await assert.rejects(
+    () => importResult({ repoRoot: root, resultPath: zip, stagingDir }),
+    (error) => error.code === 'UNSAFE_STAGING_LOCATION'
+  );
+
+  const importsRoot = path.join(root, '.agent-task-bridge', 'tasks', task.taskId, 'imports');
+  const [importId] = await readdir(importsRoot);
+  const report = JSON.parse(await readFile(path.join(importsRoot, importId, 'report.json'), 'utf8'));
+  assert.equal(report.lifecycle, 'failed');
+  assert.equal(report.error.code, 'UNSAFE_STAGING_LOCATION');
+  assert.equal(report.stagingRoot, null);
+  assert.equal((await worktreePaths(root)).filter((worktree) => path.resolve(worktree) !== path.resolve(root) && isInside(root, worktree)).length, 0);
+});
+
+test('formatImportReport describes lifecycle, staging, exclusions, and observed active-tree outcome', () => {
+  const text = formatImportReport({
+    taskId: 'atb_x',
+    lifecycle: 'reviewed',
+    resultStatus: 'legacy',
+    sourceBaseCommit: 'a'.repeat(40),
+    currentHead: 'a'.repeat(40),
+    repositoryBaseChanged: false,
+    stagingRoot: '/tmp/stage',
+    stagingRetained: true,
+    excludedPaths: ['src/missing.js'],
+    files: [],
+    conflicts: [],
+    validation: { passed: true, partial: false, blocked: false, results: [] },
+    activeWorktreeModifiedByImport: false,
+  });
+
+  assert.match(text, /Lifecycle: reviewed/);
+  assert.match(text, /Result status: legacy/);
+  assert.match(text, /Staging outcome: retained/);
+  assert.match(text, /Excluded working-tree paths: 1/);
+  assert.match(text, /Active-tree comparison: unchanged/);
 });
