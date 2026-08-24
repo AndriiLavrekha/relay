@@ -1,8 +1,9 @@
 ---
-checkpoint_at: 2026-08-24T07:31:25Z
+session_id: 01a032db-97ed-78a1-bbac-d490da067a0a
+checkpoint_at: 2026-08-24T08:27:46Z
 worktree_dirty: true
 base_branch: main
-base_commit: b5d0b08b1f4b35b553b9050387597dfc95b62098
+base_commit: 2a7fe736a6f175df16c565720260959d4a055f72
 handoff: clean
 gate_deploy: done
 gate_review: done
@@ -25,7 +26,7 @@ commit_progress: true
 
 ## Resume Snapshot
 
-The four approved readiness issues are fixed. Windows package-manager validation now runs through `cmd.exe`; validation commands and package-manager configuration are snapshotted before returned files are applied, and validation is blocked if that configuration changes; the Node test now honors the declared `>=22` engine; and Codex installation docs include the explicit local marketplace commands. Canonical and generated runtimes are synchronized. Full local verification passes; CI remains intentionally out of scope.
+Readiness fixes remain complete and verified. README.md now presents a centered hero, reader-first quick start, Claude Code/Codex install and upgrade paths, workflow/security summaries, protocol links, and verified development commands. No runtime behavior changed.
 
 ## Current State
 
@@ -37,7 +38,7 @@ Implemented and tested the Windows command resolution, validation trust boundary
 
 ## Next Action
 
-Review the feature/readiness checklist; the verified changes are committed and pushed.
+Review the README diff and decide whether to commit the documentation update.
 
 ## Remaining Work
 
@@ -59,7 +60,7 @@ Review the feature/readiness checklist; the verified changes are committed and p
 
 ## Blockers
 
-None known for the approved scope. Three symlink security tests remain skipped on Windows by design. CI remains intentionally out of scope.
+No blockers. Three symlink security tests remain skipped on Windows by design. CI remains intentionally out of scope.
 
 ## Deployment
 
