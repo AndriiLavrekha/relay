@@ -117,13 +117,13 @@ Every non-delete returned file declaration includes:
 }
 ```
 
-The importer verifies the raw archive payload hash and byte length before decoding or staging. Existing results without these fields remain readable as legacy results but receive a `legacy_integrity` warning and cannot produce an unqualified complete result.
+For each non-delete file, the importer computes SHA-256 and byte length over the raw archive entry at `files/<path>` and compares those values with that file's manifest declaration before UTF-8 decoding or staging. The Result Capsule ZIP itself has no trusted worker-provided reference hash; the receipt records its observed hash for provenance only. Existing results without per-file fields remain readable as legacy results but receive a `legacy_integrity` warning and cannot produce an unqualified complete result.
 
 ## Pillar 1: staging and import safety
 
 ### Staging topology
 
-The default staging directory is outside the repository, under the operating system temporary directory. `.agent-task-bridge` stores task metadata, candidates, reports, receipts, and lifecycle records only; it never stores a duplicate executable repository tree.
+The default staging directory is outside the repository, under the operating system temporary directory when that location is usable. Before creating the worktree, the bridge compares filesystem volume/device identity. If the OS temporary directory is on another Windows drive or otherwise causes a cross-device worktree/copy failure, the bridge falls back to a same-volume directory outside the repository, such as a sibling `.agent-task-bridge-staging` root, or to an explicit user-supplied staging directory. A custom staging directory must be outside the repository and pass the same real-directory/reparse-point checks. If no safe location is available, import fails with an actionable staging-location error rather than silently moving staging back inside the repository. `.agent-task-bridge` stores task metadata, candidates, reports, receipts, and lifecycle records only; it never stores a duplicate executable repository tree.
 
 The staging worktree is created from the current integration `HEAD`, which is recorded separately from the Task Capsule source baseline. This allows the review diff to represent the current integration target while preserving the original baseline for drift analysis.
 
@@ -160,9 +160,11 @@ Import uses a transaction boundary:
 - validation failure before staging: no worktree is retained;
 - staging or process failure: the worktree is removed when possible, and the result/failure record remains recoverable;
 - successful import: the staging worktree remains available for review;
-- interruption: the import is marked interrupted and cleanup is attempted.
+- interruption: the import is marked `interrupted` and cleanup is attempted;
+- structural/privacy rejection: the lifecycle is marked `rejected` and the recoverable record contains no copied sensitive payload;
+- staging or process failure: the lifecycle is marked `failed`, cleanup is attempted, and the result/failure record remains recoverable.
 
-Before import, the bridge records an active-tree fingerprint consisting of the Git status path set and content hashes for active paths, excluding only the bridge metadata root. It records the same fingerprint after import. The safety field is true only when the observed fingerprints match.
+Before import, the bridge records a full Git-visible active-tree fingerprint: the sorted path/type set from tracked files plus non-ignored untracked files, and a content hash and byte length for every such regular file. It excludes the bridge metadata root and ignored files, which are outside the Git-visible worktree policy. The same full fingerprint is computed after import. The safety field is true only when both the path/type set and every recorded file hash/length match. This deliberate full scan provides a strong assertion that import did not mutate any Git-visible active file; a future scoped mode would have to report a weaker guarantee explicitly.
 
 ## Pillar 2: validation hardening
 
@@ -174,7 +176,7 @@ The default validation policy is `safe`:
 - exclude inherited credential, token, cloud, package-manager, and agent variables;
 - apply per-command and total validation timeouts;
 - cap stdout and stderr and mark truncation;
-- terminate the full process tree on timeout or interruption;
+- terminate the full process tree on timeout or interruption; on Windows, launch validation in a tracked process group and use `taskkill.exe /PID <pid> /T /F` for tree termination, while POSIX uses a detached process group and negative-PID signal handling;
 - record command, executable, arguments, working directory, environment policy, exit code, signal, duration, and truncation;
 - continue through all declared validation checks unless the policy explicitly stops on first failure.
 
@@ -239,8 +241,14 @@ The persisted lifecycle is:
 
 ```text
 exported -> result-received -> inspected -> staged -> reviewed -> integrated
-                                      \-> partial/blocked -> follow-up
+                               |             |         |
+                               |             |         +-> follow-up
+                               |             +-> follow-up
+                               +-> rejected
+                               +-> failed/interrupted
 ```
+
+`status` (`complete`, `partial`, `blocked`, or `research-only`) is orthogonal to lifecycle. A partial or worker-blocked result may still pass file-level privacy, integrity, scope, drift, and path checks and therefore proceed through `staged` and `reviewed` with its status and unmet criteria attached. A follow-up may be generated from `inspected`, `staged`, or `reviewed` whenever criteria remain unresolved. `rejected`, `failed`, and `interrupted` are recoverable terminal lifecycle states with receipts; they do not imply that the active worktree was modified.
 
 The v0.2 CLI adds:
 
