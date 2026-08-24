@@ -35,6 +35,7 @@ async function makeRepo() {
   const delegationPath = path.join(root, 'delegation.json');
   await writeFile(delegationPath, JSON.stringify({
     objective: 'Change module a', work_unit: 'Modify a and optionally add modules', work_type: 'code', editable_scope: ['src/**'],
+    acceptance_criteria: ['src/a.js is staged'],
     files: { editable: ['src/a.js'], reference: [], contract: [], validation: [], configuration: ['package.json'] }
   }));
   const task = await exportTask({ repoRoot: root, delegationPath, sourceAgent: 'claude-code' });
@@ -71,6 +72,7 @@ test('importResult stages clean and expected-new files without mutating the acti
   assert.equal(await readFile(path.join(report.stagingRoot, 'src', 'a.js'), 'utf8'), 'export const a = 2;\n');
   assert.equal(await readFile(path.join(report.stagingRoot, 'src', 'new.js'), 'utf8'), 'export const n = 1;\n');
   assert.equal(report.stagedFiles.length, 2);
+  assert.equal(report.acceptance.criteria[0].status, 'verified');
   assert.deepEqual(report.lifecycleHistory, ['inspected', 'staged', 'reviewed']);
 });
 
@@ -202,6 +204,10 @@ test('formatImportReport describes lifecycle, staging, exclusions, and observed 
     files: [],
     conflicts: [],
     validation: { passed: true, partial: false, blocked: false, results: [] },
+    acceptance: {
+      criteria: [{ id: 'criterion-1', text: 'src/a.js is staged', workerClaim: 'worker claim', localEvidence: ['Bridge staged returned file src/a.js.'], status: 'verified' }],
+      overallStatus: 'verified',
+    },
     activeWorktreeModifiedByImport: false,
   });
 
@@ -210,6 +216,9 @@ test('formatImportReport describes lifecycle, staging, exclusions, and observed 
   assert.match(text, /Staging outcome: retained/);
   assert.match(text, /Excluded working-tree paths: 1/);
   assert.match(text, /Active-tree comparison: unchanged/);
+  assert.match(text, /Worker claims:/);
+  assert.match(text, /Acceptance criteria:/);
+  assert.match(text, /criterion-1: VERIFIED/);
 });
 
 test('formatImportReport does not claim an unobserved active worktree is clean', () => {

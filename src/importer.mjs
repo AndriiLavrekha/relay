@@ -11,6 +11,7 @@ import { createIsolatedStaging, cleanupIsolatedStaging, applyStagedFile, fingerp
 import { AtbError } from './errors.mjs';
 import { captureValidationSnapshot, runValidation, validationConfigChanged } from './validation.mjs';
 import { abortReason } from './process.mjs';
+import { buildAcceptanceEvidence } from './evidence.mjs';
 
 async function currentState(repoRoot, repoPath) {
   const full = path.join(repoRoot, ...repoPath.split('/'));
@@ -80,13 +81,15 @@ export async function importResult({ repoRoot, resultPath, stagingDir, signal } 
   const importId = `import_${Date.now().toString(36)}_${crypto.randomBytes(3).toString('hex')}`;
   let report = rejectedReport(importId);
   let taskId = null;
+  let task = null;
+  let result = null;
   let originalError = null;
   let stagingAttempted = false;
   try {
     throwIfAborted(signal);
-    const result = await inspectResultCapsule(path.resolve(resultPath));
+    result = await inspectResultCapsule(path.resolve(resultPath));
     throwIfAborted(signal);
-    const task = await loadStoredTask(root, result.manifest.task_id);
+    task = await loadStoredTask(root, result.manifest.task_id);
     throwIfAborted(signal);
     taskId = task.manifest.task_id;
     const taskBase = task.manifest.project?.base_commit;
@@ -134,6 +137,7 @@ export async function importResult({ repoRoot, resultPath, stagingDir, signal } 
       activeTreeBefore,
       activeTreeAfter: null,
       activeWorktreeModifiedByImport: null,
+      acceptance: null,
     };
 
     try {
@@ -204,6 +208,7 @@ export async function importResult({ repoRoot, resultPath, stagingDir, signal } 
         report.activeTreeAfter = activeTreeAfter;
         report.activeWorktreeModifiedByImport = activeTreeChanged(report.activeTreeBefore, activeTreeAfter);
       }
+      if (task && result && report) report.acceptance = buildAcceptanceEvidence(task, result, report);
       report.reportPath = await persistImportReport(root, { taskId, importId, report });
     } catch (error) {
       if (!originalError) throw error;

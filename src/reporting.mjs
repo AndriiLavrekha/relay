@@ -24,6 +24,16 @@ export function formatImportReport(report) {
     for (const result of report.validation.results) lines.push(`  ${result.name}: ${result.status}${result.exitCode === null ? '' : ` (exit ${result.exitCode})`}`);
     if (report.validation.partial) lines.push('  Note: validation is partial because one or more returned files were withheld for conflict/scope review.');
   }
+  lines.push('', 'Worker claims:');
+  const criteria = report.acceptance?.criteria ?? [];
+  if (criteria.length === 0) lines.push('  No acceptance criteria were recorded.');
+  else for (const criterion of criteria) lines.push(`  ${criterion.id}: ${criterion.workerClaim ?? 'none'}`);
+  lines.push('', 'Local evidence:');
+  if (criteria.length === 0) lines.push('  No local acceptance evidence was derived.');
+  else for (const criterion of criteria) for (const evidence of criterion.localEvidence ?? []) lines.push(`  ${criterion.id}: ${evidence}`);
+  lines.push('', 'Acceptance criteria:');
+  if (criteria.length === 0) lines.push('  No acceptance criteria were recorded.');
+  else for (const criterion of criteria) lines.push(`  ${criterion.id}: ${criterion.status.toUpperCase()} — ${criterion.text}`);
   if (report.activeWorktreeModifiedByImport === null || report.activeWorktreeModifiedByImport === undefined) lines.push('', 'Active-tree comparison: not observed.');
   else if (report.activeWorktreeModifiedByImport) lines.push('', 'Active-tree comparison: changed.', 'WARNING: active worktree was modified.');
   else lines.push('', 'Active-tree comparison: unchanged.', 'No changes have been applied to the active worktree.');
