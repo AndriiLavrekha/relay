@@ -1,12 +1,93 @@
 import crypto from 'node:crypto';
-import { mkdir, rm, copyFile, lstat, readlink, symlink, unlink } from 'node:fs/promises';
+import { mkdir, rm, copyFile, lstat, readlink, stat, symlink, unlink } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { runProcess } from './process.mjs';
 import { atbRoot, ensureLocalStorageIgnored } from './storage.mjs';
 import { getGitState } from './repository.mjs';
+import { stagingLocationUnavailable, unsafeStagingLocation } from './errors.mjs';
 
 async function existsInfo(file) {
   try { return await lstat(file); } catch { return null; }
+}
+
+function isPathInside(parent, candidate) {
+  const relative = path.relative(parent, candidate);
+  return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
+}
+
+async function assertRealDirectoryPath(candidate) {
+  const resolvedCandidate = path.resolve(candidate);
+  const parsed = path.parse(resolvedCandidate);
+  const relative = path.relative(parsed.root, resolvedCandidate);
+  const segments = relative ? relative.split(path.sep) : [];
+  let current = parsed.root;
+
+  for (const segment of segments) {
+    current = path.join(current, segment);
+    let info;
+    try { info = await lstat(current); }
+    catch (error) {
+      if (error?.code === 'ENOENT') return resolvedCandidate;
+      throw error;
+    }
+    if (info.isSymbolicLink() || !info.isDirectory()) {
+      throw unsafeStagingLocation(`Staging directory must be a real directory, not a file, symlink, junction, or reparse point: ${current}`);
+    }
+  }
+  return resolvedCandidate;
+}
+
+export async function assertOutsideRepository(repoRoot, candidate) {
+  if (typeof candidate !== 'string' || !candidate.trim()) {
+    throw unsafeStagingLocation('Staging directory must be a non-empty path outside the repository');
+  }
+  const resolvedRepoRoot = path.resolve(repoRoot);
+  const resolvedCandidate = path.resolve(candidate);
+  if (isPathInside(resolvedRepoRoot, resolvedCandidate)) {
+    throw unsafeStagingLocation(`Staging directory must be outside the repository: ${resolvedCandidate}`);
+  }
+  return assertRealDirectoryPath(resolvedCandidate);
+}
+
+async function prepareStagingParent(repoRoot, candidate) {
+  const resolvedCandidate = await assertOutsideRepository(repoRoot, candidate);
+  try {
+    await mkdir(resolvedCandidate, { recursive: true });
+  } catch (error) {
+    throw stagingLocationUnavailable(repoRoot, { candidate: resolvedCandidate, cause: error?.message });
+  }
+  return assertOutsideRepository(repoRoot, resolvedCandidate);
+}
+
+async function isSameFilesystem(repoRoot, candidate) {
+  if (process.platform === 'win32') {
+    return path.parse(path.resolve(repoRoot)).root.toLowerCase() === path.parse(path.resolve(candidate)).root.toLowerCase();
+  }
+  const [repoInfo, candidateInfo] = await Promise.all([stat(repoRoot), stat(candidate)]);
+  return repoInfo.dev === candidateInfo.dev;
+}
+
+export async function resolveStagingParent(repoRoot, requestedDir = undefined) {
+  if (requestedDir !== undefined) {
+    const parent = await prepareStagingParent(repoRoot, requestedDir);
+    return { parent, source: 'explicit' };
+  }
+
+  try {
+    const parent = await prepareStagingParent(repoRoot, tmpdir());
+    if (await isSameFilesystem(repoRoot, parent)) return { parent, source: 'temp' };
+  } catch {}
+
+  const fallback = path.join(path.dirname(path.resolve(repoRoot)), '.agent-task-bridge-staging');
+  try {
+    const parent = await prepareStagingParent(repoRoot, fallback);
+    if (await isSameFilesystem(repoRoot, parent)) return { parent, source: 'same-volume-fallback' };
+  } catch (error) {
+    if (error?.code === 'UNSAFE_STAGING_LOCATION') throw error;
+  }
+
+  throw stagingLocationUnavailable(repoRoot);
 }
 
 async function copyWorkingPath(sourceRoot, stagingRoot, repoPath) {
