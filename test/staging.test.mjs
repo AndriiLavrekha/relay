@@ -7,13 +7,16 @@ import { runProcess } from '../src/process.mjs';
 import { assertOutsideRepository, resolveStagingParent } from '../src/staging.mjs';
 
 async function makeTempDir(t, prefix) {
-  const root = await mkdtemp(path.join(tmpdir(), prefix));
+  return makeTempDirAt(t, tmpdir(), prefix);
+}
+
+async function makeTempDirAt(t, parent, prefix) {
+  const root = await mkdtemp(path.join(parent, prefix));
   t.after(() => rm(root, { force: true, recursive: true }));
   return root;
 }
 
-async function makeRepo(t) {
-  const root = await makeTempDir(t, 'atb-staging-repo-');
+async function initializeRepo(root) {
   await runProcess('git', ['init', '-b', 'main'], { cwd: root });
   await runProcess('git', ['config', 'user.email', 'test@example.invalid'], { cwd: root });
   await runProcess('git', ['config', 'user.name', 'ATB Staging Test'], { cwd: root });
@@ -21,6 +24,10 @@ async function makeRepo(t) {
   await runProcess('git', ['add', 'README.md'], { cwd: root });
   await runProcess('git', ['commit', '-m', 'initial'], { cwd: root });
   return root;
+}
+
+async function makeRepo(t) {
+  return initializeRepo(await makeTempDir(t, 'atb-staging-repo-'));
 }
 
 function isPathInside(parent, candidate) {
@@ -83,6 +90,30 @@ test('assertOutsideRepository rejects a physical repository child through a repo
     () => assertOutsideRepository(alias, path.join(repo, 'physical-staging')),
     (error) => error.code === 'UNSAFE_STAGING_LOCATION'
   );
+});
+
+test('resolveStagingParent uses the physical repository drive through a Windows junction alias', { skip: process.platform !== 'win32' }, async (t) => {
+  const physicalDrive = path.parse(process.cwd()).root;
+  const aliasDrive = path.parse(tmpdir()).root;
+  if (physicalDrive.toLowerCase() === aliasDrive.toLowerCase()) {
+    t.skip(`Distinct-drive fixture unavailable: repository and temporary directory both use ${physicalDrive}`);
+    return;
+  }
+  const physicalFixture = await makeTempDirAt(t, process.cwd(), '.atb-staging-drive-');
+  const repo = path.join(physicalFixture, 'repo');
+  await mkdir(repo);
+  await initializeRepo(repo);
+  const alias = path.join(await makeTempDir(t, 'atb-staging-drive-alias-'), 'repo-alias');
+  try {
+    await symlink(repo, alias, 'junction');
+  } catch (error) {
+    t.skip(`Windows cannot create a cross-drive repository junction fixture: ${error.message}`);
+    return;
+  }
+  const result = await resolveStagingParent(alias);
+  assert.equal(result.source, 'same-volume-fallback');
+  assert.equal(path.parse(result.parent).root.toLowerCase(), physicalDrive.toLowerCase());
+  assert.equal(result.parent, path.join(physicalFixture, '.agent-task-bridge-staging'));
 });
 
 test('assertOutsideRepository rejects a symbolic-link staging parent', { skip: process.platform === 'win32' }, async (t) => {

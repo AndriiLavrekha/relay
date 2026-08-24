@@ -89,25 +89,26 @@ async function isSameFilesystem(repoRoot, candidate) {
 }
 
 export async function resolveStagingParent(repoRoot, requestedDir = undefined) {
+  const stagingRepoRoot = process.platform === 'win32' ? await realpath(repoRoot) : repoRoot;
   if (requestedDir !== undefined) {
-    const parent = await prepareStagingParent(repoRoot, requestedDir);
+    const parent = await prepareStagingParent(stagingRepoRoot, requestedDir);
     return { parent, source: 'explicit' };
   }
 
   try {
-    const parent = await prepareStagingParent(repoRoot, tmpdir());
-    if (await isSameFilesystem(repoRoot, parent)) return { parent, source: 'temp' };
+    const parent = await prepareStagingParent(stagingRepoRoot, tmpdir());
+    if (await isSameFilesystem(stagingRepoRoot, parent)) return { parent, source: 'temp' };
   } catch {}
 
-  const fallback = path.join(path.dirname(path.resolve(repoRoot)), '.agent-task-bridge-staging');
+  const fallback = path.join(path.dirname(stagingRepoRoot), '.agent-task-bridge-staging');
   try {
-    const parent = await prepareStagingParent(repoRoot, fallback);
-    if (await isSameFilesystem(repoRoot, parent)) return { parent, source: 'same-volume-fallback' };
+    const parent = await prepareStagingParent(stagingRepoRoot, fallback);
+    if (await isSameFilesystem(stagingRepoRoot, parent)) return { parent, source: 'same-volume-fallback' };
   } catch (error) {
     if (error?.code === 'UNSAFE_STAGING_LOCATION') throw error;
   }
 
-  throw stagingLocationUnavailable(repoRoot);
+  throw stagingLocationUnavailable(stagingRepoRoot);
 }
 
 async function copyWorkingPath(sourceRoot, stagingRoot, repoPath) {
