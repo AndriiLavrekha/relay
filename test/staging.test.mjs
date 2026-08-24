@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { lstat, mkdir, mkdtemp, readFile, rm, symlink, unlink, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, mkdtemp, readFile, readdir, rm, symlink, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { runProcess } from '../src/process.mjs';
@@ -154,6 +154,121 @@ test('copySelectedWorkingPaths copies regular files byte-for-byte', async (t) =>
   assert.deepEqual(result, { copied: ['assets/binary.bin'], excluded: [], reparsePoints: [] });
 });
 
+test('copySelectedWorkingPaths rejects traversal before it reaches staging', async (t) => {
+  const root = await makeRepo(t);
+  const stagingRoot = await makeTempDir(t, 'atb-copy-staging-');
+  const marker = path.join(path.dirname(stagingRoot), 'outside.txt');
+  await writeFile(marker, 'keep\n');
+
+  await assert.rejects(
+    () => copySelectedWorkingPaths(root, stagingRoot, ['../outside.txt']),
+    (error) => error.code === 'UNSAFE_PATH'
+  );
+  assert.equal(await readFile(marker, 'utf8'), 'keep\n');
+});
+
+test('copySelectedWorkingPaths rejects absolute selected paths', async (t) => {
+  const root = await makeRepo(t);
+  const stagingRoot = await makeTempDir(t, 'atb-copy-staging-');
+
+  await assert.rejects(
+    () => copySelectedWorkingPaths(root, stagingRoot, [path.join(path.dirname(root), 'outside.txt')]),
+    (error) => error.code === 'UNSAFE_PATH'
+  );
+});
+
+test('copySelectedWorkingPaths rejects a selected source path beneath a reparse ancestor', async (t) => {
+  const root = await makeRepo(t);
+  const external = await makeTempDir(t, 'atb-external-source-');
+  await writeFile(path.join(external, 'outside.txt'), 'outside\n');
+  try {
+    await symlink(external, path.join(root, 'linked'), process.platform === 'win32' ? 'junction' : 'dir');
+  } catch (error) {
+    t.skip(`Platform cannot create a reparse-point fixture: ${error.message}`);
+    return;
+  }
+  const stagingRoot = await makeTempDir(t, 'atb-copy-staging-');
+
+  await assert.rejects(
+    () => copySelectedWorkingPaths(root, stagingRoot, ['linked/outside.txt']),
+    (error) => error.code === 'UNSAFE_WORKING_TREE_PATH'
+  );
+  assert.equal(await exists(path.join(stagingRoot, 'linked', 'outside.txt')), false);
+});
+
+test('copySelectedWorkingPaths rejects a selected target path beneath a reparse ancestor', async (t) => {
+  const root = await makeRepo(t);
+  await mkdir(path.join(root, 'src'));
+  await writeFile(path.join(root, 'src', 'inside.txt'), 'inside\n');
+  const stagingRoot = await makeTempDir(t, 'atb-copy-staging-');
+  const external = await makeTempDir(t, 'atb-external-target-');
+  try {
+    await symlink(external, path.join(stagingRoot, 'src'), process.platform === 'win32' ? 'junction' : 'dir');
+  } catch (error) {
+    t.skip(`Platform cannot create a reparse-point fixture: ${error.message}`);
+    return;
+  }
+
+  await assert.rejects(
+    () => copySelectedWorkingPaths(root, stagingRoot, ['src/inside.txt']),
+    (error) => error.code === 'UNSAFE_WORKING_TREE_PATH'
+  );
+  assert.equal(await exists(path.join(external, 'inside.txt')), false);
+});
+
+test('copySelectedWorkingPaths does not treat non-ENOENT filesystem errors as selected deletions', async (t) => {
+  const stagingRoot = await makeTempDir(t, 'atb-copy-staging-');
+  const marker = path.join(stagingRoot, 'selected.txt');
+  await writeFile(marker, 'keep\n');
+
+  await assert.rejects(
+    () => copySelectedWorkingPaths('\0', stagingRoot, ['selected.txt']),
+    (error) => error.code === 'ERR_INVALID_ARG_VALUE'
+  );
+  assert.equal(await readFile(marker, 'utf8'), 'keep\n');
+});
+
+test('createIsolatedStaging removes its worktree when selected reconstruction fails', async (t) => {
+  const root = await makeRepo(t);
+  const stagingDir = await makeTempDir(t, 'atb-external-staging-');
+  const external = await makeTempDir(t, 'atb-external-source-');
+  await writeFile(path.join(external, 'outside.txt'), 'outside\n');
+  try {
+    await symlink(external, path.join(root, 'linked'), process.platform === 'win32' ? 'junction' : 'dir');
+  } catch (error) {
+    t.skip(`Platform cannot create a reparse-point fixture: ${error.message}`);
+    return;
+  }
+
+  try {
+    await assert.rejects(
+      () => createIsolatedStaging(root, 'atb_rollback', { selectedPaths: ['linked/outside.txt'], stagingDir }),
+      (error) => error.code === 'UNSAFE_WORKING_TREE_PATH'
+    );
+    assert.deepEqual(await readdir(stagingDir), []);
+  } finally {
+    for (const entry of await readdir(stagingDir)) {
+      await runProcess('git', ['worktree', 'remove', '--force', path.join(stagingDir, entry)], { cwd: root, allowFailure: true });
+    }
+  }
+});
+
+test('createIsolatedStaging validates selected paths before registering a worktree', async (t) => {
+  const root = await makeRepo(t);
+  const stagingDir = await makeTempDir(t, 'atb-external-staging-');
+  try {
+    await assert.rejects(
+      () => createIsolatedStaging(root, 'atb_invalid_path', { selectedPaths: ['../outside.txt'], stagingDir }),
+      (error) => error.code === 'UNSAFE_PATH'
+    );
+    assert.deepEqual(await readdir(stagingDir), []);
+  } finally {
+    for (const entry of await readdir(stagingDir)) {
+      await runProcess('git', ['worktree', 'remove', '--force', path.join(stagingDir, entry)], { cwd: root, allowFailure: true });
+    }
+  }
+});
+
 test('cleanupIsolatedStaging removes the registered external worktree', async (t) => {
   const root = await makeRepo(t);
   const stagingDir = await makeTempDir(t, 'atb-external-staging-');
@@ -173,6 +288,20 @@ test('cleanupIsolatedStaging leaves an unregistered directory intact', async (t)
   assert.equal(result.removed, false);
   assert.equal(result.errors.length, 1);
   assert.equal(await exists(marker), true);
+});
+
+test('cleanupIsolatedStaging preserves an unrelated registered external worktree', async (t) => {
+  const root = await makeRepo(t);
+  const externalParent = await makeTempDir(t, 'atb-unrelated-worktree-');
+  const stagingRoot = path.join(externalParent, 'unrelated');
+  await runProcess('git', ['worktree', 'add', '--detach', stagingRoot, 'HEAD'], { cwd: root });
+  try {
+    const result = await cleanupIsolatedStaging({ repoRoot: root, stagingRoot });
+    assert.equal(result.removed, false);
+    assert.equal(await exists(path.join(stagingRoot, 'README.md')), true);
+  } finally {
+    await runProcess('git', ['worktree', 'remove', '--force', stagingRoot], { cwd: root, allowFailure: true });
+  }
 });
 
 test('cleanupIsolatedStaging rejects a staging path inside the repository', async (t) => {

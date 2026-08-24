@@ -3,9 +3,16 @@ import { mkdir, rm, copyFile, lstat, realpath, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { runProcess } from './process.mjs';
-import { ensureLocalStorageIgnored, removeIsolatedStagingWorktree } from './storage.mjs';
+import {
+  ensureLocalStorageIgnored,
+  loadIsolatedStagingOwnership,
+  registerIsolatedStagingWorktree,
+  removeIsolatedStagingOwnership,
+  removeIsolatedStagingWorktree,
+} from './storage.mjs';
 import { getGitState } from './repository.mjs';
 import { AtbError, stagingLocationUnavailable, unsafeStagingLocation } from './errors.mjs';
+import { normalizeRepoPath } from './path-safety.mjs';
 
 async function existsInfo(file) {
   try { return await lstat(file); } catch { return null; }
@@ -117,29 +124,56 @@ export async function resolveStagingParent(repoRoot, requestedDir = undefined) {
 }
 
 export async function copySelectedWorkingPaths(sourceRoot, stagingRoot, selectedPaths) {
+  if (!Array.isArray(selectedPaths)) throw new AtbError('UNSAFE_PATH', 'Selected working-tree paths must be an array');
   const copied = [];
   const excluded = [];
   const reparsePoints = [];
-  for (const repoPath of selectedPaths) {
+  for (const selectedPath of selectedPaths) {
+    const repoPath = normalizeRepoPath(selectedPath);
     const source = path.join(sourceRoot, ...repoPath.split('/'));
     const target = path.join(stagingRoot, ...repoPath.split('/'));
-    const info = await existsInfo(source);
-    if (!info) {
+    const [sourceInfo] = await Promise.all([
+      inspectWorkingPath(sourceRoot, repoPath),
+      inspectWorkingPath(stagingRoot, repoPath),
+    ]);
+    if (!sourceInfo) {
       await rm(target, { force: true, recursive: true });
       excluded.push(repoPath);
       continue;
     }
-    if (info.isSymbolicLink()) {
-      reparsePoints.push(repoPath);
-      throw new AtbError('UNSAFE_WORKING_TREE_PATH', `Cannot reconstruct symbolic-link or reparse-point path: ${repoPath}`, { reparsePoints });
-    }
     await mkdir(path.dirname(target), { recursive: true });
-    if (info.isFile()) {
+    if (sourceInfo.isFile()) {
       await copyFile(source, target);
       copied.push(repoPath);
     }
   }
   return { copied, excluded, reparsePoints };
+}
+
+async function inspectWorkingPath(root, repoPath) {
+  let rootInfo;
+  try { rootInfo = await lstat(root); }
+  catch (error) {
+    if (error?.code === 'ENOENT') return null;
+    throw error;
+  }
+  if (rootInfo.isSymbolicLink() || !rootInfo.isDirectory()) {
+    throw new AtbError('UNSAFE_WORKING_TREE_PATH', `Working-tree root must be a real directory: ${root}`);
+  }
+  let current = root;
+  let info;
+  for (const segment of repoPath.split('/')) {
+    current = path.join(current, segment);
+    try { info = await lstat(current); }
+    catch (error) {
+      if (error?.code === 'ENOENT') return null;
+      throw error;
+    }
+    if (info.isSymbolicLink()) {
+      throw new AtbError('UNSAFE_WORKING_TREE_PATH', `Cannot reconstruct symbolic-link or reparse-point path: ${repoPath}`);
+    }
+  }
+  return info;
 }
 
 export async function isSafeStagingPath(stagingRoot, repoPath) {
@@ -156,6 +190,8 @@ export async function isSafeStagingPath(stagingRoot, repoPath) {
 }
 
 export async function createIsolatedStaging(repoRoot, taskId, { selectedPaths = [], stagingDir, targetHead } = {}) {
+  if (!Array.isArray(selectedPaths)) throw new AtbError('UNSAFE_PATH', 'Selected working-tree paths must be an array');
+  const normalizedSelectedPaths = selectedPaths.map(normalizeRepoPath);
   await ensureLocalStorageIgnored(repoRoot);
   const git = await getGitState(repoRoot);
   const { parent: stagingParent } = await resolveStagingParent(repoRoot, stagingDir);
@@ -163,14 +199,35 @@ export async function createIsolatedStaging(repoRoot, taskId, { selectedPaths = 
   const stagingRoot = path.join(stagingParent, `${taskId}-${Date.now().toString(36)}-${crypto.randomBytes(3).toString('hex')}`);
   await runProcess('git', ['worktree', 'add', '--detach', stagingRoot, targetHead ?? git.head], { cwd: repoRoot });
 
-  const reconstruction = await copySelectedWorkingPaths(repoRoot, stagingRoot, selectedPaths);
-  return { stagingRoot, git, excludedWorkingTreePaths: reconstruction.excluded, reparsePoints: reconstruction.reparsePoints };
+  let registered = false;
+  try {
+    await registerIsolatedStagingWorktree(repoRoot, stagingRoot, stagingParent);
+    registered = true;
+    const reconstruction = await copySelectedWorkingPaths(repoRoot, stagingRoot, normalizedSelectedPaths);
+    return { stagingRoot, git, excludedWorkingTreePaths: reconstruction.excluded, reparsePoints: reconstruction.reparsePoints };
+  } catch (error) {
+    if (registered) await cleanupIsolatedStaging({ repoRoot, stagingRoot });
+    else await removeIsolatedStagingWorktree(repoRoot, stagingRoot).catch(() => {});
+    throw error;
+  }
 }
 
 export async function cleanupIsolatedStaging({ repoRoot, stagingRoot }) {
   try {
     const validatedStagingRoot = await assertOutsideRepository(repoRoot, stagingRoot);
+    const ownership = await loadIsolatedStagingOwnership(repoRoot, validatedStagingRoot);
+    const validatedStagingParent = ownership?.stagingParent
+      ? await assertOutsideRepository(repoRoot, ownership.stagingParent)
+      : null;
+    const canonicalRepoRoot = await realpath(repoRoot);
+    if (!ownership
+      || ownership.repoRoot !== canonicalRepoRoot
+      || ownership.stagingRoot !== validatedStagingRoot
+      || path.dirname(validatedStagingRoot) !== validatedStagingParent) {
+      throw unsafeStagingLocation(`Staging worktree is not registered within the trusted ownership boundary: ${validatedStagingRoot}`);
+    }
     await removeIsolatedStagingWorktree(repoRoot, validatedStagingRoot);
+    await removeIsolatedStagingOwnership(ownership.ownershipPath);
     return { removed: true, errors: [] };
   } catch (error) {
     return { removed: false, errors: [{ code: error?.code ?? 'STAGING_CLEANUP_FAILED', message: error?.message ?? String(error) }] };

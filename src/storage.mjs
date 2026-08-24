@@ -1,4 +1,5 @@
-import { lstat, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import crypto from 'node:crypto';
+import { lstat, mkdir, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { runProcess } from './process.mjs';
 import { AtbError } from './errors.mjs';
@@ -40,6 +41,49 @@ export async function ensureLocalStorageIgnored(repoRoot) {
 export async function removeIsolatedStagingWorktree(repoRoot, stagingRoot) {
   await runProcess('git', ['worktree', 'remove', '--force', stagingRoot], { cwd: repoRoot });
   await rm(stagingRoot, { force: true, recursive: true });
+}
+
+function stagingOwnershipPath(repoRoot, stagingRoot) {
+  const key = crypto.createHash('sha256').update(stagingRoot).digest('hex');
+  return path.join(atbRoot(repoRoot), 'staging-ownership', `${key}.json`);
+}
+
+export async function registerIsolatedStagingWorktree(repoRoot, stagingRoot, stagingParent) {
+  const [canonicalRepoRoot, canonicalStagingRoot, canonicalStagingParent] = await Promise.all([
+    realpath(repoRoot),
+    realpath(stagingRoot),
+    realpath(stagingParent),
+  ]);
+  if (path.dirname(canonicalStagingRoot) !== canonicalStagingParent) {
+    throw new AtbError('UNSAFE_STAGING_LOCATION', `Staging worktree is not directly contained by its staging parent: ${canonicalStagingRoot}`);
+  }
+  await assertSafeStorageRoot(canonicalRepoRoot);
+  const ownershipPath = stagingOwnershipPath(canonicalRepoRoot, canonicalStagingRoot);
+  await mkdir(path.dirname(ownershipPath), { recursive: true });
+  await writeFile(ownershipPath, JSON.stringify({
+    repoRoot: canonicalRepoRoot,
+    stagingRoot: canonicalStagingRoot,
+    stagingParent: canonicalStagingParent,
+  }), 'utf8');
+  return ownershipPath;
+}
+
+export async function loadIsolatedStagingOwnership(repoRoot, stagingRoot) {
+  const canonicalRepoRoot = await realpath(repoRoot);
+  await assertSafeStorageRoot(canonicalRepoRoot);
+  const ownershipPath = stagingOwnershipPath(canonicalRepoRoot, stagingRoot);
+  let value;
+  try { value = await readFile(ownershipPath, 'utf8'); }
+  catch (error) {
+    if (error?.code === 'ENOENT') return null;
+    throw error;
+  }
+  try { return { ownershipPath, ...JSON.parse(value) }; }
+  catch { return null; }
+}
+
+export async function removeIsolatedStagingOwnership(ownershipPath) {
+  await rm(ownershipPath, { force: true });
 }
 
 export async function storeTask(repoRoot, taskId, capsuleText) {
