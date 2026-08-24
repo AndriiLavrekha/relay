@@ -149,6 +149,36 @@ test('fingerprintActiveTree ignores mutations to ignored files', async (t) => {
   assert.deepEqual(fingerprintIdentity(after), fingerprintIdentity(before));
 });
 
+test('fingerprintActiveTree records Git-visible symlink metadata without reading its target', async (t) => {
+  const root = await makeRepo(t);
+  const external = await makeTempDir(t, 'atb-fingerprint-link-target-');
+  const target = process.platform === 'win32' ? external : path.join(external, 'target.txt');
+  const targetFile = process.platform === 'win32' ? path.join(external, 'target.txt') : target;
+  const link = path.join(root, process.platform === 'win32' ? 'linked' : 'linked.txt');
+  const linkPath = process.platform === 'win32' ? 'linked' : 'linked.txt';
+  await writeFile(targetFile, 'before\n');
+  try {
+    await symlink(target, link, process.platform === 'win32' ? 'junction' : 'file');
+  } catch (error) {
+    t.skip(`Platform cannot create a symlink/reparse fingerprint fixture: ${error.message}`);
+    return;
+  }
+
+  const before = await staging.fingerprintActiveTree(root);
+  const linkInfo = await lstat(link);
+  const entry = before.files.find((file) => file.path === linkPath);
+
+  assert.deepEqual(entry, {
+    path: linkPath,
+    type: 'symlink',
+    sizeBytes: linkInfo.size,
+    sha256: null,
+  });
+  await writeFile(targetFile, 'after\n');
+  const after = await staging.fingerprintActiveTree(root);
+  assert.deepEqual(fingerprintIdentity(after), fingerprintIdentity(before));
+});
+
 test('resolveStagingParent returns a path outside the repository', async (t) => {
   const repo = await makeRepo(t);
   const { parent } = await resolveStagingParent(repo);

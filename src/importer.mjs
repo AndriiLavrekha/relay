@@ -62,13 +62,33 @@ export async function importResult({ repoRoot, resultPath }) {
   const importRoot = path.join(atbRoot(root), 'tasks', result.manifest.task_id, 'imports', importId);
   const candidateRoot = path.join(importRoot, 'candidates');
   const activeTreeBefore = await fingerprintActiveTree(root);
-  let report;
+  const report = {
+    protocol: '1.0',
+    taskId: result.manifest.task_id,
+    importId,
+    sourceAgent: task.manifest.source_agent,
+    sourceBaseCommit: taskBase,
+    currentHead: currentGit.head,
+    repositoryBaseChanged: currentGit.head !== taskBase,
+    stagingRoot: null,
+    candidateRoot,
+    resultSummary: result.manifest.summary ?? '',
+    files: fileReports,
+    stagedFiles: [],
+    conflicts: [],
+    validation: null,
+    error: null,
+    activeTreeBefore,
+    activeTreeAfter: null,
+    activeWorktreeModifiedByImport: null,
+  };
+  let originalError = null;
   try {
     const { stagingRoot } = await createIsolatedStaging(root, result.manifest.task_id, {
       selectedPaths: task.files.map((file) => file.path),
     });
+    report.stagingRoot = stagingRoot;
     await mkdir(candidateRoot, { recursive: true });
-    const stagedFiles = [];
     for (let i = 0; i < result.files.length; i++) {
       const file = result.files[i];
       let status = fileReports[i].status;
@@ -78,32 +98,14 @@ export async function importResult({ repoRoot, resultPath }) {
       }
       if (status === 'CLEAN_UNCHANGED' || status === 'NEW_EXPECTED') {
         await applyStagedFile(stagingRoot, file);
-        stagedFiles.push(file.path);
+        report.stagedFiles.push(file.path);
         fileReports[i].appliedToStaging = true;
       } else {
         fileReports[i].candidatePath = await saveCandidate(candidateRoot, file);
         fileReports[i].appliedToStaging = false;
       }
     }
-    report = {
-      protocol: '1.0',
-      taskId: result.manifest.task_id,
-      importId,
-      sourceAgent: task.manifest.source_agent,
-      sourceBaseCommit: taskBase,
-      currentHead: currentGit.head,
-      repositoryBaseChanged: currentGit.head !== taskBase,
-      stagingRoot,
-      candidateRoot,
-      resultSummary: result.manifest.summary ?? '',
-      files: fileReports,
-      stagedFiles,
-      conflicts: fileReports.filter((file) => !file.appliedToStaging).map((file) => ({ path: file.path, status: file.status })),
-      validation: null,
-      activeTreeBefore,
-      activeTreeAfter: null,
-      activeWorktreeModifiedByImport: null,
-    };
+    report.conflicts = fileReports.filter((file) => !file.appliedToStaging).map((file) => ({ path: file.path, status: file.status }));
     if (await validationConfigChanged(stagingRoot, validationSnapshot)) {
       report.validation = {
         passed: null,
@@ -116,16 +118,23 @@ export async function importResult({ repoRoot, resultPath }) {
       report.validation.blocked = false;
     }
     report.validation.partial = report.conflicts.length > 0;
+  } catch (error) {
+    originalError = error;
+    report.error = { code: error?.code ?? 'IMPORT_FAILED', message: error?.message ?? String(error) };
   } finally {
-    const activeTreeAfter = await fingerprintActiveTree(root);
-    if (report) {
+    try {
+      const activeTreeAfter = await fingerprintActiveTree(root);
       report.activeTreeAfter = activeTreeAfter;
       report.activeWorktreeModifiedByImport = activeTreeChanged(activeTreeBefore, activeTreeAfter);
+      await mkdir(importRoot, { recursive: true });
+      const reportPath = path.join(importRoot, 'report.json');
+      report.reportPath = reportPath;
+      await writeFile(reportPath, JSON.stringify(report, null, 2), 'utf8');
+    } catch (error) {
+      if (!originalError) throw error;
+      originalError.reportPersistenceError = { code: error?.code ?? 'REPORT_PERSIST_FAILED', message: error?.message ?? String(error) };
     }
   }
-  await mkdir(importRoot, { recursive: true });
-  const reportPath = path.join(importRoot, 'report.json');
-  report.reportPath = reportPath;
-  await writeFile(reportPath, JSON.stringify(report, null, 2), 'utf8');
+  if (originalError) throw originalError;
   return report;
 }

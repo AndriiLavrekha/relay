@@ -34,6 +34,36 @@ function isBridgeMetadataPath(repoPath) {
   return repoPath === '.agent-task-bridge' || repoPath.startsWith('.agent-task-bridge/');
 }
 
+async function inspectActiveTreePath(repoRoot, repoPath) {
+  const segments = repoPath.split('/');
+  let filePath = repoRoot;
+  for (let index = 0; index < segments.length; index++) {
+    filePath = path.join(filePath, segments[index]);
+    let info;
+    try { info = await lstat(filePath); }
+    catch (error) {
+      if (error?.code === 'ENOENT') return null;
+      throw error;
+    }
+    const type = activeTreeEntryType(info);
+    if (type === 'symlink' || index === segments.length - 1) {
+      const entry = {
+        path: segments.slice(0, index + 1).join('/'),
+        type,
+        sizeBytes: info.size,
+        sha256: null,
+      };
+      if (type === 'file') {
+        const buffer = await readFile(filePath);
+        entry.sizeBytes = buffer.length;
+        entry.sha256 = sha256Buffer(buffer);
+      }
+      return entry;
+    }
+  }
+  return null;
+}
+
 export async function fingerprintActiveTree(repoRoot) {
   const startedAt = performance.now();
   const [tracked, untracked] = await Promise.all([
@@ -44,29 +74,16 @@ export async function fingerprintActiveTree(repoRoot) {
     ...parseNullDelimitedPaths(tracked.stdout),
     ...parseNullDelimitedPaths(untracked.stdout),
   ])].filter((repoPath) => !isBridgeMetadataPath(repoPath)).sort();
-  const files = [];
+  const entries = new Map();
   for (const repoPath of paths) {
-    const filePath = path.join(repoRoot, ...repoPath.split('/'));
-    let info;
-    try { info = await lstat(filePath); }
-    catch (error) {
-      if (error?.code === 'ENOENT') continue;
-      throw error;
-    }
-    const type = activeTreeEntryType(info);
-    const entry = {
-      path: repoPath,
-      type,
-      sizeBytes: null,
-      sha256: null,
-    };
-    if (type === 'file') {
-      const buffer = await readFile(filePath);
-      entry.sizeBytes = buffer.length;
-      entry.sha256 = sha256Buffer(buffer);
-    }
-    files.push(entry);
+    const entry = await inspectActiveTreePath(repoRoot, repoPath);
+    if (entry) entries.set(entry.path, entry);
   }
+  const files = [...entries.values()].sort((a, b) => {
+    if (a.path < b.path) return -1;
+    if (a.path > b.path) return 1;
+    return 0;
+  });
   return {
     pathSetHash: sha256Buffer(Buffer.from(JSON.stringify(files), 'utf8')),
     files,

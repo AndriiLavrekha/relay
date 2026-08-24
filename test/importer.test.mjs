@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, readFile, access } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, access, readdir, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { runProcess } from '../src/process.mjs';
@@ -79,6 +79,36 @@ test('importResult records observed active-tree invariance before and after stag
   assert.deepEqual(savedReport.activeTreeBefore, report.activeTreeBefore);
   assert.deepEqual(savedReport.activeTreeAfter, report.activeTreeAfter);
   assert.equal(savedReport.activeWorktreeModifiedByImport, false);
+});
+
+test('importResult persists observed active-tree invariance when reconstruction fails', async (t) => {
+  const { root, task } = await makeRepo();
+  const external = await mkdtemp(path.join(tmpdir(), 'atb-import-reconstruction-target-'));
+  t.after(() => rm(external, { force: true, recursive: true }));
+  await writeFile(path.join(external, 'a.js'), 'export const a = 1;\n');
+  await rm(path.join(root, 'src'), { force: true, recursive: true });
+  try {
+    await symlink(external, path.join(root, 'src'), process.platform === 'win32' ? 'junction' : 'dir');
+  } catch (error) {
+    t.skip(`Platform cannot create a reconstruction reparse-point fixture: ${error.message}`);
+    return;
+  }
+  const zip = await resultZip(root, task, [
+    { path: 'src/a.js', operation: 'modify', content: 'export const a = 2;\n' },
+  ]);
+  const importsRoot = path.join(root, '.agent-task-bridge', 'tasks', task.taskId, 'imports');
+
+  await assert.rejects(
+    () => importResult({ repoRoot: root, resultPath: zip }),
+    (error) => error.code === 'UNSAFE_WORKING_TREE_PATH'
+  );
+
+  assert.equal(await exists(importsRoot), true);
+  const [importId] = await readdir(importsRoot);
+  const savedReport = JSON.parse(await readFile(path.join(importsRoot, importId, 'report.json'), 'utf8'));
+  assert.equal(savedReport.error.code, 'UNSAFE_WORKING_TREE_PATH');
+  assert.equal(savedReport.activeWorktreeModifiedByImport, false);
+  assert.equal(savedReport.activeTreeBefore.pathSetHash, savedReport.activeTreeAfter.pathSetHash);
 });
 
 test('importResult reconstructs selected local drift and excludes unrelated out-of-scope files', async () => {
