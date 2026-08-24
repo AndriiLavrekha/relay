@@ -6,11 +6,11 @@
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)](#license)
 [![Node.js](https://img.shields.io/badge/node.js-%3E%3D22-339933?style=for-the-badge&logo=node.js&logoColor=white)](#requirements)
-[![Plugins](https://img.shields.io/badge/plugins-Claude%20Code%20%C2%B7%20Codex-8A2BE2?style=for-the-badge)](#install-a-plugin)
+[![Plugins](https://img.shields.io/badge/plugins-Claude%20Code%20%C2%B7%20Codex-8A2BE2?style=for-the-badge)](#quick-start)
 
 Local-first delegation for Claude Code and OpenAI Codex. The bridge exports a small Task Capsule, treats the returned Result Capsule as untrusted input, detects repository drift, stages clean changes in an isolated worktree, and runs validation locally before anything reaches your active branch.
 
-[Quick start](#quick-start) · [Install](#install-a-plugin) · [Upgrade](#upgrade) · [How it works](#how-it-works) · [Security](#security-model)
+[Quick start](#quick-start) · [Install](#quick-start) · [Upgrade](#upgrade) · [How it works](#how-it-works) · [Security](#security-model)
 
 </div>
 
@@ -45,17 +45,17 @@ Choose the path that matches your agent:
 
 ### Install the Claude Code plugin
 
-From Claude Code, add the public marketplace and install the plugin:
+From Claude Code, add the public `v0.1.0` marketplace release and install the plugin:
 
 ```text
-/plugin marketplace add AndriiLavrekha/task-bridge
+/plugin marketplace add AndriiLavrekha/task-bridge@v0.1.0
 /plugin install task-bridge@awesome-task-bridge
 ```
 
 Or use the CLI:
 
 ```bash
-claude plugin marketplace add AndriiLavrekha/task-bridge
+claude plugin marketplace add AndriiLavrekha/task-bridge@v0.1.0
 claude plugin install task-bridge@awesome-task-bridge
 ```
 
@@ -73,14 +73,14 @@ codex plugin marketplace add /absolute/path/to/agent-task-bridge
 codex plugin add task-bridge@awesome-task-bridge
 ```
 
-For the public GitHub marketplace, use:
+For the public GitHub marketplace, pin the first release with `--ref v0.1.0`:
 
 ```bash
-codex plugin marketplace add AndriiLavrekha/task-bridge
+codex plugin marketplace add AndriiLavrekha/task-bridge --ref v0.1.0
 codex plugin add task-bridge@awesome-task-bridge
 ```
 
-Start a new Codex session after installation so the plugin and skills reload. See [`plugins/codex/README.md`](plugins/codex/README.md) for workspace-local marketplace details.
+Start a new Codex session after installation so the plugin and skills reload. See [`plugins/codex/README.md`](plugins/codex/README.md) for workspace-local marketplace details. Release notes: [`v0.1.0`](https://github.com/AndriiLavrekha/task-bridge/releases/tag/v0.1.0).
 
 ## Upgrade
 
@@ -90,6 +90,7 @@ Use the command path that matches your installation:
 <summary><strong>Claude Code</strong></summary>
 
 ```bash
+claude plugin marketplace update awesome-task-bridge
 claude plugin update task-bridge@awesome-task-bridge
 claude plugin list
 ```
@@ -201,6 +202,7 @@ Project-specific `.agent-task-bridge` configuration overrides are not implemente
 | [`examples/delegation.example.json`](examples/delegation.example.json) | Example delegation input |
 | [`plugins/claude-code/README.md`](plugins/claude-code/README.md) | Claude Code plugin details |
 | [`plugins/codex/README.md`](plugins/codex/README.md) | Codex plugin and local marketplace details |
+| [`docs/releases/v0.1.0.md`](docs/releases/v0.1.0.md) | First release notes |
 | [`protocol/`](protocol/) | Task and Result Capsule specifications |
 | [`src/`](src/) | Canonical bridge runtime |
 | [`AGENTS.md`](AGENTS.md) | Repository structure and contribution conventions |

@@ -26,7 +26,7 @@ commit_progress: true
 
 ## Resume Snapshot
 
-Readiness fixes remain complete and verified. README.md now presents a centered hero, reader-first quick start, Claude Code/Codex install and upgrade paths, workflow/security summaries, protocol links, and verified development commands. No runtime behavior changed. The documentation update is committed and pushed to `origin/main`.
+Readiness fixes and the README redesign remain complete and verified. Current work is the first public `v0.1.0` release: tag the verified main commit, publish GitHub release notes, and pin public Claude Code/Codex installation instructions to that release.
 
 ## Current State
 
@@ -38,7 +38,7 @@ Implemented and tested the Windows command resolution, validation trust boundary
 
 ## Next Action
 
-No further action for the approved README scope; future work can review remaining release requirements.
+Update release references, run release verification, create and push tag `v0.1.0`, publish the GitHub release, and verify the public installation commands.
 
 ## Remaining Work
 
@@ -60,7 +60,7 @@ No further action for the approved README scope; future work can review remainin
 
 ## Blockers
 
-No blockers. Three symlink security tests remain skipped on Windows by design. CI remains intentionally out of scope.
+No blockers known. Three symlink security tests remain skipped on Windows by design. CI remains intentionally out of scope.
 
 ## Deployment
 
