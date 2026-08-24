@@ -93,6 +93,43 @@ test('resolveStagingParent returns a path outside the repository', async (t) => 
   assert.equal(isPathInside(repo, parent), false);
 });
 
+test('createIsolatedStaging rejects unsafe task IDs before creating a worktree', async (t) => {
+  const root = await makeRepo(t);
+  const externalRoot = await makeTempDir(t, 'atb-task-id-staging-');
+  const stagingDir = await makeTempDirAt(t, externalRoot, 'staging-');
+  const worktreesBefore = (await runProcess('git', ['worktree', 'list', '--porcelain'], { cwd: root })).stdout;
+  const externalEntriesBefore = await readdir(externalRoot);
+  const unsafeTaskIds = [
+    '../task-id-escape',
+    path.resolve(externalRoot, 'task-id-absolute'),
+    'task-id\0nul',
+    '.git',
+    '.agent-task-bridge',
+  ];
+
+  try {
+    for (const taskId of unsafeTaskIds) {
+      await assert.rejects(
+        () => createIsolatedStaging(root, taskId, { stagingDir }),
+        (error) => error.code === 'UNSAFE_TASK_ID'
+      );
+    }
+    assert.equal((await runProcess('git', ['worktree', 'list', '--porcelain'], { cwd: root })).stdout, worktreesBefore);
+    assert.deepEqual(await readdir(externalRoot), externalEntriesBefore);
+    assert.equal(await exists(path.join(root, '.agent-task-bridge')), false);
+  } finally {
+    const worktreesAfter = (await runProcess('git', ['worktree', 'list', '--porcelain'], { cwd: root })).stdout;
+    const createdWorktrees = worktreesAfter
+      .split(/\r?\n/)
+      .filter((line) => line.startsWith('worktree '))
+      .map((line) => line.slice('worktree '.length))
+      .filter((worktree) => worktree !== root && isPathInside(externalRoot, worktree));
+    for (const worktree of createdWorktrees) {
+      await runProcess('git', ['worktree', 'remove', '--force', worktree], { cwd: root, allowFailure: true });
+    }
+  }
+});
+
 test('createIsolatedStaging excludes unrelated untracked files', async (t) => {
   const { root } = await makeRepoWithDirtyFiles(t);
   const stagingDir = await makeTempDir(t, 'atb-external-staging-');

@@ -189,14 +189,34 @@ export async function isSafeStagingPath(stagingRoot, repoPath) {
   return true;
 }
 
+const RESERVED_STAGING_TASK_IDS = new Set(['.git', '.agent-task-bridge']);
+const WINDOWS_RESERVED_TASK_ID = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i;
+
+function validateStagingTaskId(taskId) {
+  if (typeof taskId !== 'string'
+    || taskId.length === 0
+    || taskId !== taskId.trim()
+    || taskId.endsWith('.')
+    || taskId.endsWith(' ')
+    || /[\0-\x1f<>:"/\\|?*]/.test(taskId)
+    || taskId === '.'
+    || taskId === '..'
+    || RESERVED_STAGING_TASK_IDS.has(taskId.toLowerCase())
+    || WINDOWS_RESERVED_TASK_ID.test(taskId)) {
+    throw new AtbError('UNSAFE_TASK_ID', `Task ID must be a safe single staging-directory name: ${String(taskId)}`);
+  }
+  return taskId;
+}
+
 export async function createIsolatedStaging(repoRoot, taskId, { selectedPaths = [], stagingDir, targetHead } = {}) {
+  const validatedTaskId = validateStagingTaskId(taskId);
   if (!Array.isArray(selectedPaths)) throw new AtbError('UNSAFE_PATH', 'Selected working-tree paths must be an array');
   const normalizedSelectedPaths = selectedPaths.map(normalizeRepoPath);
   await ensureLocalStorageIgnored(repoRoot);
   const git = await getGitState(repoRoot);
   const { parent: stagingParent } = await resolveStagingParent(repoRoot, stagingDir);
   await mkdir(stagingParent, { recursive: true });
-  const stagingRoot = path.join(stagingParent, `${taskId}-${Date.now().toString(36)}-${crypto.randomBytes(3).toString('hex')}`);
+  const stagingRoot = path.join(stagingParent, `${validatedTaskId}-${Date.now().toString(36)}-${crypto.randomBytes(3).toString('hex')}`);
   await runProcess('git', ['worktree', 'add', '--detach', stagingRoot, targetHead ?? git.head], { cwd: repoRoot });
 
   let registered = false;
