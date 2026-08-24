@@ -26,3 +26,11 @@ export function invalidOperationPrecondition(path, operation) {
     { path, operation }
   );
 }
+
+export function resultIntegrityMismatch(path, field, expected, observed) {
+  return new AtbError(
+    'RESULT_PAYLOAD_INTEGRITY_MISMATCH',
+    `Returned payload ${field === 'sha256' ? 'hash (sha256)' : field} does not match its manifest declaration: ${path}`,
+    { path, field, expected, observed }
+  );
+}

@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createZip } from '../src/zip.mjs';
 import { inspectResultCapsule } from '../src/result-capsule.mjs';
+import { sha256Buffer } from '../src/hash.mjs';
 
 async function writeResult(entries) {
   const dir = await mkdtemp(path.join(tmpdir(), 'atb-result-'));
@@ -13,7 +14,7 @@ async function writeResult(entries) {
   return file;
 }
 
-function manifest(files = [{ path: 'src/a.js', operation: 'modify' }]) {
+function manifest(files = [{ path: 'src/a.js', operation: 'modify' }], overrides = {}) {
   return {
     atb_protocol: '1.0',
     capsule_type: 'result',
@@ -24,8 +25,21 @@ function manifest(files = [{ path: 'src/a.js', operation: 'modify' }]) {
     files,
     validation: { executed: [], not_executed: ['npm test'] },
     assumptions: [],
-    unresolved: []
+    unresolved: [],
+    ...overrides,
   };
+}
+
+function v11Manifest(file, overrides = {}) {
+  return manifest([file], {
+    schema_version: '1.1',
+    bridge_version: '0.2.0',
+    hash_algorithm: 'sha256',
+    source_agent: 'codex',
+    external_worker: 'chatgpt',
+    status: 'complete',
+    ...overrides,
+  });
 }
 
 test('inspectResultCapsule validates manifest and returns declared complete files', async () => {
@@ -70,4 +84,59 @@ test('inspectResultCapsule rejects unsupported operations before import', async 
     () => inspectResultCapsule(file),
     (error) => error.code === 'INVALID_OPERATION_PRECONDITION'
   );
+});
+
+test('inspectResultCapsule validates schema 1.1 status and raw payload integrity', async () => {
+  const content = Buffer.from('export const a = 2;\n');
+  const file = await writeResult([
+    { name: 'manifest.json', data: Buffer.from(JSON.stringify(v11Manifest({ path: 'src/a.js', operation: 'modify', sha256: sha256Buffer(content), size_bytes: content.length }))) },
+    { name: 'files/src/a.js', data: content },
+  ]);
+  const result = await inspectResultCapsule(file);
+  assert.equal(result.manifest.schema_version, '1.1');
+  assert.equal(result.manifest.status, 'complete');
+  assert.equal(result.files[0].size_bytes, content.length);
+  assert.equal(result.files[0].sha256, sha256Buffer(content));
+  assert.match(result.archive_sha256, /^[0-9a-f]{64}$/);
+});
+
+test('inspectResultCapsule rejects wrong raw payload hash and byte length', async () => {
+  const content = Buffer.from('export const a = 2;\n');
+  const wrongHash = await writeResult([
+    { name: 'manifest.json', data: Buffer.from(JSON.stringify(v11Manifest({ path: 'src/a.js', operation: 'modify', sha256: '0'.repeat(64), size_bytes: content.length }))) },
+    { name: 'files/src/a.js', data: content },
+  ]);
+  await assert.rejects(() => inspectResultCapsule(wrongHash), /hash/i);
+
+  const wrongSize = await writeResult([
+    { name: 'manifest.json', data: Buffer.from(JSON.stringify(v11Manifest({ path: 'src/a.js', operation: 'modify', sha256: sha256Buffer(content), size_bytes: content.length + 1 }))) },
+    { name: 'files/src/a.js', data: content },
+  ]);
+  await assert.rejects(() => inspectResultCapsule(wrongSize), /byte|size/i);
+});
+
+test('inspectResultCapsule validates status and report requirements for schema 1.1', async () => {
+  const content = Buffer.from('research result\n');
+  const invalidStatus = await writeResult([
+    { name: 'manifest.json', data: Buffer.from(JSON.stringify(v11Manifest({ path: 'notes/result.md', operation: 'create', sha256: sha256Buffer(content), size_bytes: content.length }, { status: 'done' }))) },
+    { name: 'files/notes/result.md', data: content },
+  ]);
+  await assert.rejects(() => inspectResultCapsule(invalidStatus), /status/i);
+
+  const missingReport = await writeResult([
+    { name: 'manifest.json', data: Buffer.from(JSON.stringify(v11Manifest({ path: 'notes/result.md', operation: 'create', sha256: sha256Buffer(content), size_bytes: content.length }, { status: 'research-only', result_type: 'research' }))) },
+    { name: 'files/notes/result.md', data: content },
+  ]);
+  await assert.rejects(() => inspectResultCapsule(missingReport), /REPORT\.md|report/i);
+});
+
+test('inspectResultCapsule marks legacy results with a legacy integrity warning', async () => {
+  const file = await writeResult([
+    { name: 'manifest.json', data: Buffer.from(JSON.stringify(manifest())) },
+    { name: 'files/src/a.js', data: Buffer.from('export const a = 2;\n') },
+  ]);
+  const result = await inspectResultCapsule(file);
+  assert.equal(result.manifest.schema_version, '1.0');
+  assert.equal(result.manifest.legacy_integrity, true);
+  assert.equal(result.files[0].legacy_integrity, true);
 });
