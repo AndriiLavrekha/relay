@@ -22,10 +22,12 @@ test('secret scanner flags known sensitive filenames', async () => {
 
 test('secret scanner flags high-confidence private key content', async () => {
   const dir = await root();
-  await writeFile(path.join(dir, 'src', 'config.txt'), '-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----\n');
+  const secret = 'private-key-test-value';
+  await writeFile(path.join(dir, 'src', 'config.txt'), `-----BEGIN PRIVATE KEY-----\n${secret}\n-----END PRIVATE KEY-----\n`);
   const scan = await scanFileForSecrets(dir, 'src/config.txt');
   assert.equal(scan.blocked, true);
   assert.match(scan.reasons.join(' '), /private key/i);
+  assert.doesNotMatch(scan.reasons.join(' '), new RegExp(secret));
 });
 
 test('context collection blocks a selected secret instead of silently embedding it', async () => {
