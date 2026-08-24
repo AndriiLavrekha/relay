@@ -1,12 +1,13 @@
 import crypto from 'node:crypto';
 import { mkdir, readFile, writeFile, stat } from 'node:fs/promises';
 import path from 'node:path';
+import { isDeepStrictEqual } from 'node:util';
 import { findGitRoot, getGitState } from './repository.mjs';
 import { loadStoredTask, atbRoot } from './storage.mjs';
 import { inspectResultCapsule } from './result-capsule.mjs';
 import { sha256Buffer } from './hash.mjs';
 import { classifyDrift } from './drift.mjs';
-import { createIsolatedStaging, applyStagedFile, isSafeStagingPath } from './staging.mjs';
+import { createIsolatedStaging, applyStagedFile, fingerprintActiveTree, isSafeStagingPath } from './staging.mjs';
 import { AtbError } from './errors.mjs';
 import { captureValidationSnapshot, runValidation, validationConfigChanged } from './validation.mjs';
 
@@ -31,6 +32,14 @@ async function saveCandidate(candidateRoot, file) {
   return target;
 }
 
+function activeTreeIdentity({ pathSetHash, files }) {
+  return { pathSetHash, files };
+}
+
+function activeTreeChanged(before, after) {
+  return !isDeepStrictEqual(activeTreeIdentity(before), activeTreeIdentity(after));
+}
+
 export async function importResult({ repoRoot, resultPath }) {
   const root = repoRoot ? await findGitRoot(repoRoot) : await findGitRoot(process.cwd());
   const result = await inspectResultCapsule(path.resolve(resultPath));
@@ -49,59 +58,71 @@ export async function importResult({ repoRoot, resultPath }) {
     fileReports.push({ path: file.path, operation: file.operation, status, current });
   }
 
-  const { stagingRoot } = await createIsolatedStaging(root, result.manifest.task_id, {
-    selectedPaths: task.files.map((file) => file.path),
-  });
   const importId = `import_${Date.now().toString(36)}_${crypto.randomBytes(3).toString('hex')}`;
   const importRoot = path.join(atbRoot(root), 'tasks', result.manifest.task_id, 'imports', importId);
   const candidateRoot = path.join(importRoot, 'candidates');
-  await mkdir(candidateRoot, { recursive: true });
-  const stagedFiles = [];
-  for (let i = 0; i < result.files.length; i++) {
-    const file = result.files[i];
-    let status = fileReports[i].status;
-    if ((status === 'CLEAN_UNCHANGED' || status === 'NEW_EXPECTED') && !(await isSafeStagingPath(stagingRoot, file.path))) {
-      status = 'UNSAFE_SYMLINK_PATH';
-      fileReports[i].status = status;
+  const activeTreeBefore = await fingerprintActiveTree(root);
+  let report;
+  try {
+    const { stagingRoot } = await createIsolatedStaging(root, result.manifest.task_id, {
+      selectedPaths: task.files.map((file) => file.path),
+    });
+    await mkdir(candidateRoot, { recursive: true });
+    const stagedFiles = [];
+    for (let i = 0; i < result.files.length; i++) {
+      const file = result.files[i];
+      let status = fileReports[i].status;
+      if ((status === 'CLEAN_UNCHANGED' || status === 'NEW_EXPECTED') && !(await isSafeStagingPath(stagingRoot, file.path))) {
+        status = 'UNSAFE_SYMLINK_PATH';
+        fileReports[i].status = status;
+      }
+      if (status === 'CLEAN_UNCHANGED' || status === 'NEW_EXPECTED') {
+        await applyStagedFile(stagingRoot, file);
+        stagedFiles.push(file.path);
+        fileReports[i].appliedToStaging = true;
+      } else {
+        fileReports[i].candidatePath = await saveCandidate(candidateRoot, file);
+        fileReports[i].appliedToStaging = false;
+      }
     }
-    if (status === 'CLEAN_UNCHANGED' || status === 'NEW_EXPECTED') {
-      await applyStagedFile(stagingRoot, file);
-      stagedFiles.push(file.path);
-      fileReports[i].appliedToStaging = true;
-    } else {
-      fileReports[i].candidatePath = await saveCandidate(candidateRoot, file);
-      fileReports[i].appliedToStaging = false;
-    }
-  }
-  const report = {
-    protocol: '1.0',
-    taskId: result.manifest.task_id,
-    importId,
-    sourceAgent: task.manifest.source_agent,
-    sourceBaseCommit: taskBase,
-    currentHead: currentGit.head,
-    repositoryBaseChanged: currentGit.head !== taskBase,
-    stagingRoot,
-    candidateRoot,
-    resultSummary: result.manifest.summary ?? '',
-    files: fileReports,
-    stagedFiles,
-    conflicts: fileReports.filter((file) => !file.appliedToStaging).map((file) => ({ path: file.path, status: file.status })),
-    validation: null,
-    activeWorktreeModifiedByImport: false,
-  };
-  if (await validationConfigChanged(stagingRoot, validationSnapshot)) {
-    report.validation = {
-      passed: null,
-      blocked: true,
-      reason: 'VALIDATION_CONFIG_CHANGED',
-      results: [],
+    report = {
+      protocol: '1.0',
+      taskId: result.manifest.task_id,
+      importId,
+      sourceAgent: task.manifest.source_agent,
+      sourceBaseCommit: taskBase,
+      currentHead: currentGit.head,
+      repositoryBaseChanged: currentGit.head !== taskBase,
+      stagingRoot,
+      candidateRoot,
+      resultSummary: result.manifest.summary ?? '',
+      files: fileReports,
+      stagedFiles,
+      conflicts: fileReports.filter((file) => !file.appliedToStaging).map((file) => ({ path: file.path, status: file.status })),
+      validation: null,
+      activeTreeBefore,
+      activeTreeAfter: null,
+      activeWorktreeModifiedByImport: null,
     };
-  } else {
-    report.validation = await runValidation(stagingRoot, validationSnapshot.commands);
-    report.validation.blocked = false;
+    if (await validationConfigChanged(stagingRoot, validationSnapshot)) {
+      report.validation = {
+        passed: null,
+        blocked: true,
+        reason: 'VALIDATION_CONFIG_CHANGED',
+        results: [],
+      };
+    } else {
+      report.validation = await runValidation(stagingRoot, validationSnapshot.commands);
+      report.validation.blocked = false;
+    }
+    report.validation.partial = report.conflicts.length > 0;
+  } finally {
+    const activeTreeAfter = await fingerprintActiveTree(root);
+    if (report) {
+      report.activeTreeAfter = activeTreeAfter;
+      report.activeWorktreeModifiedByImport = activeTreeChanged(activeTreeBefore, activeTreeAfter);
+    }
   }
-  report.validation.partial = report.conflicts.length > 0;
   await mkdir(importRoot, { recursive: true });
   const reportPath = path.join(importRoot, 'report.json');
   report.reportPath = reportPath;

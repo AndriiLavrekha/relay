@@ -61,6 +61,26 @@ test('importResult stages clean and expected-new files without mutating the acti
   assert.equal(report.stagedFiles.length, 2);
 });
 
+test('importResult records observed active-tree invariance before and after staging', async () => {
+  const { root, task } = await makeRepo();
+  const zip = await resultZip(root, task, [
+    { path: 'src/a.js', operation: 'modify', content: 'export const a = 2;\n' },
+  ]);
+
+  const report = await importResult({ repoRoot: root, resultPath: zip });
+  const savedReport = JSON.parse(await readFile(report.reportPath, 'utf8'));
+
+  assert.equal(report.activeWorktreeModifiedByImport, false);
+  assert.deepEqual(
+    { pathSetHash: report.activeTreeAfter.pathSetHash, files: report.activeTreeAfter.files },
+    { pathSetHash: report.activeTreeBefore.pathSetHash, files: report.activeTreeBefore.files }
+  );
+  assert.equal(typeof report.activeTreeBefore.durationMs, 'number');
+  assert.deepEqual(savedReport.activeTreeBefore, report.activeTreeBefore);
+  assert.deepEqual(savedReport.activeTreeAfter, report.activeTreeAfter);
+  assert.equal(savedReport.activeWorktreeModifiedByImport, false);
+});
+
 test('importResult reconstructs selected local drift and excludes unrelated out-of-scope files', async () => {
   const { root, task } = await makeRepo();
   await writeFile(path.join(root, 'src', 'a.js'), 'export const a = 99; // local\n');

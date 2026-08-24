@@ -4,7 +4,10 @@ import { lstat, mkdir, mkdtemp, readFile, readdir, rm, symlink, unlink, writeFil
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { runProcess } from '../src/process.mjs';
-import { assertOutsideRepository, cleanupIsolatedStaging, copySelectedWorkingPaths, createIsolatedStaging, resolveStagingParent } from '../src/staging.mjs';
+import { sha256Buffer } from '../src/hash.mjs';
+import * as staging from '../src/staging.mjs';
+
+const { assertOutsideRepository, cleanupIsolatedStaging, copySelectedWorkingPaths, createIsolatedStaging, resolveStagingParent } = staging;
 
 async function makeTempDir(t, prefix) {
   return makeTempDirAt(t, tmpdir(), prefix);
@@ -86,6 +89,65 @@ function isPathInside(parent, candidate) {
   const relative = path.relative(path.resolve(parent), path.resolve(candidate));
   return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
 }
+
+function fingerprintIdentity({ pathSetHash, files }) {
+  return { pathSetHash, files };
+}
+
+test('fingerprintActiveTree deterministically records Git-visible regular files', async (t) => {
+  const root = await makeRepo(t);
+  await mkdir(path.join(root, 'src'));
+  await mkdir(path.join(root, '.ignored'));
+  await mkdir(path.join(root, '.agent-task-bridge'));
+  await writeFile(path.join(root, '.gitignore'), '.ignored/\n');
+  await writeFile(path.join(root, 'src', 'untracked.txt'), 'visible\n');
+  await writeFile(path.join(root, '.ignored', 'private.txt'), 'ignored\n');
+  await writeFile(path.join(root, '.agent-task-bridge', 'local.json'), '{}\n');
+
+  const before = await staging.fingerprintActiveTree(root);
+  const after = await staging.fingerprintActiveTree(root);
+
+  assert.deepEqual(fingerprintIdentity(after), fingerprintIdentity(before));
+  assert.deepEqual(before.files.map((file) => file.path), ['.gitignore', 'README.md', 'src/untracked.txt']);
+  assert.deepEqual(before.files.find((file) => file.path === 'src/untracked.txt'), {
+    path: 'src/untracked.txt',
+    type: 'file',
+    sizeBytes: Buffer.byteLength('visible\n'),
+    sha256: sha256Buffer(Buffer.from('visible\n')),
+  });
+  assert.equal(before.files.some((file) => file.path.startsWith('.ignored/')), false);
+  assert.equal(before.files.some((file) => file.path.startsWith('.agent-task-bridge/')), false);
+  assert.equal(typeof before.durationMs, 'number');
+});
+
+test('fingerprintActiveTree changes when a tracked file changes', async (t) => {
+  const root = await makeRepo(t);
+  const before = await staging.fingerprintActiveTree(root);
+  await writeFile(path.join(root, 'README.md'), '# changed\n');
+  const after = await staging.fingerprintActiveTree(root);
+  assert.notDeepEqual(fingerprintIdentity(after), fingerprintIdentity(before));
+});
+
+test('fingerprintActiveTree changes when a non-ignored untracked file changes', async (t) => {
+  const root = await makeRepo(t);
+  await writeFile(path.join(root, 'untracked.txt'), 'before\n');
+  const before = await staging.fingerprintActiveTree(root);
+  await writeFile(path.join(root, 'untracked.txt'), 'after\n');
+  const after = await staging.fingerprintActiveTree(root);
+  assert.notDeepEqual(fingerprintIdentity(after), fingerprintIdentity(before));
+});
+
+test('fingerprintActiveTree ignores mutations to ignored files', async (t) => {
+  const root = await makeRepo(t);
+  await writeFile(path.join(root, '.gitignore'), 'ignored.txt\n');
+  await runProcess('git', ['add', '.gitignore'], { cwd: root });
+  await runProcess('git', ['commit', '-m', 'ignore fixture'], { cwd: root });
+  await writeFile(path.join(root, 'ignored.txt'), 'before\n');
+  const before = await staging.fingerprintActiveTree(root);
+  await writeFile(path.join(root, 'ignored.txt'), 'after\n');
+  const after = await staging.fingerprintActiveTree(root);
+  assert.deepEqual(fingerprintIdentity(after), fingerprintIdentity(before));
+});
 
 test('resolveStagingParent returns a path outside the repository', async (t) => {
   const repo = await makeRepo(t);

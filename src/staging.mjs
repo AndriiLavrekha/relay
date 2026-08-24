@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { mkdir, rm, copyFile, lstat, realpath, stat } from 'node:fs/promises';
+import { mkdir, rm, copyFile, lstat, readFile, realpath, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { runProcess } from './process.mjs';
@@ -12,10 +12,66 @@ import {
 } from './storage.mjs';
 import { getGitState } from './repository.mjs';
 import { AtbError, stagingLocationUnavailable, unsafeStagingLocation } from './errors.mjs';
+import { sha256Buffer } from './hash.mjs';
 import { normalizeRepoPath } from './path-safety.mjs';
 
 async function existsInfo(file) {
   try { return await lstat(file); } catch { return null; }
+}
+
+function parseNullDelimitedPaths(output) {
+  return output.split('\0').filter(Boolean);
+}
+
+function activeTreeEntryType(info) {
+  if (info.isSymbolicLink()) return 'symlink';
+  if (info.isFile()) return 'file';
+  if (info.isDirectory()) return 'directory';
+  return 'other';
+}
+
+function isBridgeMetadataPath(repoPath) {
+  return repoPath === '.agent-task-bridge' || repoPath.startsWith('.agent-task-bridge/');
+}
+
+export async function fingerprintActiveTree(repoRoot) {
+  const startedAt = performance.now();
+  const [tracked, untracked] = await Promise.all([
+    runProcess('git', ['ls-files', '-z'], { cwd: repoRoot }),
+    runProcess('git', ['ls-files', '--others', '--exclude-standard', '-z'], { cwd: repoRoot }),
+  ]);
+  const paths = [...new Set([
+    ...parseNullDelimitedPaths(tracked.stdout),
+    ...parseNullDelimitedPaths(untracked.stdout),
+  ])].filter((repoPath) => !isBridgeMetadataPath(repoPath)).sort();
+  const files = [];
+  for (const repoPath of paths) {
+    const filePath = path.join(repoRoot, ...repoPath.split('/'));
+    let info;
+    try { info = await lstat(filePath); }
+    catch (error) {
+      if (error?.code === 'ENOENT') continue;
+      throw error;
+    }
+    const type = activeTreeEntryType(info);
+    const entry = {
+      path: repoPath,
+      type,
+      sizeBytes: null,
+      sha256: null,
+    };
+    if (type === 'file') {
+      const buffer = await readFile(filePath);
+      entry.sizeBytes = buffer.length;
+      entry.sha256 = sha256Buffer(buffer);
+    }
+    files.push(entry);
+  }
+  return {
+    pathSetHash: sha256Buffer(Buffer.from(JSON.stringify(files), 'utf8')),
+    files,
+    durationMs: performance.now() - startedAt,
+  };
 }
 
 function isPathInside(parent, candidate) {
