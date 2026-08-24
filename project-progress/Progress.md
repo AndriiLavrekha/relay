@@ -26,7 +26,7 @@ commit_progress: true
 
 ## Resume Snapshot
 
-Readiness fixes remain complete and verified. README.md now presents a centered hero, reader-first quick start, Claude Code/Codex install and upgrade paths, workflow/security summaries, protocol links, and verified development commands. No runtime behavior changed.
+Readiness fixes remain complete and verified. README.md now presents a centered hero, reader-first quick start, Claude Code/Codex install and upgrade paths, workflow/security summaries, protocol links, and verified development commands. No runtime behavior changed. The documentation update is committed and pushed to `origin/main`.
 
 ## Current State
 
@@ -38,7 +38,7 @@ Implemented and tested the Windows command resolution, validation trust boundary
 
 ## Next Action
 
-Review the README diff and decide whether to commit the documentation update.
+No further action for the approved README scope; future work can review remaining release requirements.
 
 ## Remaining Work
 
@@ -64,7 +64,7 @@ No blockers. Three symlink security tests remain skipped on Windows by design. C
 
 ## Deployment
 
-Pushed to `origin/main`: `01c20b5` (`fix: harden plugin readiness`).
+Pushed to `origin/main`: `ebc2fc5` (`docs: improve README install flow`).
 
 ## Completion Criteria
 
