@@ -1,4 +1,4 @@
-import { lstat, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { runProcess } from './process.mjs';
 import { AtbError } from './errors.mjs';
@@ -35,6 +35,11 @@ export async function ensureLocalStorageIgnored(repoRoot) {
     await writeFile(excludePath, `${current}${prefix}${line}\n`);
   }
   return excludePath;
+}
+
+export async function removeIsolatedStagingWorktree(repoRoot, stagingRoot) {
+  await runProcess('git', ['worktree', 'remove', '--force', stagingRoot], { cwd: repoRoot });
+  await rm(stagingRoot, { force: true, recursive: true });
 }
 
 export async function storeTask(repoRoot, taskId, capsuleText) {

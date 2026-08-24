@@ -49,7 +49,9 @@ export async function importResult({ repoRoot, resultPath }) {
     fileReports.push({ path: file.path, operation: file.operation, status, current });
   }
 
-  const { stagingRoot } = await createIsolatedStaging(root, result.manifest.task_id);
+  const { stagingRoot } = await createIsolatedStaging(root, result.manifest.task_id, {
+    selectedPaths: task.files.map((file) => file.path),
+  });
   const importId = `import_${Date.now().toString(36)}_${crypto.randomBytes(3).toString('hex')}`;
   const importRoot = path.join(atbRoot(root), 'tasks', result.manifest.task_id, 'imports', importId);
   const candidateRoot = path.join(importRoot, 'candidates');

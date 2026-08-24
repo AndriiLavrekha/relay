@@ -61,7 +61,7 @@ test('importResult stages clean and expected-new files without mutating the acti
   assert.equal(report.stagedFiles.length, 2);
 });
 
-test('importResult detects local drift and out-of-scope files and does not overwrite them in staging', async () => {
+test('importResult reconstructs selected local drift and excludes unrelated out-of-scope files', async () => {
   const { root, task } = await makeRepo();
   await writeFile(path.join(root, 'src', 'a.js'), 'export const a = 99; // local\n');
   await writeFile(path.join(root, 'README.md'), 'local readme\n');
@@ -75,7 +75,7 @@ test('importResult detects local drift and out-of-scope files and does not overw
     ['README.md', 'OUT_OF_SCOPE'],
   ]);
   assert.equal(await readFile(path.join(report.stagingRoot, 'src', 'a.js'), 'utf8'), 'export const a = 99; // local\n');
-  assert.equal(await readFile(path.join(report.stagingRoot, 'README.md'), 'utf8'), 'local readme\n');
+  assert.equal(await exists(path.join(report.stagingRoot, 'README.md')), false);
   assert.equal(report.stagedFiles.length, 0);
   assert.equal(await exists(report.candidateRoot), true);
   assert.equal(await readFile(path.join(report.candidateRoot, 'src', 'a.js'), 'utf8'), 'export const a = 2;\n');

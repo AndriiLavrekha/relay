@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { lstat, mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, mkdtemp, readFile, rm, symlink, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { runProcess } from '../src/process.mjs';
-import { assertOutsideRepository, resolveStagingParent } from '../src/staging.mjs';
+import { assertOutsideRepository, cleanupIsolatedStaging, copySelectedWorkingPaths, createIsolatedStaging, resolveStagingParent } from '../src/staging.mjs';
 
 async function makeTempDir(t, prefix) {
   return makeTempDirAt(t, tmpdir(), prefix);
@@ -28,6 +28,30 @@ async function initializeRepo(root) {
 
 async function makeRepo(t) {
   return initializeRepo(await makeTempDir(t, 'atb-staging-repo-'));
+}
+
+async function makeRepoWithDirtyFiles(t) {
+  const root = await makeRepo(t);
+  await mkdir(path.join(root, 'src'));
+  await mkdir(path.join(root, 'notes'));
+  await writeFile(path.join(root, 'src', 'selected.js'), 'export const value = "base";\n');
+  await writeFile(path.join(root, 'src', 'deleted.js'), 'export const deleted = true;\n');
+  await runProcess('git', ['add', 'src'], { cwd: root });
+  await runProcess('git', ['commit', '-m', 'add fixture files'], { cwd: root });
+  await writeFile(path.join(root, 'src', 'selected.js'), 'export const value = "dirty";\n');
+  await unlink(path.join(root, 'src', 'deleted.js'));
+  await writeFile(path.join(root, 'notes', 'selected.md'), 'selected context\n');
+  await writeFile(path.join(root, 'notes', 'unrelated.md'), 'unrelated context\n');
+  return { root };
+}
+
+async function exists(file) {
+  try {
+    await lstat(file);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function makeCrossDriveRepoAlias(t) {
@@ -67,6 +91,132 @@ test('resolveStagingParent returns a path outside the repository', async (t) => 
   const repo = await makeRepo(t);
   const { parent } = await resolveStagingParent(repo);
   assert.equal(isPathInside(repo, parent), false);
+});
+
+test('createIsolatedStaging excludes unrelated untracked files', async (t) => {
+  const { root } = await makeRepoWithDirtyFiles(t);
+  const stagingDir = await makeTempDir(t, 'atb-external-staging-');
+  const result = await createIsolatedStaging(root, 'atb_test', {
+    selectedPaths: ['src/selected.js', 'notes/selected.md'],
+    stagingDir,
+  });
+  try {
+    assert.equal(await exists(path.join(result.stagingRoot, 'src', 'selected.js')), true);
+    assert.equal(await readFile(path.join(result.stagingRoot, 'src', 'selected.js'), 'utf8'), 'export const value = "dirty";\n');
+    assert.equal(await exists(path.join(result.stagingRoot, 'notes', 'selected.md')), true);
+    assert.equal(await exists(path.join(result.stagingRoot, 'notes', 'unrelated.md')), false);
+  } finally {
+    await runProcess('git', ['worktree', 'remove', '--force', result.stagingRoot], { cwd: root, allowFailure: true });
+  }
+});
+
+test('createIsolatedStaging removes selected locally deleted files', async (t) => {
+  const { root } = await makeRepoWithDirtyFiles(t);
+  const stagingDir = await makeTempDir(t, 'atb-external-staging-');
+  const result = await createIsolatedStaging(root, 'atb_deleted', {
+    selectedPaths: ['src/deleted.js'],
+    stagingDir,
+  });
+  try {
+    assert.equal(await exists(path.join(result.stagingRoot, 'src', 'deleted.js')), false);
+    assert.deepEqual(result.excludedWorkingTreePaths, ['src/deleted.js']);
+  } finally {
+    await runProcess('git', ['worktree', 'remove', '--force', result.stagingRoot], { cwd: root, allowFailure: true });
+  }
+});
+
+test('copySelectedWorkingPaths rejects selected symbolic links and reparse points', async (t) => {
+  const root = await makeRepo(t);
+  const target = await makeTempDir(t, 'atb-reparse-target-');
+  const linked = path.join(root, 'linked');
+  try {
+    await symlink(target, linked, process.platform === 'win32' ? 'junction' : 'dir');
+  } catch (error) {
+    t.skip(`Platform cannot create a reparse-point fixture: ${error.message}`);
+    return;
+  }
+  const stagingRoot = await makeTempDir(t, 'atb-reparse-staging-');
+  await assert.rejects(
+    () => copySelectedWorkingPaths(root, stagingRoot, ['linked']),
+    (error) => error.code === 'UNSAFE_WORKING_TREE_PATH'
+  );
+});
+
+test('copySelectedWorkingPaths copies regular files byte-for-byte', async (t) => {
+  const root = await makeRepo(t);
+  const stagingRoot = await makeTempDir(t, 'atb-copy-staging-');
+  await mkdir(path.join(root, 'assets'));
+  const contents = Buffer.from([0, 1, 2, 255, 0, 42]);
+  await writeFile(path.join(root, 'assets', 'binary.bin'), contents);
+
+  const result = await copySelectedWorkingPaths(root, stagingRoot, ['assets/binary.bin']);
+  assert.deepEqual(await readFile(path.join(stagingRoot, 'assets', 'binary.bin')), contents);
+  assert.deepEqual(result, { copied: ['assets/binary.bin'], excluded: [], reparsePoints: [] });
+});
+
+test('cleanupIsolatedStaging removes the registered external worktree', async (t) => {
+  const root = await makeRepo(t);
+  const stagingDir = await makeTempDir(t, 'atb-external-staging-');
+  const { stagingRoot } = await createIsolatedStaging(root, 'atb_cleanup', { stagingDir });
+  const result = await cleanupIsolatedStaging({ repoRoot: root, stagingRoot });
+  assert.deepEqual(result, { removed: true, errors: [] });
+  assert.equal(await exists(stagingRoot), false);
+});
+
+test('cleanupIsolatedStaging leaves an unregistered directory intact', async (t) => {
+  const root = await makeRepo(t);
+  const stagingRoot = await makeTempDir(t, 'atb-unregistered-staging-');
+  const marker = path.join(stagingRoot, 'keep.txt');
+  await writeFile(marker, 'keep\n');
+
+  const result = await cleanupIsolatedStaging({ repoRoot: root, stagingRoot });
+  assert.equal(result.removed, false);
+  assert.equal(result.errors.length, 1);
+  assert.equal(await exists(marker), true);
+});
+
+test('cleanupIsolatedStaging rejects a staging path inside the repository', async (t) => {
+  const root = await makeRepo(t);
+  const stagingRoot = path.join(root, 'not-staging');
+  await mkdir(stagingRoot);
+  const marker = path.join(stagingRoot, 'keep.txt');
+  await writeFile(marker, 'keep\n');
+
+  const result = await cleanupIsolatedStaging({ repoRoot: root, stagingRoot });
+  assert.equal(result.removed, false);
+  assert.equal(result.errors[0].code, 'UNSAFE_STAGING_LOCATION');
+  assert.equal(await exists(marker), true);
+});
+
+test('createIsolatedStaging uses the requested external staging parent', async (t) => {
+  const root = await makeRepo(t);
+  const stagingDir = await makeTempDir(t, 'atb-external-staging-');
+  const { stagingRoot } = await createIsolatedStaging(root, 'atb_external', { stagingDir });
+  try {
+    assert.equal(isPathInside(root, stagingRoot), false);
+    assert.equal(path.dirname(stagingRoot), stagingDir);
+  } finally {
+    await runProcess('git', ['worktree', 'remove', '--force', stagingRoot], { cwd: root, allowFailure: true });
+  }
+});
+
+test('createIsolatedStaging uses targetHead for the detached worktree', async (t) => {
+  const root = await makeRepo(t);
+  await mkdir(path.join(root, 'src'));
+  await writeFile(path.join(root, 'src', 'target.js'), 'export const value = "target";\n');
+  await runProcess('git', ['add', 'src/target.js'], { cwd: root });
+  await runProcess('git', ['commit', '-m', 'add target version'], { cwd: root });
+  const targetHead = (await runProcess('git', ['rev-parse', 'HEAD'], { cwd: root })).stdout.trim();
+  await writeFile(path.join(root, 'src', 'target.js'), 'export const value = "current";\n');
+  await runProcess('git', ['add', 'src/target.js'], { cwd: root });
+  await runProcess('git', ['commit', '-m', 'add current version'], { cwd: root });
+  const stagingDir = await makeTempDir(t, 'atb-external-staging-');
+  const { stagingRoot } = await createIsolatedStaging(root, 'atb_target', { stagingDir, targetHead });
+  try {
+    assert.equal((await readFile(path.join(stagingRoot, 'src', 'target.js'), 'utf8')).trim(), 'export const value = "target";');
+  } finally {
+    await runProcess('git', ['worktree', 'remove', '--force', stagingRoot], { cwd: root, allowFailure: true });
+  }
 });
 
 test('resolveStagingParent rejects an explicit staging directory inside the repository', async (t) => {

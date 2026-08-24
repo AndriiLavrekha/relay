@@ -1,11 +1,11 @@
 import crypto from 'node:crypto';
-import { mkdir, rm, copyFile, lstat, readlink, realpath, stat, symlink, unlink } from 'node:fs/promises';
+import { mkdir, rm, copyFile, lstat, realpath, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { runProcess } from './process.mjs';
-import { atbRoot, ensureLocalStorageIgnored } from './storage.mjs';
+import { ensureLocalStorageIgnored, removeIsolatedStagingWorktree } from './storage.mjs';
 import { getGitState } from './repository.mjs';
-import { stagingLocationUnavailable, unsafeStagingLocation } from './errors.mjs';
+import { AtbError, stagingLocationUnavailable, unsafeStagingLocation } from './errors.mjs';
 
 async function existsInfo(file) {
   try { return await lstat(file); } catch { return null; }
@@ -116,22 +116,30 @@ export async function resolveStagingParent(repoRoot, requestedDir = undefined) {
   throw stagingLocationUnavailable(stagingRepoRoot);
 }
 
-async function copyWorkingPath(sourceRoot, stagingRoot, repoPath) {
-  const source = path.join(sourceRoot, ...repoPath.split('/'));
-  const target = path.join(stagingRoot, ...repoPath.split('/'));
-  const info = await existsInfo(source);
-  if (!info) { await rm(target, { force: true, recursive: true }); return; }
-  await mkdir(path.dirname(target), { recursive: true });
-  if (info.isSymbolicLink()) {
-    await rm(target, { force: true, recursive: true });
-    await symlink(await readlink(source), target);
-  } else if (info.isFile()) {
-    await copyFile(source, target);
+export async function copySelectedWorkingPaths(sourceRoot, stagingRoot, selectedPaths) {
+  const copied = [];
+  const excluded = [];
+  const reparsePoints = [];
+  for (const repoPath of selectedPaths) {
+    const source = path.join(sourceRoot, ...repoPath.split('/'));
+    const target = path.join(stagingRoot, ...repoPath.split('/'));
+    const info = await existsInfo(source);
+    if (!info) {
+      await rm(target, { force: true, recursive: true });
+      excluded.push(repoPath);
+      continue;
+    }
+    if (info.isSymbolicLink()) {
+      reparsePoints.push(repoPath);
+      throw new AtbError('UNSAFE_WORKING_TREE_PATH', `Cannot reconstruct symbolic-link or reparse-point path: ${repoPath}`, { reparsePoints });
+    }
+    await mkdir(path.dirname(target), { recursive: true });
+    if (info.isFile()) {
+      await copyFile(source, target);
+      copied.push(repoPath);
+    }
   }
-}
-
-function splitNul(value) {
-  return value.split('\0').filter(Boolean);
+  return { copied, excluded, reparsePoints };
 }
 
 export async function isSafeStagingPath(stagingRoot, repoPath) {
@@ -147,20 +155,26 @@ export async function isSafeStagingPath(stagingRoot, repoPath) {
   return true;
 }
 
-export async function createIsolatedStaging(repoRoot, taskId) {
+export async function createIsolatedStaging(repoRoot, taskId, { selectedPaths = [], stagingDir, targetHead } = {}) {
   await ensureLocalStorageIgnored(repoRoot);
   const git = await getGitState(repoRoot);
-  const stagingParent = path.join(atbRoot(repoRoot), 'staging');
+  const { parent: stagingParent } = await resolveStagingParent(repoRoot, stagingDir);
   await mkdir(stagingParent, { recursive: true });
   const stagingRoot = path.join(stagingParent, `${taskId}-${Date.now().toString(36)}-${crypto.randomBytes(3).toString('hex')}`);
-  await runProcess('git', ['worktree', 'add', '--detach', stagingRoot, git.head], { cwd: repoRoot });
+  await runProcess('git', ['worktree', 'add', '--detach', stagingRoot, targetHead ?? git.head], { cwd: repoRoot });
 
-  // Reconstruct the exact active working tree on top of the detached worktree.
-  const tracked = splitNul((await runProcess('git', ['ls-files', '-z'], { cwd: repoRoot })).stdout);
-  for (const repoPath of tracked) await copyWorkingPath(repoRoot, stagingRoot, repoPath.replaceAll('\\', '/'));
-  const untracked = splitNul((await runProcess('git', ['ls-files', '--others', '--exclude-standard', '-z'], { cwd: repoRoot })).stdout);
-  for (const repoPath of untracked) await copyWorkingPath(repoRoot, stagingRoot, repoPath.replaceAll('\\', '/'));
-  return { stagingRoot, git };
+  const reconstruction = await copySelectedWorkingPaths(repoRoot, stagingRoot, selectedPaths);
+  return { stagingRoot, git, excludedWorkingTreePaths: reconstruction.excluded, reparsePoints: reconstruction.reparsePoints };
+}
+
+export async function cleanupIsolatedStaging({ repoRoot, stagingRoot }) {
+  try {
+    const validatedStagingRoot = await assertOutsideRepository(repoRoot, stagingRoot);
+    await removeIsolatedStagingWorktree(repoRoot, validatedStagingRoot);
+    return { removed: true, errors: [] };
+  } catch (error) {
+    return { removed: false, errors: [{ code: error?.code ?? 'STAGING_CLEANUP_FAILED', message: error?.message ?? String(error) }] };
+  }
 }
 
 export async function applyStagedFile(stagingRoot, file) {
