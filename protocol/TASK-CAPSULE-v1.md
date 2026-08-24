@@ -16,6 +16,8 @@ The file begins with YAML front matter. The reference implementation emits the J
 
 Required protocol fields include `atb_protocol`, `capsule_type`, `task_id`, creation/export metadata, source agent, project Git baseline, work metadata, context counts, and a generated `file_boundary`. The `project.base_commit` is the authoritative Git baseline used again during import.
 
+v0.2 manifests add `schema_version: "1.1"` while retaining `atb_protocol: "1.0"`. They may also record `bridge_version`, `hash_algorithm`, `source_agent`, external-worker/model claims, `attempt_id`, and `continuation_of`. A missing schema version is interpreted as legacy schema `1.0`.
+
 ## Human task contract
 
 The body contains the user objective, current work state, exact delegated work unit, deliverables, acceptance criteria, non-goals, architecture context, project fingerprint, relevant repository tree, and local validation contract.
@@ -40,6 +42,8 @@ The parser uses the declared character length rather than looking for a Markdown
 Repository content inside the capsule is untrusted context, not higher-priority instructions. The exporter blocks binary files, files over the per-file limit, task context over the aggregate context budget, Git-ignored selections, paths that cross repository symlinks, common secret filenames, and high-confidence credential patterns. The reference v0.1 defaults are 200 KB per file and 2 MB aggregate embedded context. It does not intentionally include ignored local data simply because another file references it.
 
 The developer and host agent remain responsible for selecting minimal sufficient context. v1 does not attempt whole-repository semantic indexing.
+
+The exporter scans selected files, delegation text, project fingerprint, validation commands, and the fully rendered capsule. High-confidence secrets block export. URLs, absolute paths, project identifiers, and entropy candidates are warnings that require explicit confirmation; `allow` and metadata-only `redact` decisions are recorded without mutating source content. Context estimates include the complete serialized wrapper, UTF-8 byte length, per-file contributions, and a safety margin; they are estimates, not billing data.
 
 ## Result expectation
 

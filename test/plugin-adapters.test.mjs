@@ -133,3 +133,21 @@ test('protocol, example, license, and user documentation ship with the package',
   assert.ok(Array.isArray(example.editable_scope) && example.editable_scope.length > 0);
   assert.ok(Array.isArray(example.acceptance_criteria) && example.acceptance_criteria.length > 0);
 });
+
+test('protocol documentation describes schema, integrity, statuses, privacy, and evidence contracts', async () => {
+  const taskProtocol = await readFile(path.join(root, 'protocol/TASK-CAPSULE-v1.md'), 'utf8');
+  const resultProtocol = await readFile(path.join(root, 'protocol/RESULT-CAPSULE-v1.md'), 'utf8');
+  const readme = await readFile(path.join(root, 'README.md'), 'utf8');
+
+  assert.match(taskProtocol, /schema_version/);
+  assert.match(taskProtocol, /privacy/i);
+  assert.match(resultProtocol, /schema_version/);
+  assert.match(resultProtocol, /sha256/);
+  assert.match(resultProtocol, /size_bytes/);
+  assert.match(resultProtocol, /complete.*partial.*blocked.*research-only/s);
+  assert.match(resultProtocol, /worker claims/i);
+  assert.match(resultProtocol, /local evidence/i);
+  assert.match(resultProtocol, /REPORT\.md/);
+  assert.match(readme, /--max-tokens/);
+  assert.match(readme, /acceptance criteria/i);
+});

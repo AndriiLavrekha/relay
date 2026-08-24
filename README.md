@@ -171,6 +171,7 @@ node bin/agent-task-bridge.mjs export \
   --delegation delegation.json \
   --repo . \
   --source-agent codex \
+  --max-tokens 50000 \
   --out .agent-task-bridge/exports/retry-backoff.task.md
 ```
 
@@ -400,11 +401,11 @@ There are zero third-party runtime npm dependencies. The bridge does not require
 
 ## Security model
 
-Export blocks likely secret files or content, Git-ignored selections, paths that traverse repository symlinks, binary files, files over 200 KB, and task context over 2 MB by default.
+Export scans selected files, delegation and project metadata, validation commands, and the complete rendered capsule. High-confidence secrets block export; warning findings such as URLs, absolute paths, and entropy candidates require explicit confirmation. Use `--privacy allow` only when the decision is intentional, and `--max-tokens <n>` to enforce a hard full-capsule estimate (estimates include wrapper bytes, per-file contributions, and safety margin and are not billing data).
 
 Import rejects dangerous archive paths, reserved bridge/Git paths, symlinks, duplicate entries, encryption, unsupported compression, CRC corruption, and bounded-size violations. Returned files outside the original editable scope or through staging symlink ancestors are quarantined rather than staged.
 
-The external worker's code and prose remain untrusted. Local tests, builds, and validation evidence are authoritative; the active worktree is not modified by import.
+The external worker's code, model, status, tests, token usage, and prose remain untrusted claims. Schema 1.1 result files carry SHA-256 and byte-length declarations that are checked against raw ZIP payloads before decoding. Import reports separate worker claims from deterministic local evidence and acceptance-criteria status; local tests, builds, and validation evidence are authoritative. The active worktree is not modified by import.
 
 ## Current MVP boundary
 
