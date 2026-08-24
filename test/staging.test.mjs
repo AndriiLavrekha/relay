@@ -70,6 +70,21 @@ test('resolveStagingParent wraps an unusable explicit staging path', async (t) =
   );
 });
 
+test('assertOutsideRepository rejects a physical repository child through a repository alias', async (t) => {
+  const repo = await makeRepo(t);
+  const alias = path.join(await makeTempDir(t, 'atb-staging-repo-alias-'), 'repo-alias');
+  try {
+    await symlink(repo, alias, process.platform === 'win32' ? 'junction' : 'dir');
+  } catch (error) {
+    t.skip(`Platform cannot create a repository alias fixture: ${error.message}`);
+    return;
+  }
+  await assert.rejects(
+    () => assertOutsideRepository(alias, path.join(repo, 'physical-staging')),
+    (error) => error.code === 'UNSAFE_STAGING_LOCATION'
+  );
+});
+
 test('assertOutsideRepository rejects a symbolic-link staging parent', { skip: process.platform === 'win32' }, async (t) => {
   const repo = await makeRepo(t);
   const target = await makeTempDir(t, 'atb-staging-target-');

@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { mkdir, rm, copyFile, lstat, readlink, stat, symlink, unlink } from 'node:fs/promises';
+import { mkdir, rm, copyFile, lstat, readlink, realpath, stat, symlink, unlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { runProcess } from './process.mjs';
@@ -14,6 +14,22 @@ async function existsInfo(file) {
 function isPathInside(parent, candidate) {
   const relative = path.relative(parent, candidate);
   return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
+}
+
+async function realpathWithMissingTail(candidate) {
+  let current = path.resolve(candidate);
+  const tail = [];
+  while (true) {
+    try {
+      return path.join(await realpath(current), ...tail);
+    } catch (error) {
+      if (error?.code !== 'ENOENT') throw error;
+      const parent = path.dirname(current);
+      if (parent === current) return current;
+      tail.unshift(path.basename(current));
+      current = parent;
+    }
+  }
 }
 
 async function assertRealDirectoryPath(candidate) {
@@ -42,12 +58,15 @@ export async function assertOutsideRepository(repoRoot, candidate) {
   if (typeof candidate !== 'string' || !candidate.trim()) {
     throw unsafeStagingLocation('Staging directory must be a non-empty path outside the repository');
   }
-  const resolvedRepoRoot = path.resolve(repoRoot);
-  const resolvedCandidate = path.resolve(candidate);
+  const lexicalCandidate = await assertRealDirectoryPath(candidate);
+  const [resolvedRepoRoot, resolvedCandidate] = await Promise.all([
+    realpath(repoRoot),
+    realpathWithMissingTail(lexicalCandidate),
+  ]);
   if (isPathInside(resolvedRepoRoot, resolvedCandidate)) {
     throw unsafeStagingLocation(`Staging directory must be outside the repository: ${resolvedCandidate}`);
   }
-  return assertRealDirectoryPath(resolvedCandidate);
+  return resolvedCandidate;
 }
 
 async function prepareStagingParent(repoRoot, candidate) {
