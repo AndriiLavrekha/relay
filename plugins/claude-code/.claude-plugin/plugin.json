@@ -1,0 +1,11 @@
+{
+  "name": "agent-task-bridge",
+  "version": "0.1.0",
+  "description": "Export bounded repository work to ChatGPT and safely stage returned results for local validation and review.",
+  "author": {
+    "name": "Agent Task Bridge contributors"
+  },
+  "license": "MIT",
+  "keywords": ["chatgpt", "delegation", "handoff", "codex", "developer-tools"],
+  "skills": "./skills/"
+}

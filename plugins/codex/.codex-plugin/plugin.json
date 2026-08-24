@@ -1,0 +1,24 @@
+{
+  "name": "agent-task-bridge",
+  "version": "0.1.0",
+  "description": "Export bounded repository work to ChatGPT and safely stage returned results for local validation and review.",
+  "author": {
+    "name": "Agent Task Bridge contributors"
+  },
+  "license": "MIT",
+  "keywords": ["chatgpt", "delegation", "handoff", "claude-code", "developer-tools"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Agent Task Bridge",
+    "shortDescription": "Delegate bounded coding work to ChatGPT and safely re-import it",
+    "longDescription": "Package the exact repository context for a bounded work unit into one Task Capsule, then inspect, drift-check, stage, and locally validate a Result Capsule returned from ChatGPT without directly mutating the active worktree.",
+    "developerName": "Agent Task Bridge contributors",
+    "category": "Developer Tools",
+    "capabilities": ["Read", "Write", "Interactive"],
+    "defaultPrompt": [
+      "Export this bounded task to ChatGPT",
+      "Import this ChatGPT Result Capsule and review it"
+    ],
+    "screenshots": []
+  }
+}

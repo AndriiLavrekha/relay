@@ -1,0 +1,44 @@
+{
+  "objective": "Add configurable retry behavior to the existing HTTP client without changing its public request API.",
+  "work_unit": "Implement the retry policy module and unit tests. Do not integrate the policy into the production HTTP client yet.",
+  "work_type": "code",
+  "title": "HTTP retry policy",
+  "current_work_state": "The HTTP client already exists. Retry semantics have been agreed, but the standalone policy module has not been implemented.",
+  "deliverables": [
+    "A retry policy module following the existing TypeScript conventions",
+    "Unit tests covering success, exhaustion, and non-retryable failures"
+  ],
+  "editable_scope": [
+    "src/http/retry/**",
+    "test/http/retry/**"
+  ],
+  "acceptance_criteria": [
+    "The policy retries only errors classified as retryable by the provided contract",
+    "The maximum-attempt count includes the initial attempt",
+    "Tests cover zero additional retries and exhausted retries",
+    "No production HTTP-client integration is included"
+  ],
+  "non_goals": [
+    "Changing the HTTP client's public API",
+    "Adding telemetry or persistence",
+    "Changing unrelated request code"
+  ],
+  "architecture_context": "The service is Node.js + TypeScript. Retry behavior belongs in src/http/retry and must depend on the existing error-classification contract rather than HTTP implementation details.",
+  "files": {
+    "editable": [
+      "src/http/retry/index.ts",
+      "test/http/retry/retry-policy.test.ts"
+    ],
+    "reference": [
+      "src/http/client.ts"
+    ],
+    "contract": [
+      "src/http/errors.ts"
+    ],
+    "validation": [
+      "package.json",
+      "tsconfig.json"
+    ],
+    "configuration": []
+  }
+}

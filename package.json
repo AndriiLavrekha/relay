@@ -1,0 +1,31 @@
+{
+  "name": "agent-task-bridge",
+  "version": "0.1.0",
+  "description": "Portable task delegation bridge between coding agents and external workers such as ChatGPT",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "agent-task-bridge": "./bin/agent-task-bridge.mjs"
+  },
+  "scripts": {
+    "test": "node --test",
+    "smoke": "node scripts/smoke-test.mjs",
+    "bundle:plugins": "node scripts/bundle-plugins.mjs",
+    "prepack": "node scripts/bundle-plugins.mjs"
+  },
+  "files": [
+    "bin",
+    "src",
+    "scripts",
+    "plugins",
+    "protocol",
+    "examples",
+    "docs/architecture.md",
+    "README.md",
+    "LICENSE",
+    ".claude-plugin",
+    ".agents"
+  ]
+}
