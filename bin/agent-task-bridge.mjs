@@ -31,7 +31,7 @@ function parseArgs(args) {
 }
 
 function help() {
-  console.log(`Agent Task Bridge ${pkg.version}\n\nUsage:\n  agent-task-bridge export --delegation <file> [--repo <dir>] [--out <file>] [--source-agent <name>]\n  agent-task-bridge import <result.zip> [--repo <dir>] [--json]\n  agent-task-bridge inspect-task <task.md>\n  agent-task-bridge inspect-result <result.zip>\n  agent-task-bridge validate [--dir <dir>]\n  agent-task-bridge status [--repo <dir>]\n  agent-task-bridge version`);
+  console.log(`Agent Task Bridge ${pkg.version}\n\nUsage:\n  agent-task-bridge export --delegation <file> [--repo <dir>] [--out <file>] [--source-agent <name>] [--max-tokens <n>] [--privacy <mode>] [--confirm-privacy]\n  agent-task-bridge import <result.zip> [--repo <dir>] [--json]\n  agent-task-bridge inspect-task <task.md>\n  agent-task-bridge inspect-result <result.zip>\n  agent-task-bridge validate [--dir <dir>]\n  agent-task-bridge status [--repo <dir>]\n  agent-task-bridge version`);
 }
 
 async function main() {
@@ -41,7 +41,15 @@ async function main() {
   const args = parseArgs(rest);
   if (command === 'export') {
     if (!args.delegation) throw new AtbError('MISSING_ARGUMENT', '--delegation is required');
-    const result = await exportTask({ repoRoot: args.repo, delegationPath: args.delegation, outPath: args.out, sourceAgent: args['source-agent'] ?? 'unknown' });
+    const result = await exportTask({
+      repoRoot: args.repo,
+      delegationPath: args.delegation,
+      outPath: args.out,
+      sourceAgent: args['source-agent'] ?? 'unknown',
+      maxTokens: args['max-tokens'],
+      privacyPolicy: args.privacy ?? 'default',
+      privacyConfirmed: args['confirm-privacy'] === true,
+    });
     console.log(JSON.stringify(result, null, 2));
     return;
   }

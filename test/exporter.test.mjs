@@ -58,3 +58,51 @@ test('exportTask writes a self-contained dirty-state capsule and durable task hi
   const excludePath = path.isAbsolute(gitPath) ? gitPath : path.join(root, gitPath);
   assert.match(await readFile(excludePath, 'utf8'), /^|\n\.agent-task-bridge\/\n/);
 });
+
+test('exportTask scans rendered metadata even when selected files are clean', async () => {
+  const root = await makeRepo();
+  const delegationPath = path.join(root, 'delegation.json');
+  await writeFile(delegationPath, JSON.stringify({
+    objective: 'Use the GitHub credential ghp_1234567890abcdefghijklmnopqrstuvwxyz1234 in the worker objective',
+    work_unit: 'Update value behavior and tests',
+    work_type: 'code',
+    current_work_state: 'The selected source files contain no credentials.',
+    deliverables: ['Implementation'],
+    editable_scope: ['src/**'],
+    acceptance_criteria: ['Keep ESM syntax'],
+    non_goals: [],
+    files: { editable: ['src/index.js'], reference: [], contract: [], validation: [], configuration: ['package.json'] }
+  }, null, 2));
+
+  await assert.rejects(
+    () => exportTask({ repoRoot: root, delegationPath }),
+    (error) => error?.code === 'PRIVACY_SCAN_BLOCKED'
+  );
+});
+
+test('exportTask reports full-capsule estimates and enforces a token ceiling', async () => {
+  const root = await makeRepo();
+  const delegationPath = path.join(root, 'delegation.json');
+  await writeFile(delegationPath, JSON.stringify({
+    objective: 'Change the exported value',
+    work_unit: 'Update value behavior and tests',
+    work_type: 'code',
+    current_work_state: 'The source is already dirty.',
+    deliverables: ['Implementation'],
+    editable_scope: ['src/**'],
+    acceptance_criteria: ['Keep ESM syntax'],
+    non_goals: [],
+    files: { editable: ['src/index.js'], reference: [], contract: [], validation: [], configuration: ['package.json'] }
+  }, null, 2));
+
+  const result = await exportTask({ repoRoot: root, delegationPath });
+  assert.ok(result.contextSummary.estimated_tokens > Math.ceil(result.contextSummary.embedded_bytes / 4));
+  assert.ok(result.contextSummary.safety_margin_tokens > 0);
+  assert.deepEqual(result.contextSummary.per_file.map((file) => file.path), ['package.json', 'src/index.js']);
+  assert.ok(result.contextSummary.per_file.every((file) => file.estimated_tokens > 0));
+
+  await assert.rejects(
+    () => exportTask({ repoRoot: root, delegationPath, maxTokens: 10 }),
+    (error) => error?.code === 'CONTEXT_TOKEN_BUDGET_EXCEEDED'
+  );
+});
