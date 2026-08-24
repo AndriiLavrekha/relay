@@ -44,3 +44,9 @@ updated: 2026-08-24
 - Added public install commands to the root README.
 - Verification after correcting the marketplace identity: 49 tests passed, 3 Windows symlink tests skipped, smoke passed in both directions, Claude marketplace validation passed, and both local marketplace JSON files parsed.
 - Push remains pending.
+
+## 2026-08-24 — Push complete
+
+- Committed verified changes as `01c20b5` (`fix: harden plugin readiness`).
+- Pushed `main` to `origin` at `https://github.com/AndriiLavrekha/task-bridge`.
+- Remote verification confirms `origin/main` points to `01c20b55786a1eb2dc488675c4462613c4bcaee6`.

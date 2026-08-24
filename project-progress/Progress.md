@@ -4,7 +4,7 @@ worktree_dirty: true
 base_branch: main
 base_commit: b5d0b08b1f4b35b553b9050387597dfc95b62098
 handoff: clean
-gate_deploy: not-started
+gate_deploy: done
 gate_review: done
 gate_tests: done
 gate_implementation: done
@@ -15,8 +15,8 @@ path: D:/depot/agent-task-bridge
 agent_last_used: unknown
 updated: 2026-08-24
 last_milestone: readiness blockers fixed and verified
-deployed: false
-deployment_url:
+deployed: true
+deployment_url: https://github.com/AndriiLavrekha/task-bridge
 sensitivity: normal
 commit_progress: true
 ---
@@ -29,7 +29,7 @@ The four approved readiness issues are fixed. Windows package-manager validation
 
 ## Current State
 
-The implementation fixes are complete and reviewed. The project is locally verified. This repository is configured as the `awesome-task-bridge` marketplace and exposes its plugin as `task-bridge`; neither repository has been pushed for this update.
+The implementation fixes are complete and reviewed. The project is locally verified and pushed to `origin/main` at `01c20b5`. This repository is configured as the `awesome-task-bridge` marketplace and exposes its plugin as `task-bridge`.
 
 ## Last Session
 
@@ -37,7 +37,7 @@ Implemented and tested the Windows command resolution, validation trust boundary
 
 ## Next Action
 
-Review the feature/readiness checklist and decide whether to commit or push these changes.
+Review the feature/readiness checklist; the verified changes are committed and pushed.
 
 ## Remaining Work
 
@@ -63,7 +63,7 @@ None known for the approved scope. Three symlink security tests remain skipped o
 
 ## Deployment
 
-Not deployed; changes are present locally and have not been committed or pushed.
+Pushed to `origin/main`: `01c20b5` (`fix: harden plugin readiness`).
 
 ## Completion Criteria
 
