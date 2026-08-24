@@ -1,10 +1,10 @@
 ---
-session_id: 01a032db-97ed-78a1-bbac-d490da067a0a
+session_id: 01a032e8-9bd4-7370-a2f8-44c4638eb698
 checkpoint_at: 2026-08-24T08:27:46Z
 worktree_dirty: true
 base_branch: main
 base_commit: 2a7fe736a6f175df16c565720260959d4a055f72
-handoff: clean
+handoff: interrupted
 gate_deploy: done
 gate_review: done
 gate_tests: done
@@ -26,7 +26,7 @@ commit_progress: true
 
 ## Resume Snapshot
 
-Readiness fixes and the README redesign remain complete and verified. The first public `v0.1.0` release is tagged, published, and referenced by the public Claude Code/Codex installation instructions.
+Readiness fixes and the README redesign remain complete and verified. The first public `v0.1.0` release is tagged, published, and installed locally in both Claude Code and Codex. Both plugins are enabled; Codex completed a read-only skill probe, while Claude's live probe was stopped by the existing session limit after installation metadata was verified.
 
 ## Current State
 
@@ -38,7 +38,7 @@ Implemented and tested the Windows command resolution, validation trust boundary
 
 ## Next Action
 
-No further action for the v0.1.0 release scope; future work can plan the next version.
+For future verification, run the documented local CLI tests, then perform one real provider round trip: export a tiny task, upload the Task Capsule to ChatGPT, import the Result Capsule, review staging/validation, and integrate manually.
 
 ## Remaining Work
 
@@ -60,7 +60,7 @@ No further action for the v0.1.0 release scope; future work can plan the next ve
 
 ## Blockers
 
-No blockers known. Three symlink security tests remain skipped on Windows by design. CI remains intentionally out of scope.
+Claude live probe is currently limited by the account's session limit; retry after the reset time. Three symlink security tests remain skipped on Windows by design. CI remains intentionally out of scope.
 
 ## Deployment
 
