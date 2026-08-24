@@ -8,6 +8,10 @@ const VALIDATION_CONFIG_FILES = ['package.json', 'package-lock.json', 'npm-shrin
 
 async function exists(file) { try { await access(file); return true; } catch { return false; } }
 
+function throwIfAborted(signal) {
+  if (signal?.aborted) throw signal.reason ?? new AtbError('ABORT_ERR', 'Validation interrupted');
+}
+
 async function packageManager(root, pkg) {
   if (typeof pkg.packageManager === 'string' && pkg.packageManager.trim()) return pkg.packageManager.split('@')[0];
   if (await exists(path.join(root, 'pnpm-lock.yaml'))) return 'pnpm';
@@ -72,12 +76,13 @@ export async function validationConfigChanged(repoRoot, snapshot) {
   return [...paths].some((relative) => snapshot.config[relative] !== current[relative]);
 }
 
-export async function runValidation(stagingRoot, commands) {
+export async function runValidation(stagingRoot, commands, { signal } = {}) {
   const results = [];
   for (const spec of commands) {
+    throwIfAborted(signal);
     const started = Date.now();
     try {
-      const processResult = await runProcess(spec.command, spec.args ?? [], { cwd: stagingRoot, allowFailure: true });
+      const processResult = await runProcess(spec.command, spec.args ?? [], { cwd: stagingRoot, allowFailure: true, signal });
       results.push({
         name: spec.name,
         command: spec.display ?? [spec.command, ...(spec.args ?? [])].join(' '),

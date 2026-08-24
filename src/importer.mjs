@@ -41,11 +41,15 @@ function activeTreeChanged(before, after) {
 }
 
 function failureMetadata(error) {
-  return { code: error?.code ?? 'IMPORT_FAILED' };
+  return { code: interrupted(error) ? 'ABORT_ERR' : error?.code ?? 'IMPORT_FAILED' };
 }
 
 function interrupted(error) {
   return error?.code === 'ABORT_ERR' || error?.name === 'AbortError';
+}
+
+function throwIfAborted(signal) {
+  if (signal?.aborted) throw signal.reason ?? new AtbError('ABORT_ERR', 'Import interrupted');
 }
 
 function setLifecycle(report, lifecycle) {
@@ -70,7 +74,7 @@ function rejectedReport(importId) {
   };
 }
 
-export async function importResult({ repoRoot, resultPath, stagingDir } = {}) {
+export async function importResult({ repoRoot, resultPath, stagingDir, signal } = {}) {
   const root = repoRoot ? await findGitRoot(repoRoot) : await findGitRoot(process.cwd());
   const importId = `import_${Date.now().toString(36)}_${crypto.randomBytes(3).toString('hex')}`;
   let report = rejectedReport(importId);
@@ -78,8 +82,11 @@ export async function importResult({ repoRoot, resultPath, stagingDir } = {}) {
   let originalError = null;
   let stagingAttempted = false;
   try {
+    throwIfAborted(signal);
     const result = await inspectResultCapsule(path.resolve(resultPath));
+    throwIfAborted(signal);
     const task = await loadStoredTask(root, result.manifest.task_id);
+    throwIfAborted(signal);
     taskId = task.manifest.task_id;
     const taskBase = task.manifest.project?.base_commit;
     if (result.manifest.source_base_commit !== taskBase) {
@@ -90,6 +97,7 @@ export async function importResult({ repoRoot, resultPath, stagingDir } = {}) {
       getGitState(root),
       captureValidationSnapshot(root),
     ]);
+    throwIfAborted(signal);
     const fileReports = [];
     for (const file of result.files) {
       const current = await currentState(root, file.path);
@@ -99,6 +107,7 @@ export async function importResult({ repoRoot, resultPath, stagingDir } = {}) {
 
     const candidateRoot = path.join(atbRoot(root), 'tasks', taskId, 'imports', importId, 'candidates');
     const activeTreeBefore = await fingerprintActiveTree(root);
+    throwIfAborted(signal);
     report = {
       protocol: '1.0',
       taskId,
@@ -127,6 +136,7 @@ export async function importResult({ repoRoot, resultPath, stagingDir } = {}) {
     };
 
     try {
+      throwIfAborted(signal);
       stagingAttempted = true;
       const staging = await createIsolatedStaging(root, taskId, {
         selectedPaths: task.files.map((file) => file.path),
@@ -134,8 +144,10 @@ export async function importResult({ repoRoot, resultPath, stagingDir } = {}) {
       });
       report.stagingRoot = staging.stagingRoot;
       report.excludedPaths = staging.excludedWorkingTreePaths;
+      throwIfAborted(signal);
       await mkdir(candidateRoot, { recursive: true });
       for (let i = 0; i < result.files.length; i++) {
+        throwIfAborted(signal);
         const file = result.files[i];
         let status = fileReports[i].status;
         if ((status === 'CLEAN_UNCHANGED' || status === 'NEW_EXPECTED') && !(await isSafeStagingPath(report.stagingRoot, file.path))) {
@@ -153,6 +165,7 @@ export async function importResult({ repoRoot, resultPath, stagingDir } = {}) {
       }
       report.conflicts = fileReports.filter((file) => !file.appliedToStaging).map((file) => ({ path: file.path, status: file.status }));
       setLifecycle(report, 'staged');
+      throwIfAborted(signal);
       if (await validationConfigChanged(report.stagingRoot, validationSnapshot)) {
         report.validation = {
           passed: null,
@@ -161,11 +174,12 @@ export async function importResult({ repoRoot, resultPath, stagingDir } = {}) {
           results: [],
         };
       } else {
-        report.validation = await runValidation(report.stagingRoot, validationSnapshot.commands);
+        report.validation = await runValidation(report.stagingRoot, validationSnapshot.commands, { signal });
         report.validation.blocked = false;
         const skipped = report.validation.results.find((entry) => entry.status === 'SKIPPED');
         if (skipped) throw new AtbError('VALIDATION_PROCESS_FAILED', `Validation command could not start: ${skipped.name}`);
       }
+      throwIfAborted(signal);
       report.validation.partial = report.conflicts.length > 0;
       setLifecycle(report, 'reviewed');
       report.stagingRetained = true;
@@ -180,7 +194,7 @@ export async function importResult({ repoRoot, resultPath, stagingDir } = {}) {
     }
   } catch (error) {
     originalError = error;
-    setLifecycle(report, stagingAttempted || report.stagingRoot ? (interrupted(error) ? 'interrupted' : 'failed') : 'rejected');
+    setLifecycle(report, interrupted(error) ? 'interrupted' : stagingAttempted || report.stagingRoot ? 'failed' : 'rejected');
     report.error = failureMetadata(error);
   } finally {
     try {

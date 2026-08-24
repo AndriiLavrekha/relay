@@ -8,6 +8,7 @@ import { exportTask } from '../src/exporter.mjs';
 import { createZip } from '../src/zip.mjs';
 import { importResult } from '../src/importer.mjs';
 import { formatImportReport } from '../src/reporting.mjs';
+import { AtbError } from '../src/errors.mjs';
 
 async function exists(file) { try { await access(file); return true; } catch { return false; } }
 
@@ -209,4 +210,37 @@ test('formatImportReport describes lifecycle, staging, exclusions, and observed 
   assert.match(text, /Staging outcome: retained/);
   assert.match(text, /Excluded working-tree paths: 1/);
   assert.match(text, /Active-tree comparison: unchanged/);
+});
+
+test('formatImportReport does not claim an unobserved active worktree is clean', () => {
+  const text = formatImportReport({
+    taskId: 'atb_x', lifecycle: 'rejected', resultStatus: null,
+    stagingRoot: null, stagingRetained: false, files: [], conflicts: [], validation: null,
+    activeWorktreeModifiedByImport: null,
+  });
+
+  assert.match(text, /Active-tree comparison: not observed/);
+  assert.doesNotMatch(text, /No changes have been applied to the active worktree/);
+  assert.doesNotMatch(text, /WARNING: active worktree was modified/);
+});
+
+test('importResult persists an interrupted lifecycle for a pre-aborted signal', async () => {
+  const { root, task } = await makeRepo();
+  const zip = await resultZip(root, task, [{ path: 'src/a.js', operation: 'modify', content: 'export const a = 2;\n' }]);
+  const controller = new AbortController();
+  const abortError = new AtbError('ABORT_ERR', 'Test import cancellation');
+  controller.abort(abortError);
+
+  await assert.rejects(
+    () => importResult({ repoRoot: root, resultPath: zip, signal: controller.signal }),
+    (error) => error === abortError
+  );
+
+  const importsRoot = path.join(root, '.agent-task-bridge', 'imports');
+  const [importId] = await readdir(importsRoot);
+  const report = JSON.parse(await readFile(path.join(importsRoot, importId, 'report.json'), 'utf8'));
+  assert.equal(report.lifecycle, 'interrupted');
+  assert.equal(report.error.code, 'ABORT_ERR');
+  assert.equal(report.stagingRoot, null);
+  assert.equal(report.cleanup, null);
 });

@@ -1,14 +1,23 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { access, mkdtemp, mkdir, writeFile, readFile, readdir } from 'node:fs/promises';
+import { access, mkdtemp, mkdir, writeFile, readFile, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { runProcess } from '../src/process.mjs';
 import { exportTask } from '../src/exporter.mjs';
 import { createZip } from '../src/zip.mjs';
 import { importResult } from '../src/importer.mjs';
+import { AtbError } from '../src/errors.mjs';
 
 async function exists(file) { try { await access(file); return true; } catch { return false; } }
+
+async function waitFor(file, attempts = 500) {
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    if (await exists(file)) return;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error(`Timed out waiting for ${file}`);
+}
 
 async function makeRepo() {
   const root = await mkdtemp(path.join(tmpdir(), 'atb-e2e-'));
@@ -162,4 +171,58 @@ test('E2E removes staging and keeps a failed report when validation cannot start
   assert.equal(report.stagingRetained, false);
   assert.equal(report.cleanup.removed, true);
   assert.equal(await exists(report.stagingRoot), false);
+});
+
+test('E2E interrupts validation, cleans staging, and persists active-tree observations', async (t) => {
+  const root = await makeRepo();
+  const markerDir = await mkdtemp(path.join(tmpdir(), 'atb-abort-marker-'));
+  const markerPath = path.join(markerDir, 'validation-started');
+  t.after(() => rm(markerDir, { force: true, recursive: true }));
+  const previousMarker = process.env.ATB_ABORT_MARKER;
+  process.env.ATB_ABORT_MARKER = markerPath;
+  t.after(() => {
+    if (previousMarker === undefined) delete process.env.ATB_ABORT_MARKER;
+    else process.env.ATB_ABORT_MARKER = previousMarker;
+  });
+
+  const packagePath = path.join(root, 'package.json');
+  const packageJson = JSON.parse(await readFile(packagePath, 'utf8'));
+  packageJson.packageManager = 'node';
+  await writeFile(path.join(root, 'run'), "import { writeFileSync } from 'node:fs';\nwriteFileSync(process.env.ATB_ABORT_MARKER, 'started');\nsetTimeout(() => process.exit(0), 2000);\n");
+  await writeFile(packagePath, JSON.stringify(packageJson, null, 2));
+  await runProcess('git', ['add', 'package.json', 'run'], { cwd: root });
+  await runProcess('git', ['commit', '-m', 'make validation cancellable'], { cwd: root });
+
+  const delegation = path.join(root, 'validation-cancellation-delegation.json');
+  await writeFile(delegation, JSON.stringify({
+    objective: 'Change value', work_unit: 'Update the value module', work_type: 'code', editable_scope: ['src/**'],
+    acceptance_criteria: ['Validation can be cancelled'], files: { editable: ['src/value.js'], reference: [], contract: [], validation: [], configuration: ['package.json'] }
+  }));
+  const task = await exportTask({ repoRoot: root, delegationPath: delegation, sourceAgent: 'codex' });
+  const resultPath = path.join(root, 'validation-cancellation-result.zip');
+  await writeFile(resultPath, createZip([
+    { name: 'manifest.json', data: Buffer.from(JSON.stringify({
+      atb_protocol: '1.0', capsule_type: 'result', task_id: task.taskId, source_base_commit: task.manifest.project.base_commit,
+      result_type: 'code', summary: 'Change value', files: [{ path: 'src/value.js', operation: 'modify' }],
+      validation: { executed: [], not_executed: [] }, assumptions: [], unresolved: []
+    })) },
+    { name: 'files/src/value.js', data: Buffer.from('export const value = 2;\n') },
+  ]));
+
+  const controller = new AbortController();
+  const importPromise = importResult({ repoRoot: root, resultPath, signal: controller.signal });
+  await waitFor(markerPath);
+  controller.abort(new AtbError('ABORT_ERR', 'Test validation cancellation'));
+
+  await assert.rejects(importPromise, (error) => error.code === 'ABORT_ERR');
+
+  const importsRoot = path.join(root, '.agent-task-bridge', 'tasks', task.taskId, 'imports');
+  const [importId] = await readdir(importsRoot);
+  const report = JSON.parse(await readFile(path.join(importsRoot, importId, 'report.json'), 'utf8'));
+  assert.equal(report.lifecycle, 'interrupted');
+  assert.equal(report.error.code, 'ABORT_ERR');
+  assert.equal(report.cleanup.removed, true);
+  assert.equal(await exists(report.stagingRoot), false);
+  assert.equal(report.activeWorktreeModifiedByImport, false);
+  assert.equal(report.activeTreeBefore.pathSetHash, report.activeTreeAfter.pathSetHash);
 });

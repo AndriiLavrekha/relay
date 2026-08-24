@@ -25,7 +25,7 @@ export function formatImportReport(report) {
     if (report.validation.partial) lines.push('  Note: validation is partial because one or more returned files were withheld for conflict/scope review.');
   }
   if (report.activeWorktreeModifiedByImport === null || report.activeWorktreeModifiedByImport === undefined) lines.push('', 'Active-tree comparison: not observed.');
-  else lines.push('', `Active-tree comparison: ${report.activeWorktreeModifiedByImport ? 'changed' : 'unchanged'}.`);
-  lines.push(report.activeWorktreeModifiedByImport ? 'WARNING: active worktree was modified.' : 'No changes have been applied to the active worktree.');
+  else if (report.activeWorktreeModifiedByImport) lines.push('', 'Active-tree comparison: changed.', 'WARNING: active worktree was modified.');
+  else lines.push('', 'Active-tree comparison: unchanged.', 'No changes have been applied to the active worktree.');
   return `${lines.join('\n')}\n`;
 }
