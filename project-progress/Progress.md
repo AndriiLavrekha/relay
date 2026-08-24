@@ -26,7 +26,7 @@ commit_progress: true
 
 ## Resume Snapshot
 
-Readiness fixes and the README redesign remain complete and verified. Current work is the first public `v0.1.0` release: tag the verified main commit, publish GitHub release notes, and pin public Claude Code/Codex installation instructions to that release.
+Readiness fixes and the README redesign remain complete and verified. The first public `v0.1.0` release is tagged, published, and referenced by the public Claude Code/Codex installation instructions.
 
 ## Current State
 
@@ -38,7 +38,7 @@ Implemented and tested the Windows command resolution, validation trust boundary
 
 ## Next Action
 
-Update release references, run release verification, create and push tag `v0.1.0`, publish the GitHub release, and verify the public installation commands.
+No further action for the v0.1.0 release scope; future work can plan the next version.
 
 ## Remaining Work
 
@@ -64,7 +64,7 @@ No blockers known. Three symlink security tests remain skipped on Windows by des
 
 ## Deployment
 
-Pushed to `origin/main`: `ebc2fc5` (`docs: improve README install flow`).
+Pushed to `origin/main`: `f2b9c4f` (`release: prepare v0.1.0`). Published GitHub release: https://github.com/AndriiLavrekha/task-bridge/releases/tag/v0.1.0
 
 ## Completion Criteria
 
