@@ -126,6 +126,226 @@ Start a new Codex session after the update. If prompted, review and trust the up
 
 The same protocol supports Claude Code → ChatGPT → Codex and Codex → ChatGPT → Claude Code because essential state lives in the Task Capsule and local task history, not in a provider's conversation database.
 
+## Usage examples
+
+Every delegation follows the same handoff:
+
+```text
+1. Describe one bounded task to Claude Code or Codex.
+2. The provider creates a temporary delegation JSON request.
+3. Agent Task Bridge exports one Task Capsule Markdown file.
+4. Upload that single .md file to a fresh ChatGPT conversation.
+5. Ask ChatGPT to return one Result Capsule v1 .zip file.
+6. Give the ZIP to the provider's import skill.
+7. Review the isolated staging report and diff before integrating anything.
+```
+
+The provider skills create the delegation JSON for you. If you use the CLI directly, the minimum shape looks like this:
+
+```json
+{
+  "objective": "Improve retry handling in the HTTP client",
+  "work_unit": "Add bounded exponential backoff for retryable 503 responses",
+  "work_type": "code",
+  "title": "Add HTTP retry backoff",
+  "current_work_state": "The client currently retries immediately.",
+  "deliverables": ["Updated implementation", "Focused tests", "Short validation report"],
+  "editable_scope": ["src/http-client.mjs", "test/http-client.test.mjs"],
+  "acceptance_criteria": ["Only the listed files change", "Existing tests pass"],
+  "non_goals": ["Do not change the public API", "Do not add dependencies"],
+  "architecture_context": "The project uses native ESM and Node.js 22.",
+  "files": {
+    "editable": ["src/http-client.mjs", "test/http-client.test.mjs"],
+    "reference": [],
+    "contract": [],
+    "validation": ["package.json"],
+    "configuration": []
+  }
+}
+```
+
+Export the request from the repository root:
+
+```bash
+node bin/agent-task-bridge.mjs export \
+  --delegation delegation.json \
+  --repo . \
+  --source-agent codex \
+  --out .agent-task-bridge/exports/retry-backoff.task.md
+```
+
+Inspect the capsule before uploading it:
+
+```bash
+node bin/agent-task-bridge.mjs inspect-task \
+  .agent-task-bridge/exports/retry-backoff.task.md
+```
+
+In ChatGPT, upload only the generated `.task.md` file and use a prompt like this:
+
+```text
+Execute the attached Agent Task Bridge Task Capsule v1.
+Stay within its editable scope and acceptance criteria.
+Return a Result Capsule v1 ZIP containing the complete changed files,
+manifest.json, and a concise REPORT.md. Do not return a patch or partial files.
+```
+
+When the ZIP is back, inspect and import it without manually extracting it:
+
+```bash
+node bin/agent-task-bridge.mjs inspect-result result.zip
+node bin/agent-task-bridge.mjs import result.zip --repo . --json
+```
+
+Check the task ID, source baseline, drift status, withheld files, validation results, staging path, and `activeWorktreeModifiedByImport` before reviewing the staged diff.
+
+### 1. Brainstorm a feature or compare implementation options
+
+Use `work_type: "research"` when you want ChatGPT to investigate, compare approaches, or produce a design report without changing repository files.
+
+Provider prompt:
+
+```text
+Claude Code: /task-bridge:export-chatgpt
+Argument: Compare SQLite, JSON, and in-memory storage for task history.
+Return a recommendation with trade-offs and a migration outline. Do not edit files.
+```
+
+Equivalent Codex request:
+
+```text
+Use the task-bridge export skill to delegate this bounded research task to ChatGPT:
+compare SQLite, JSON, and in-memory storage for task history. Return a report only;
+do not change repository files.
+```
+
+Use a report-only delegation scope:
+
+```json
+{
+  "work_type": "research",
+  "title": "Compare task-history storage options",
+  "work_unit": "Compare SQLite, JSON, and in-memory storage and recommend one.",
+  "editable_scope": [],
+  "deliverables": ["Recommendation", "Trade-off table", "Migration outline"],
+  "non_goals": ["Do not edit source files or configuration"],
+  "files": {
+    "editable": [],
+    "reference": ["src/storage.mjs", "docs/architecture.md"],
+    "contract": [],
+    "validation": [],
+    "configuration": ["package.json"]
+  }
+}
+```
+
+Ask ChatGPT to return a report-only Result Capsule:
+
+```text
+Analyze the attached Task Capsule and return a report-only Result Capsule v1 ZIP.
+Do not include changed repository files. Put the recommendation and trade-offs in REPORT.md.
+```
+
+Import and review the report:
+
+```bash
+node bin/agent-task-bridge.mjs import storage-research.zip --repo . --json
+```
+
+Expected result: a report is available for review, no source files are staged, and the active worktree remains unchanged.
+
+### 2. Implement a bounded coding unit
+
+Use `work_type: "code"` when ChatGPT should edit specific files and return complete replacements.
+
+Provider prompt:
+
+```text
+Claude Code: /task-bridge:export-chatgpt
+Argument: Add retry handling in src/retry.mjs and tests in test/retry.test.mjs.
+Retry only HTTP 429 and 503 responses, use bounded exponential backoff,
+and do not change the public CLI or add dependencies.
+```
+
+Equivalent Codex request:
+
+```text
+Use the task-bridge export skill for this bounded coding task:
+implement retry handling in src/retry.mjs and test/retry.test.mjs.
+Only retry HTTP 429 and 503, add deterministic tests, and do not touch other files.
+```
+
+In ChatGPT:
+
+```text
+Execute the attached coding Task Capsule v1.
+Implement only the requested files, run the declared validation commands,
+and return a Result Capsule v1 ZIP with complete files, manifest.json, and REPORT.md.
+```
+
+Back in the provider, inspect and import the staged result:
+
+```bash
+node bin/agent-task-bridge.mjs inspect-result retry-backoff-result.zip
+node bin/agent-task-bridge.mjs import retry-backoff-result.zip --repo . --json
+node bin/agent-task-bridge.mjs status --repo .
+```
+
+Expected result: clean files are staged in an isolated worktree, validation evidence is shown, conflicts are withheld, and the active worktree is not modified. Review the staged diff and explicitly integrate it only after it meets the acceptance criteria.
+
+### 3. Review security or update documentation
+
+Use `work_type: "documentation"` or `work_type: "research"` for a focused review that returns findings or narrowly scoped documentation edits.
+
+Security review prompt:
+
+```text
+Use the task-bridge export skill to ask ChatGPT to review src/importer.mjs
+for archive-path, symlink, and drift-handling risks. Return a prioritized report
+with file/line references and suggested tests. Do not edit implementation files.
+```
+
+For documentation changes, make the editable scope explicit:
+
+```json
+{
+  "objective": "Document the verified Result Capsule import trust boundary",
+  "work_type": "documentation",
+  "title": "Clarify Result Capsule import safety",
+  "work_unit": "Update docs/security.md with the verified import trust boundary.",
+  "current_work_state": "Import validation and staging behavior are implemented; the documentation needs a concise user-facing explanation.",
+  "editable_scope": ["docs/security.md"],
+  "deliverables": ["Updated documentation", "Validation report"],
+  "acceptance_criteria": ["Describe only implemented behavior", "Keep examples copy-pasteable"],
+  "non_goals": ["Do not change source code or protocol behavior"],
+  "architecture_context": "Returned ZIP files are untrusted and are validated before acceptable files are staged in an isolated Git worktree.",
+  "files": {
+    "editable": ["docs/security.md"],
+    "reference": ["src/importer.mjs", "src/path-safety.mjs"],
+    "contract": ["protocol/RESULT-CAPSULE-v1.md"],
+    "validation": [],
+    "configuration": []
+  }
+}
+```
+
+Ask ChatGPT to distinguish findings from edits:
+
+```text
+Review the attached Task Capsule v1.
+If the task is report-only, return REPORT.md without files.
+If documentation is in scope, return the complete updated documentation file,
+manifest.json, and REPORT.md. Do not modify implementation code.
+```
+
+Import the result the same way:
+
+```bash
+node bin/agent-task-bridge.mjs import review-or-docs-result.zip --repo . --json
+```
+
+Expected result: report-only findings stay out of the worktree; documentation candidates are staged only when they match the declared scope and baseline.
+
 ## What it protects
 
 - **Bounded context:** export only the files and intent selected by the host agent.

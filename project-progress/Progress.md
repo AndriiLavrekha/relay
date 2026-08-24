@@ -26,7 +26,7 @@ commit_progress: true
 
 ## Resume Snapshot
 
-Readiness fixes and the README redesign remain complete and verified. The first public `v0.1.0` release is tagged, published, and installed locally in both Claude Code and Codex. Both plugins are enabled; Codex completed a read-only skill probe, while Claude's live probe was stopped by the existing session limit after installation metadata was verified.
+Readiness fixes and the README redesign remain complete and verified. The first public `v0.1.0` release is tagged, published, and installed locally in both Claude Code and Codex. README.md now includes three concrete delegation examples with copy-pasteable export, ChatGPT handoff, inspect, and import snippets.
 
 ## Current State
 
@@ -38,7 +38,7 @@ Implemented and tested the Windows command resolution, validation trust boundary
 
 ## Next Action
 
-For future verification, run the documented local CLI tests, then perform one real provider round trip: export a tiny task, upload the Task Capsule to ChatGPT, import the Result Capsule, review staging/validation, and integrate manually.
+No further action for the approved README examples scope; future work can plan the next release or add more provider coverage.
 
 ## Remaining Work
 
@@ -60,7 +60,7 @@ For future verification, run the documented local CLI tests, then perform one re
 
 ## Blockers
 
-Claude live probe is currently limited by the account's session limit; retry after the reset time. Three symlink security tests remain skipped on Windows by design. CI remains intentionally out of scope.
+No blockers known. Three symlink security tests remain skipped on Windows by design. CI remains intentionally out of scope.
 
 ## Deployment
 
