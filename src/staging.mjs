@@ -89,7 +89,12 @@ async function isSameFilesystem(repoRoot, candidate) {
 }
 
 export async function resolveStagingParent(repoRoot, requestedDir = undefined) {
-  const stagingRepoRoot = process.platform === 'win32' ? await realpath(repoRoot) : repoRoot;
+  let stagingRepoRoot;
+  try {
+    stagingRepoRoot = await realpath(repoRoot);
+  } catch (error) {
+    throw stagingLocationUnavailable(repoRoot, { candidate: requestedDir, cause: error?.message });
+  }
   if (requestedDir !== undefined) {
     const parent = await prepareStagingParent(stagingRepoRoot, requestedDir);
     return { parent, source: 'explicit' };
