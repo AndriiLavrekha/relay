@@ -37,7 +37,7 @@ Returned changes are classified before staging. Clean unchanged files and expect
 
 ## Validation
 
-After safe candidates are staged, Agent Task Bridge discovers supported Node project validation scripts and executes them in the isolated staging tree. If some result files are withheld because of conflicts, the validation report is marked partial. Local validation is authoritative; claims inside `REPORT.md` are informational only.
+Agent Task Bridge captures supported Node project validation commands and package-manager configuration before applying returned files. It executes the captured commands only when that configuration is unchanged in staging; if returned files modify package-manager configuration, validation is blocked with `VALIDATION_CONFIG_CHANGED`. If some result files are withheld because of conflicts, the validation report is marked partial. Local validation is authoritative; claims inside `REPORT.md` are informational only.
 
 ## Integration boundary
 

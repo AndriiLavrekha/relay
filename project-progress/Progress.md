@@ -1,17 +1,22 @@
 ---
-gate_deploy: done
-gate_review: not-started
-gate_tests: not-started
+checkpoint_at: 2026-08-24T07:31:25Z
+worktree_dirty: true
+base_branch: main
+base_commit: b5d0b08b1f4b35b553b9050387597dfc95b62098
+handoff: clean
+gate_deploy: not-started
+gate_review: done
+gate_tests: done
 gate_implementation: done
 project: agent-task-bridge
 progress_schema_version: 1
-status: deployed
+status: done
 path: D:/depot/agent-task-bridge
 agent_last_used: unknown
 updated: 2026-08-24
-last_milestone: pushed main to GitHub
-deployed: true
-deployment_url: https://github.com/AndriiLavrekha/task-bridge
+last_milestone: readiness blockers fixed and verified
+deployed: false
+deployment_url:
 sensitivity: normal
 commit_progress: true
 ---
@@ -20,23 +25,24 @@ commit_progress: true
 
 ## Resume Snapshot
 
-The project progress tracker is initialized and the current files are committed in a fresh Git repository. The `main` branch is configured to track `origin/main` at `https://github.com/AndriiLavrekha/task-bridge`, and the push completed successfully. No further work is required for this request; tests and review were not part of the requested operation.
+The four approved readiness issues are fixed. Windows package-manager validation now runs through `cmd.exe`; validation commands and package-manager configuration are snapshotted before returned files are applied, and validation is blocked if that configuration changes; the Node test now honors the declared `>=22` engine; and Codex installation docs include the explicit local marketplace commands. Canonical and generated runtimes are synchronized. Full local verification passes; CI remains intentionally out of scope.
 
 ## Current State
 
-Progress tracking is initialized, the repository has a first commit, and `main` is pushed to GitHub.
+The implementation fixes are complete and reviewed. The project is locally verified. This repository is configured as the `awesome-task-bridge` marketplace and exposes its plugin as `task-bridge`; neither repository has been pushed for this update.
 
 ## Last Session
 
-Initialized progress tracking, created the first Git commit, configured the requested remote, and pushed `main` successfully.
+Implemented and tested the Windows command resolution, validation trust boundary, Node engine assertion, Codex install documentation, and generated runtime synchronization.
 
 ## Next Action
 
-No further action required for the requested push.
+Review the feature/readiness checklist and decide whether to commit or push these changes.
 
 ## Remaining Work
 
-- None.
+- [ ] Confirm remaining features and release requirements with the user.
+- [x] Add public Claude and Codex marketplace entries for `task-bridge`.
 
 ## Done
 
@@ -44,20 +50,27 @@ No further action required for the requested push.
 - [x] Confirmed the current directory has no Git metadata.
 - [x] Created the first commit on `main`.
 - [x] Pushed `main` to the requested GitHub repository.
+- [x] Confirmed generated provider runtimes are synchronized with `src/`.
+- [x] Validated the Claude marketplace manifest.
+- [x] Fixed Windows package-manager command execution.
+- [x] Blocked validation when returned package-manager configuration changes.
+- [x] Updated Codex local marketplace installation documentation.
+- [x] Added public `task-bridge@awesome-task-bridge` installation documentation and marketplace entries.
 
 ## Blockers
 
-None.
+None known for the approved scope. Three symlink security tests remain skipped on Windows by design. CI remains intentionally out of scope.
 
 ## Deployment
 
-Pushed to [task-bridge](https://github.com/AndriiLavrekha/task-bridge) on branch `main`.
+Not deployed; changes are present locally and have not been committed or pushed.
 
 ## Completion Criteria
 
 - Required progress files exist.
-- Current files are committed to Git.
-- The requested remote contains the current branch.
+- Architecture and provider integration findings are recorded.
+- Approved fixes are implemented and verified locally.
+- Feature/readiness checklist is reviewed with the user.
 
 ## Verification
 

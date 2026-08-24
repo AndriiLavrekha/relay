@@ -7,10 +7,10 @@ This directory is a self-contained Claude Code plugin. It contains the export/im
 From Claude Code, add the repository root as a marketplace and install the plugin:
 
 1. `/plugin marketplace add /absolute/path/to/agent-task-bridge`
-2. `/plugin install agent-task-bridge@agent-task-bridge`
+2. `/plugin install task-bridge@awesome-task-bridge`
 3. Run `/reload-plugins` if Claude asks you to reload.
 
-The skills are namespaced by the plugin. Invoke `/agent-task-bridge:export-chatgpt` to package a bounded unit and `/agent-task-bridge:import-chatgpt` when a Result Capsule returns.
+The skills are namespaced by the plugin. Invoke `/task-bridge:export-chatgpt` to package a bounded unit and `/task-bridge:import-chatgpt` when a Result Capsule returns.
 
 The plugin requires Node.js 22 or newer and Git. It requires no OpenAI API key and no Anthropic API key.
 

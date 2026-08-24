@@ -4,7 +4,15 @@ This directory is a self-contained Codex plugin bundle with `.codex-plugin/plugi
 
 ## Workspace-local installation
 
-Codex discovers plugins through a marketplace file. This repository includes `.agents/plugins/marketplace.json` with a local source path of `./plugins/codex`. Open/restart Codex in this repository and install/select Agent Task Bridge through the plugin UI when the local marketplace is loaded.
+Add this repository as a local Codex marketplace, then install the plugin:
+
+```text
+codex plugin marketplace add /absolute/path/to/agent-task-bridge
+codex plugin list --available --marketplace awesome-task-bridge
+codex plugin add task-bridge@awesome-task-bridge
+```
+
+The marketplace file is `.agents/plugins/marketplace.json` and points to `./plugins/codex`. Restart Codex or refresh its plugin data after installation if the plugin is not immediately visible.
 
 For another workspace, symlink or copy this directory to `<workspace>/plugins/codex` (or adjust the source path), then add the Agent Task Bridge entry to `<workspace>/.agents/plugins/marketplace.json`. For a user-wide local marketplace, place/symlink the plugin under `~/plugins/` and add an equivalent entry to `~/.agents/plugins/marketplace.json`.
 

@@ -1,12 +1,12 @@
 {
-  "name": "agent-task-bridge",
+  "name": "awesome-task-bridge",
   "owner": {
     "name": "Agent Task Bridge contributors"
   },
   "description": "Local marketplace for the Agent Task Bridge Claude Code plugin.",
   "plugins": [
     {
-      "name": "agent-task-bridge",
+      "name": "task-bridge",
       "source": "./plugins/claude-code",
       "description": "Delegate bounded repository work to ChatGPT and safely review returned results.",
       "version": "0.1.0"

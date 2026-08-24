@@ -40,7 +40,7 @@ for (const provider of ['claude-code', 'codex']) {
 
 test('Claude Code plugin uses the current plugin manifest and namespaced user skills', async () => {
   const manifest = await readJson('plugins/claude-code/.claude-plugin/plugin.json');
-  assert.equal(manifest.name, 'agent-task-bridge');
+  assert.equal(manifest.name, 'task-bridge');
   assert.equal(manifest.version, '0.1.0');
   assert.equal(manifest.skills, './skills/');
 
@@ -62,7 +62,7 @@ test('Claude Code plugin uses the current plugin manifest and namespaced user sk
 
 test('Codex plugin declares the shared skills and self-contained runtime contract', async () => {
   const manifest = await readJson('plugins/codex/.codex-plugin/plugin.json');
-  assert.equal(manifest.name, 'agent-task-bridge');
+  assert.equal(manifest.name, 'task-bridge');
   assert.equal(manifest.version, '0.1.0');
   assert.equal(manifest.skills, './skills/');
   assert.equal(manifest.interface.displayName, 'Agent Task Bridge');
@@ -83,6 +83,12 @@ test('Codex plugin declares the shared skills and self-contained runtime contrac
   assert.match(importSkill, /active working tree/i);
 });
 
+test('Codex documentation provides an explicit local marketplace install flow', async () => {
+  const readme = await readFile(path.join(root, 'plugins', 'codex', 'README.md'), 'utf8');
+  assert.match(readme, /codex plugin marketplace add/);
+  assert.match(readme, /codex plugin add task-bridge@awesome-task-bridge/);
+});
+
 test('release package includes verification scripts and architecture documentation', async () => {
   const pkg = await readJson('package.json');
   assert.ok(pkg.files.includes('scripts'));
@@ -91,12 +97,13 @@ test('release package includes verification scripts and architecture documentati
 
 test('repository ships local marketplace catalogs for both providers', async () => {
   const claudeMarket = await readJson('.claude-plugin/marketplace.json');
-  assert.equal(claudeMarket.name, 'agent-task-bridge');
-  assert.equal(claudeMarket.plugins[0].name, 'agent-task-bridge');
+  assert.equal(claudeMarket.name, 'awesome-task-bridge');
+  assert.equal(claudeMarket.plugins[0].name, 'task-bridge');
   assert.equal(claudeMarket.plugins[0].source, './plugins/claude-code');
 
   const codexMarket = await readJson('.agents/plugins/marketplace.json');
-  assert.equal(codexMarket.plugins[0].name, 'agent-task-bridge');
+  assert.equal(codexMarket.name, 'awesome-task-bridge');
+  assert.equal(codexMarket.plugins[0].name, 'task-bridge');
   assert.equal(codexMarket.plugins[0].source.source, 'local');
   assert.equal(codexMarket.plugins[0].source.path, './plugins/codex');
 });

@@ -43,13 +43,27 @@ You can also run `npm link` from this repository to expose `agent-task-bridge` o
 
 ## Claude Code plugin
 
-This repository is itself a Claude plugin marketplace through `.claude-plugin/marketplace.json`. Add the repository root as a marketplace, install `agent-task-bridge@agent-task-bridge`, then use the namespaced export/import skills. See `plugins/claude-code/README.md`.
+This repository is itself a Claude plugin marketplace through `.claude-plugin/marketplace.json`. Add the repository root as a marketplace, install `task-bridge@awesome-task-bridge`, then use the namespaced export/import skills. See `plugins/claude-code/README.md`.
+
+The public marketplace also exposes this plugin as `task-bridge`:
+
+```text
+claude plugin marketplace add AndriiLavrekha/task-bridge
+claude plugin install task-bridge@awesome-task-bridge
+```
 
 Claude's plugin is self-contained because installed plugins are cached independently of their marketplace checkout. The provider bundle therefore contains a generated copy of the exact shared runtime.
 
 ## Codex plugin
 
-The Codex package lives under `plugins/codex` and includes `.codex-plugin/plugin.json`, skills, and its generated runtime copy. A workspace-local marketplace example is included at `.agents/plugins/marketplace.json`. See `plugins/codex/README.md`.
+The Codex package lives under `plugins/codex` and includes `.codex-plugin/plugin.json`, skills, and its generated runtime copy. Add the repository as a local marketplace with `codex plugin marketplace add /absolute/path/to/agent-task-bridge`, then install `task-bridge@awesome-task-bridge`. A workspace-local marketplace example is included at `.agents/plugins/marketplace.json`. See `plugins/codex/README.md`.
+
+The public marketplace also exposes this plugin as `task-bridge`:
+
+```text
+codex plugin marketplace add AndriiLavrekha/task-bridge
+codex plugin add task-bridge@awesome-task-bridge
+```
 
 ## Delegation input
 
@@ -79,7 +93,7 @@ See `protocol/RESULT-CAPSULE-v1.md`.
 
 Export blocks likely secret files/content, Git-ignored selections, paths that traverse repository symlinks, binary files, files over 200 KB, and task context over 2 MB by default. Import rejects dangerous archive paths, reserved bridge/Git paths, symlinks, duplicate entries, encryption, unsupported compression, CRC corruption, undeclared payloads, and bounded-size violations. Returned files outside the original editable scope or through staging symlink ancestors are quarantined rather than staged.
 
-The external worker's code and prose remain untrusted. Local tests/builds are authoritative, and the active worktree is not modified by import.
+The external worker's code and prose remain untrusted. Validation commands are captured from the repository before returned files are applied; if package-manager configuration changes in staging, validation is blocked for review rather than executing returned scripts. Local tests/builds are authoritative, and the active worktree is not modified by import.
 
 ## Repository drift
 

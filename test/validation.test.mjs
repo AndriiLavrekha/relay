@@ -16,8 +16,27 @@ test('discoverValidationCommands returns supported npm scripts in deterministic 
   const root = await makeProject({ build: 'node -e "process.exit(0)"', test: 'node -e "process.exit(0)"', lint: 'node -e "process.exit(0)"', typecheck: 'node -e "process.exit(0)"', 'format:check': 'node -e "process.exit(0)"' });
   const commands = await discoverValidationCommands(root);
   assert.deepEqual(commands.map((c) => c.name), ['format', 'lint', 'typecheck', 'test', 'build']);
-  assert.deepEqual(commands.find((c) => c.name === 'test').args, ['test']);
-  assert.deepEqual(commands.find((c) => c.name === 'lint').args, ['run', 'lint']);
+  const testArgs = commands.find((c) => c.name === 'test').args;
+  const lintArgs = commands.find((c) => c.name === 'lint').args;
+  if (process.platform === 'win32') {
+    assert.deepEqual(testArgs.slice(-2), ['npm.cmd', 'test']);
+    assert.deepEqual(lintArgs.slice(-3), ['npm.cmd', 'run', 'lint']);
+  } else {
+    assert.deepEqual(testArgs, ['test']);
+    assert.deepEqual(lintArgs, ['run', 'lint']);
+  }
+});
+
+test('discoverValidationCommands resolves npm command shims on Windows', async () => {
+  const root = await makeProject({ test: 'node --test' });
+  const command = (await discoverValidationCommands(root)).find((item) => item.name === 'test');
+  if (process.platform === 'win32') {
+    assert.match(command.command, /(?:cmd|command)\.exe$/i);
+    assert.deepEqual(command.args.slice(-2), ['npm.cmd', 'test']);
+  } else {
+    assert.equal(command.command, 'npm');
+    assert.deepEqual(command.args, ['test']);
+  }
 });
 
 test('runValidation captures pass and fail results without hiding later checks', async () => {
@@ -38,10 +57,20 @@ test('formatImportReport exposes conflicts, validation and active-worktree safet
   const text = formatImportReport({
     taskId: 'atb_x', sourceBaseCommit: 'a'.repeat(40), currentHead: 'b'.repeat(40), repositoryBaseChanged: true,
     stagingRoot: '/tmp/stage', stagedFiles: ['src/a.js'], files: [{ path: 'src/a.js', status: 'CLEAN_UNCHANGED' }, { path: 'src/b.js', status: 'LOCAL_CHANGED' }],
-    conflicts: [{ path: 'src/b.js', status: 'LOCAL_CHANGED' }], validation: { passed: true, partial: true, results: [{ name: 'test', status: 'PASS', exitCode: 0 }] }, activeWorktreeModifiedByImport: false
+    conflicts: [{ path: 'src/b.js', status: 'LOCAL_CHANGED' }], validation: { passed: true, partial: true, blocked: false, results: [{ name: 'test', status: 'PASS', exitCode: 0 }] }, activeWorktreeModifiedByImport: false
   });
   assert.match(text, /atb_x/);
   assert.match(text, /LOCAL_CHANGED/);
   assert.match(text, /test: PASS/);
   assert.match(text, /No changes have been applied to the active worktree/i);
+});
+
+test('formatImportReport explains when validation is blocked by changed configuration', () => {
+  const text = formatImportReport({
+    taskId: 'atb_x', sourceBaseCommit: 'a'.repeat(40), currentHead: 'b'.repeat(40), repositoryBaseChanged: false,
+    stagingRoot: '/tmp/stage', files: [], conflicts: [],
+    validation: { passed: null, blocked: true, reason: 'VALIDATION_CONFIG_CHANGED', results: [] }, activeWorktreeModifiedByImport: false
+  });
+  assert.match(text, /Validation blocked/i);
+  assert.match(text, /VALIDATION_CONFIG_CHANGED/);
 });

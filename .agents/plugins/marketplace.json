@@ -1,11 +1,11 @@
 {
-  "name": "agent-task-bridge-local",
+  "name": "awesome-task-bridge",
   "interface": {
     "displayName": "Agent Task Bridge Local"
   },
   "plugins": [
     {
-      "name": "agent-task-bridge",
+      "name": "task-bridge",
       "source": {
         "source": "local",
         "path": "./plugins/codex"

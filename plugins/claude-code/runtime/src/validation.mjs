@@ -2,6 +2,9 @@ import { readFile, access } from 'node:fs/promises';
 import path from 'node:path';
 import { runProcess } from './process.mjs';
 import { AtbError } from './errors.mjs';
+import { sha256Buffer } from './hash.mjs';
+
+const VALIDATION_CONFIG_FILES = ['package.json', 'package-lock.json', 'npm-shrinkwrap.json', 'pnpm-lock.yaml', 'yarn.lock', 'bun.lock', 'bun.lockb'];
 
 async function exists(file) { try { await access(file); return true; } catch { return false; } }
 
@@ -14,9 +17,13 @@ async function packageManager(root, pkg) {
 }
 
 function invocation(manager, script) {
-  if (manager === 'npm') return script === 'test' ? { command: 'npm', args: ['test'] } : { command: 'npm', args: ['run', script] };
-  if (manager === 'yarn') return { command: 'yarn', args: [script] };
-  if (manager === 'pnpm') return { command: 'pnpm', args: [script] };
+  const args = manager === 'npm' ? (script === 'test' ? ['test'] : ['run', script]) : [script];
+  if (process.platform === 'win32' && ['npm', 'yarn', 'pnpm'].includes(manager)) {
+    return { command: process.env.ComSpec ?? 'cmd.exe', args: ['/d', '/s', '/c', `${manager}.cmd`, ...args] };
+  }
+  if (manager === 'npm') return { command: manager, args };
+  if (manager === 'yarn') return { command: manager, args };
+  if (manager === 'pnpm') return { command: manager, args };
   if (manager === 'bun') return { command: 'bun', args: ['run', script] };
   return { command: manager, args: ['run', script] };
 }
@@ -38,6 +45,31 @@ export async function discoverValidationCommands(repoRoot) {
     const run = invocation(manager, script);
     return { name, script, packageManager: manager, ...run, display: [run.command, ...run.args].join(' ') };
   });
+}
+
+async function snapshotValidationConfig(repoRoot) {
+  const files = {};
+  for (const relative of VALIDATION_CONFIG_FILES) {
+    try {
+      files[relative] = sha256Buffer(await readFile(path.join(repoRoot, relative)));
+    } catch (error) {
+      if (error?.code !== 'ENOENT') throw error;
+    }
+  }
+  return files;
+}
+
+export async function captureValidationSnapshot(repoRoot) {
+  return {
+    commands: await discoverValidationCommands(repoRoot),
+    config: await snapshotValidationConfig(repoRoot),
+  };
+}
+
+export async function validationConfigChanged(repoRoot, snapshot) {
+  const current = await snapshotValidationConfig(repoRoot);
+  const paths = new Set([...Object.keys(snapshot.config), ...Object.keys(current)]);
+  return [...paths].some((relative) => snapshot.config[relative] !== current[relative]);
 }
 
 export async function runValidation(stagingRoot, commands) {

@@ -8,7 +8,7 @@ import { sha256Buffer } from './hash.mjs';
 import { classifyDrift } from './drift.mjs';
 import { createIsolatedStaging, applyStagedFile, isSafeStagingPath } from './staging.mjs';
 import { AtbError } from './errors.mjs';
-import { discoverValidationCommands, runValidation } from './validation.mjs';
+import { captureValidationSnapshot, runValidation, validationConfigChanged } from './validation.mjs';
 
 async function currentState(repoRoot, repoPath) {
   const full = path.join(repoRoot, ...repoPath.split('/'));
@@ -41,6 +41,7 @@ export async function importResult({ repoRoot, resultPath }) {
   }
   const baseline = new Map(task.files.map((file) => [file.path, file]));
   const currentGit = await getGitState(root);
+  const validationSnapshot = await captureValidationSnapshot(root);
   const fileReports = [];
   for (const file of result.files) {
     const current = await currentState(root, file.path);
@@ -87,8 +88,17 @@ export async function importResult({ repoRoot, resultPath }) {
     validation: null,
     activeWorktreeModifiedByImport: false,
   };
-  const commands = await discoverValidationCommands(stagingRoot);
-  report.validation = await runValidation(stagingRoot, commands);
+  if (await validationConfigChanged(stagingRoot, validationSnapshot)) {
+    report.validation = {
+      passed: null,
+      blocked: true,
+      reason: 'VALIDATION_CONFIG_CHANGED',
+      results: [],
+    };
+  } else {
+    report.validation = await runValidation(stagingRoot, validationSnapshot.commands);
+    report.validation.blocked = false;
+  }
   report.validation.partial = report.conflicts.length > 0;
   await mkdir(importRoot, { recursive: true });
   const reportPath = path.join(importRoot, 'report.json');

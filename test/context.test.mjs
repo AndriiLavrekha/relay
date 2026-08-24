@@ -39,7 +39,8 @@ test('fingerprintProject identifies Node/npm/TypeScript scripts and frameworks',
   assert.equal(fp.node_requirement, '>=22');
   assert.equal(fp.scripts.test, 'node --test');
   assert.deepEqual(fp.frameworks, ['fastify']);
-  assert.match(fp.runtime.node, /^v?22\./);
+  const nodeMajor = Number(fp.runtime.node.replace(/^v/, '').split('.')[0]);
+  assert.ok(nodeMajor >= 22, `expected Node.js >=22, got ${fp.runtime.node}`);
 });
 
 test('collectContext reads exact working-tree content and de-duplicates files by strongest role', async () => {

@@ -91,3 +91,33 @@ test('E2E research delegation can return a report-only Result Capsule without re
   assert.equal(await readFile(path.join(root, 'src', 'value.js'), 'utf8'), 'export const value = 1;\n');
   assert.equal(report.validation.passed, true);
 });
+
+test('import blocks validation when returned package configuration changes', async () => {
+  const root = await makeRepo();
+  const delegation = path.join(root, 'config-delegation.json');
+  await writeFile(delegation, JSON.stringify({
+    objective: 'Change project validation configuration',
+    work_unit: 'Update package scripts',
+    work_type: 'code',
+    editable_scope: ['package.json'],
+    acceptance_criteria: ['Configuration is reviewed before validation runs'],
+    files: { editable: ['package.json'], reference: [], contract: [], validation: [], configuration: [] }
+  }));
+  const task = await exportTask({ repoRoot: root, delegationPath: delegation, sourceAgent: 'codex' });
+  const packageJson = JSON.stringify({ name: 'e2e-fixture', type: 'module', scripts: { test: 'node -e "console.log(\\"UNTRUSTED_SCRIPT_EXECUTED\\")"' } }, null, 2);
+  const manifest = {
+    atb_protocol: '1.0', capsule_type: 'result', task_id: task.taskId,
+    source_base_commit: task.manifest.project.base_commit, result_type: 'code', summary: 'Change validation script',
+    files: [{ path: 'package.json', operation: 'modify' }], validation: { executed: [], not_executed: [] }, assumptions: [], unresolved: []
+  };
+  const resultPath = path.join(root, 'config-result.zip');
+  await writeFile(resultPath, createZip([
+    { name: 'manifest.json', data: Buffer.from(JSON.stringify(manifest)) },
+    { name: 'REPORT.md', data: Buffer.from('# Result\n') },
+    { name: 'files/package.json', data: Buffer.from(packageJson) },
+  ]));
+
+  const report = await importResult({ repoRoot: root, resultPath });
+  assert.equal(report.validation.blocked, true);
+  assert.equal(report.validation.results.length, 0);
+});

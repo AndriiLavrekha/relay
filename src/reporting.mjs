@@ -13,7 +13,8 @@ export function formatImportReport(report) {
   lines.push('', `Conflicts / withheld files: ${report.conflicts?.length ?? 0}`);
   for (const conflict of report.conflicts ?? []) lines.push(`  ${conflict.path}: ${conflict.status}`);
   lines.push('', 'Validation:');
-  if (!report.validation || report.validation.results.length === 0) lines.push('  No validation commands discovered.');
+  if (report.validation?.blocked) lines.push(`  Validation blocked: ${report.validation.reason ?? 'UNSPECIFIED'}.`);
+  else if (!report.validation || report.validation.results.length === 0) lines.push('  No validation commands discovered.');
   else {
     for (const result of report.validation.results) lines.push(`  ${result.name}: ${result.status}${result.exitCode === null ? '' : ` (exit ${result.exitCode})`}`);
     if (report.validation.partial) lines.push('  Note: validation is partial because one or more returned files were withheld for conflict/scope review.');
