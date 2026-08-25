@@ -11,5 +11,5 @@ updated: 2026-08-24
 - [x] Write and self-review the five dependency-ordered v0.2 implementation plans.
 - [x] Implement and review the v0.2 plans in dependency order.
 - [x] Run final whole-branch review and release verification.
-- [ ] Push `main` and publish GitHub tag/release `v0.2.0`.
-- [ ] Verify Claude Code and Codex marketplace references against `v0.2.0`.
+- [x] Push `main` and publish GitHub tag/release `v0.2.0`.
+- [x] Verify Claude Code and Codex marketplace references against `v0.2.0`.

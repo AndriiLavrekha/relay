@@ -41,8 +41,8 @@ Completed all five implementation plans with inline checkpoints. Full tests, cro
 
 ## Next Action
 
-Push `main`, create and push tag `v0.2.0`, publish the GitHub release, and verify the Claude Code
-and Codex marketplace references against that tag.
+Release follow-up only: users can install Claude Code and Codex from the public `v0.2.0` tag.
+Future work is a new backlog decision; no release work remains.
 
 ## Remaining Work
 
@@ -68,12 +68,13 @@ and Codex marketplace references against that tag.
 
 ## Blockers
 
-No technical blockers known. GitHub CLI is authenticated; publication is in progress. Four Windows
-symlink/reparse-point tests remain intentionally skipped on this host.
+No technical blockers known. Four Windows symlink/reparse-point tests remain intentionally skipped
+on this host; CI remains out of scope.
 
 ## Deployment
 
-Pushed to `origin/main`: `f2b9c4f` (`release: prepare v0.1.0`). Published GitHub release: https://github.com/AndriiLavrekha/task-bridge/releases/tag/v0.1.0
+Pushed to `origin/main`: `542bfe3` (`docs: record v0.2 release handoff`). Published GitHub
+release: https://github.com/AndriiLavrekha/task-bridge/releases/tag/v0.2.0
 
 ## Completion Criteria
 

@@ -143,3 +143,12 @@ updated: 2026-08-24
   from `b0d7d78` to `682dab7`.
 - User-authorized deployment is active: push `main`, publish tag/release `v0.2.0`, and verify the
   Claude Code and Codex marketplace installation references.
+
+## 2026-08-25 — v0.2 release published
+
+- Pushed `main` at `542bfe3` and annotated tag `v0.2.0` to `origin`.
+- Published GitHub release: https://github.com/AndriiLavrekha/task-bridge/releases/tag/v0.2.0.
+- Verified the tagged Claude marketplace, Codex marketplace, and both provider plugin manifests
+  declare `task-bridge` version `0.2.0`.
+- Release work is complete. The prior main-worktree progress edits remain recoverable in
+  `stash@{0}` as `preserve pre-release progress edits`.
