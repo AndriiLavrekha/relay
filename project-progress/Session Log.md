@@ -133,7 +133,8 @@ updated: 2026-08-24
 - Regenerated both provider runtimes; exact parity and provider skill/documentation checks pass.
 - Verification: `npm test` passed 131 tests with 4 intentional Windows skips; `npm run smoke` passed both provider directions;
   `npm run bundle:plugins` passed; `npm pack --dry-run --json` produced `agent-task-bridge@0.2.0` with 112 files.
-- No credentials, task payloads, or worker output were added to progress records. Publication/tagging remains a separate authorized action.
+- No credentials, task payloads, or worker output were added to progress records. Publication/tagging
+  was completed in the following checkpoint.
 
 ## 2026-08-25 — v0.2 merge and publication
 
@@ -152,3 +153,10 @@ updated: 2026-08-24
   declare `task-bridge` version `0.2.0`.
 - Release work is complete. The prior main-worktree progress edits remain recoverable in
   `stash@{0}` as `preserve pre-release progress edits`.
+
+## 2026-08-25 — progress state normalized
+
+- Updated the canonical progress frontmatter and current-state sections to `done`, with tests and
+  deployment gates recorded as complete.
+- Updated the deployment pointer to `origin/main` commit `9507eda`; historical session entries
+  remain unchanged except for the stale pending-publication wording.

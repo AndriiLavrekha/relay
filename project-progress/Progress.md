@@ -4,18 +4,18 @@ checkpoint_at: 2026-08-24T09:00:00Z
 worktree_dirty: false
 base_branch: main
 base_commit: b0d7d789edcb3042339c6be23708009c7643c7a4
-handoff: active implementation
+handoff: complete
 gate_deploy: done
 gate_review: done
-gate_tests: failing
+gate_tests: done
 gate_implementation: done
 project: agent-task-bridge
 progress_schema_version: 1
-status: active
+status: done
 path: D:/depot/agent-task-bridge
 agent_last_used: unknown
-updated: 2026-08-24
-last_milestone: readiness blockers fixed and verified
+updated: 2026-08-25
+last_milestone: v0.2.0 published and provider references verified
 deployed: true
 deployment_url: https://github.com/AndriiLavrekha/task-bridge
 sensitivity: normal
@@ -32,7 +32,8 @@ bundles, and release documentation are complete.
 
 ## Current State
 
-`main` was fast-forwarded from `b0d7d78` to `682dab7` after fresh release-gate verification.
+`main` was fast-forwarded from `b0d7d78` to `682dab7` after fresh release-gate verification, then
+the release handoff and publication records were committed at `9507eda`.
 Provider runtimes were regenerated from canonical source and pass byte-parity checks.
 
 ## Last Session
@@ -41,8 +42,8 @@ Completed all five implementation plans with inline checkpoints. Full tests, cro
 
 ## Next Action
 
-Release follow-up only: users can install Claude Code and Codex from the public `v0.2.0` tag.
-Future work is a new backlog decision; no release work remains.
+No release work remains. Future work requires a new backlog decision; users can install Claude Code
+and Codex from the public `v0.2.0` tag.
 
 ## Remaining Work
 
@@ -73,8 +74,8 @@ on this host; CI remains out of scope.
 
 ## Deployment
 
-Pushed to `origin/main`: `542bfe3` (`docs: record v0.2 release handoff`). Published GitHub
-release: https://github.com/AndriiLavrekha/task-bridge/releases/tag/v0.2.0
+Pushed to `origin/main`: `9507eda` (`docs: record v0.2 publication`). Published GitHub release:
+https://github.com/AndriiLavrekha/task-bridge/releases/tag/v0.2.0
 
 ## Completion Criteria
 
