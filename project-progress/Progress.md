@@ -30,6 +30,11 @@ The approved v0.2 reliability design is implemented at `682dab7` on `main`. Impo
 privacy/integrity, validation hardening, handoff/review UX, integration boundaries, provider
 bundles, and release documentation are complete.
 
+The first post-release real-cycle investigation found no importer safety defect: a bounded F32
+result correctly reported `partial_verification_blocked` and returned 37 scoped file operations.
+The external worker could not update repository-closure files or run authoritative pnpm/PostgreSQL
+gates because those files, dependencies, and live services were outside the supplied capsule.
+
 ## Current State
 
 `main` was fast-forwarded from `b0d7d78` to `682dab7` after fresh release-gate verification, then
@@ -42,8 +47,9 @@ Completed all five implementation plans with inline checkpoints. Full tests, cro
 
 ## Next Action
 
-No release work remains. Future work requires a new backlog decision; users can install Claude Code
-and Codex from the public `v0.2.0` tag.
+No release work remains. Next decision: whether to add explicit host-owned completion metadata,
+context-coverage warnings, and persisted worker-report visibility to the bridge before the next
+delegation cycle. Users can install Claude Code and Codex from the public `v0.2.0` tag.
 
 ## Remaining Work
 

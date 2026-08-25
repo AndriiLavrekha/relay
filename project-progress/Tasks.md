@@ -13,3 +13,7 @@ updated: 2026-08-24
 - [x] Run final whole-branch review and release verification.
 - [x] Push `main` and publish GitHub tag/release `v0.2.0`.
 - [x] Verify Claude Code and Codex marketplace references against `v0.2.0`.
+- [x] Investigate first real post-release partial-verification result and separate bridge behavior
+  from host-checkout/environment limitations.
+- [ ] Decide whether to implement host-owned completion metadata, context-coverage warnings, and
+  persisted worker-report visibility.

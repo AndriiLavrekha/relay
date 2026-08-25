@@ -160,3 +160,19 @@ updated: 2026-08-24
   deployment gates recorded as complete.
 - Updated the deployment pointer to `origin/main` commit `9507eda`; historical session entries
   remain unchanged except for the stale pending-publication wording.
+
+## 2026-08-25 — first real-cycle result investigation
+
+- Inspected the F32 Task Capsule, returned Result Capsule, manifest, and REPORT.md from the
+  `agenticwars-game-backup` checkout.
+- Root cause of the incomplete closure is boundary-related, not a malformed result: the capsule
+  contained a bounded 49-file snapshot and the actual embedded `files.editable` list omitted
+  `docs/BACKLOG.md` and the five `project-progress/*` files, even though the prose editable scope
+  named them. The worker correctly did not fabricate missing files.
+- The worker also correctly reported authoritative `pnpm` format/lint/check/test/build and live
+  PostgreSQL gates as blocked because pnpm, workspace dependencies, the complete monorepo, and
+  `DATABASE_URL` were unavailable. Structural checks and isolated autonomy assertions passed.
+- Feasible bridge improvements for a future slice: declare host-owned completion steps explicitly,
+  report exact editable paths omitted from the embedded context when detectable, state that commit/
+  merge/push/deploy and authoritative gates belong to the host agent, and persist/show a bounded
+  copy of worker `REPORT.md` in review artifacts. No runtime changes were made in this investigation.
