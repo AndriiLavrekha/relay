@@ -134,3 +134,12 @@ updated: 2026-08-24
 - Verification: `npm test` passed 131 tests with 4 intentional Windows skips; `npm run smoke` passed both provider directions;
   `npm run bundle:plugins` passed; `npm pack --dry-run --json` produced `agent-task-bridge@0.2.0` with 112 files.
 - No credentials, task payloads, or worker output were added to progress records. Publication/tagging remains a separate authorized action.
+
+## 2026-08-25 — v0.2 merge and publication
+
+- Fresh release gates passed on `682dab7`: 131 tests passed with 4 intentional Windows skips,
+  both smoke directions passed, bundles regenerated, and package dry-run produced `0.2.0`.
+- Preserved the pre-existing main-worktree progress edits in a stash, then fast-forwarded `main`
+  from `b0d7d78` to `682dab7`.
+- User-authorized deployment is active: push `main`, publish tag/release `v0.2.0`, and verify the
+  Claude Code and Codex marketplace installation references.

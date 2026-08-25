@@ -26,11 +26,14 @@ commit_progress: true
 
 ## Resume Snapshot
 
-The approved v0.2 reliability design is implemented in the isolated `feature/v0.2-reliability` worktree. Import safety, privacy/integrity, validation hardening, handoff/review UX, integration boundaries, provider bundles, and release documentation are complete.
+The approved v0.2 reliability design is implemented at `682dab7` on `main`. Import safety,
+privacy/integrity, validation hardening, handoff/review UX, integration boundaries, provider
+bundles, and release documentation are complete.
 
 ## Current State
 
-The worktree starts from `b0d7d78`; all v0.2 changes remain isolated here. Provider runtimes have been regenerated from canonical source and pass byte-parity checks. No publication or push was performed.
+`main` was fast-forwarded from `b0d7d78` to `682dab7` after fresh release-gate verification.
+Provider runtimes were regenerated from canonical source and pass byte-parity checks.
 
 ## Last Session
 
@@ -38,7 +41,8 @@ Completed all five implementation plans with inline checkpoints. Full tests, cro
 
 ## Next Action
 
-Keep the branch ready for user review or an explicitly authorized release action. If publishing, tag `v0.2.0`, publish the package/release, and refresh marketplace references as a separate deployment step.
+Push `main`, create and push tag `v0.2.0`, publish the GitHub release, and verify the Claude Code
+and Codex marketplace references against that tag.
 
 ## Remaining Work
 
@@ -64,7 +68,8 @@ Keep the branch ready for user review or an explicitly authorized release action
 
 ## Blockers
 
-No implementation blockers remain. Deployment is intentionally not performed in this session; publication/tagging remains user-authorized work.
+No technical blockers known. GitHub CLI is authenticated; publication is in progress. Four Windows
+symlink/reparse-point tests remain intentionally skipped on this host.
 
 ## Deployment
 
