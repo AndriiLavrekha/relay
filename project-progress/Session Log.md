@@ -186,3 +186,9 @@ updated: 2026-08-24
 - The public v0.2 install command is correct, but the README upgrade snippet is incomplete for an
   existing pinned v0.1 installation. A future documentation patch should remove/re-add the
   marketplace at `--ref v0.2.0`, reinstall the plugin, and verify with `codex plugin list`.
+
+## 2026-08-25 — Codex latest-release documentation
+
+- Updated `README.md` and `plugins/codex/README.md` with the stable upgrade sequence, the GitHub
+  latest-release link, explicit pinned-ref replacement, and the optional unreleased `main` path.
+- Verified `git diff --check`; committed and pushed as `4f12ad6`.
