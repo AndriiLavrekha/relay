@@ -17,3 +17,4 @@ updated: 2026-08-24
   from host-checkout/environment limitations.
 - [ ] Decide whether to implement host-owned completion metadata, context-coverage warnings, and
   persisted worker-report visibility.
+- [ ] Update Codex upgrade guidance to replace a pinned marketplace ref when moving releases.

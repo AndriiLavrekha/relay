@@ -35,6 +35,10 @@ result correctly reported `partial_verification_blocked` and returned 37 scoped 
 The external worker could not update repository-closure files or run authoritative pnpm/PostgreSQL
 gates because those files, dependencies, and live services were outside the supplied capsule.
 
+The first Codex v0.2 upgrade investigation found a separate distribution/documentation issue:
+the local Codex marketplace configuration remains pinned to `ref = "v0.1.0"`, so
+`codex plugin marketplace upgrade` correctly refreshes v0.1.0 instead of selecting v0.2.0.
+
 ## Current State
 
 `main` was fast-forwarded from `b0d7d78` to `682dab7` after fresh release-gate verification, then
@@ -76,7 +80,8 @@ delegation cycle. Users can install Claude Code and Codex from the public `v0.2.
 ## Blockers
 
 No technical blockers known. Four Windows symlink/reparse-point tests remain intentionally skipped
-on this host; CI remains out of scope.
+on this host; CI remains out of scope. The Codex marketplace needs an explicit ref migration to
+`v0.2.0`; the current upgrade documentation is insufficient for pinned marketplace refs.
 
 ## Deployment
 

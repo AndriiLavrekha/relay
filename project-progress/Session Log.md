@@ -176,3 +176,13 @@ updated: 2026-08-24
   report exact editable paths omitted from the embedded context when detectable, state that commit/
   merge/push/deploy and authoritative gates belong to the host agent, and persist/show a bounded
   copy of worker `REPORT.md` in review artifacts. No runtime changes were made in this investigation.
+
+## 2026-08-25 — Codex marketplace ref diagnosis
+
+- Local `~/.codex/config.toml` contains `[marketplaces.awesome-task-bridge]` with
+  `ref = "v0.1.0"`; the marketplace install metadata and checkout also point to v0.1.0.
+- `codex plugin marketplace upgrade` refreshes configured Git snapshots; it does not change the
+  configured Git ref. `codex plugin list` therefore correctly reports the plugin as `0.1.0`.
+- The public v0.2 install command is correct, but the README upgrade snippet is incomplete for an
+  existing pinned v0.1 installation. A future documentation patch should remove/re-add the
+  marketplace at `--ref v0.2.0`, reinstall the plugin, and verify with `codex plugin list`.
