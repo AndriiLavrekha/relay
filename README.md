@@ -103,12 +103,20 @@ Restart Claude Code or reload plugins after the update.
 <summary><strong>Codex</strong></summary>
 
 ```bash
-codex plugin marketplace upgrade
+codex plugin remove task-bridge@awesome-task-bridge
+codex plugin marketplace remove awesome-task-bridge
+codex plugin marketplace add AndriiLavrekha/task-bridge --ref v0.2.0
 codex plugin add task-bridge@awesome-task-bridge
 codex plugin list
 ```
 
-Start a new Codex session after the update. If prompted, review and trust the updated plugin hooks.
+The [latest stable release](https://github.com/AndriiLavrekha/task-bridge/releases/latest) is the
+recommended source. Replace `v0.2.0` above with the tag shown there when a newer release is
+published. `codex plugin marketplace upgrade` only refreshes the currently configured Git ref; it
+does not move an existing marketplace from an older pinned tag to a newer one.
+
+For unreleased development code, use `--ref main` instead of a release tag. Start a new Codex
+session after the update. If prompted, review and trust the updated plugin hooks.
 
 </details>
 

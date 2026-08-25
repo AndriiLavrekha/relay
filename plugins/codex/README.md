@@ -13,6 +13,24 @@ codex plugin add task-bridge@awesome-task-bridge
 
 Start a new Codex session after installation.
 
+## Upgrade to the latest stable release
+
+The [latest stable release](https://github.com/AndriiLavrekha/task-bridge/releases/latest) is
+published under an explicit Git tag. Replace `v0.2.0` below with the latest tag shown on that
+page:
+
+```text
+codex plugin remove task-bridge@awesome-task-bridge
+codex plugin marketplace remove awesome-task-bridge
+codex plugin marketplace add AndriiLavrekha/task-bridge --ref v0.2.0
+codex plugin add task-bridge@awesome-task-bridge
+codex plugin list
+```
+
+`codex plugin marketplace upgrade` refreshes the currently configured Git ref; it does not change
+an existing marketplace pinned to an older release tag. Use `--ref main` only when you explicitly
+want unreleased development code.
+
 ## Workspace-local installation
 
 Add this repository as a local Codex marketplace, then install the plugin:
