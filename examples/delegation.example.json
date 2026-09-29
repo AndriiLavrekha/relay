@@ -12,6 +12,11 @@
     "src/http/retry/**",
     "test/http/retry/**"
   ],
+  "host_owned_steps": [
+    "Authoritative monorepo/workspace test & build gates",
+    "Live services, databases, and network credentials",
+    "Git commit, branch creation, and repository push"
+  ],
   "acceptance_criteria": [
     "The policy retries only errors classified as retryable by the provided contract",
     "The maximum-attempt count includes the initial attempt",

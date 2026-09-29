@@ -45,17 +45,17 @@ Choose the path that matches your agent:
 
 ### Install the Claude Code plugin
 
-From Claude Code, add the public `v0.2.0` marketplace release and install the plugin:
+From Claude Code, add the public `v0.2.1` marketplace release and install the plugin:
 
 ```text
-/plugin marketplace add AndriiLavrekha/task-bridge@v0.2.0
+/plugin marketplace add AndriiLavrekha/task-bridge@v0.2.1
 /plugin install task-bridge@awesome-task-bridge
 ```
 
 Or use the CLI:
 
 ```bash
-claude plugin marketplace add AndriiLavrekha/task-bridge@v0.2.0
+claude plugin marketplace add AndriiLavrekha/task-bridge@v0.2.1
 claude plugin install task-bridge@awesome-task-bridge
 ```
 
@@ -73,14 +73,14 @@ codex plugin marketplace add /absolute/path/to/agent-task-bridge
 codex plugin add task-bridge@awesome-task-bridge
 ```
 
-For the public GitHub marketplace, pin the v0.2.0 release with `--ref v0.2.0`:
+For the public GitHub marketplace, pin the v0.2.1 release with `--ref v0.2.1`:
 
 ```bash
-codex plugin marketplace add AndriiLavrekha/task-bridge --ref v0.2.0
+codex plugin marketplace add AndriiLavrekha/task-bridge --ref v0.2.1
 codex plugin add task-bridge@awesome-task-bridge
 ```
 
-Start a new Codex session after installation so the plugin and skills reload. See [`plugins/codex/README.md`](plugins/codex/README.md) for workspace-local marketplace details. Release notes: [`v0.2.0`](https://github.com/AndriiLavrekha/task-bridge/releases/tag/v0.2.0).
+Start a new Codex session after installation so the plugin and skills reload. See [`plugins/codex/README.md`](plugins/codex/README.md) for workspace-local marketplace details. Release notes: [`v0.2.1`](https://github.com/AndriiLavrekha/task-bridge/releases/tag/v0.2.1).
 
 ## Upgrade
 
@@ -105,15 +105,15 @@ Restart Claude Code or reload plugins after the update.
 ```bash
 codex plugin remove task-bridge@awesome-task-bridge
 codex plugin marketplace remove awesome-task-bridge
-codex plugin marketplace add AndriiLavrekha/task-bridge --ref v0.2.0
+codex plugin marketplace add AndriiLavrekha/task-bridge --ref v0.2.1
 codex plugin add task-bridge@awesome-task-bridge
 codex plugin list
 ```
 
-The [latest stable release](https://github.com/AndriiLavrekha/task-bridge/releases/latest) is the
-recommended source. Replace `v0.2.0` above with the tag shown there when a newer release is
-published. `codex plugin marketplace upgrade` only refreshes the currently configured Git ref; it
-does not move an existing marketplace from an older pinned tag to a newer one.
+The [latest stable release](https://github.com/AndriiLavrekha/task-bridge/releases/latest) is
+`v0.2.1`. `codex plugin marketplace upgrade` only refreshes the currently configured Git ref; it
+does not move an existing marketplace from an older pinned tag to `v0.2.1`. Re-add the marketplace
+with `--ref v0.2.1` when moving off an older pin.
 
 For unreleased development code, use `--ref main` instead of a release tag. Start a new Codex
 session after the update. If prompted, review and trust the updated plugin hooks.
@@ -124,14 +124,14 @@ session after the update. If prompted, review and trust the updated plugin hooks
 
 1. Work normally in Claude Code or Codex.
 2. Invoke the provider's export skill and specify one bounded unit of work.
-3. The bridge writes one Task Capsule Markdown file under the repository task history and generates a kickoff prompt, upload checklist, result contract, and token/file summary beside it. An explicit `--out` path may still be used for a copy.
+3. The bridge writes one Task Capsule Markdown file under the repository task history and generates a kickoff prompt, upload checklist, result contract, and token/file summary beside it. Export also warns when the editable scope and the embedded file list disagree. An explicit `--out` path may still be used for a copy.
 4. Upload that file to a fresh ChatGPT conversation and ask for Result Capsule v1 as a ZIP.
 5. Invoke the provider's import skill with the downloaded ZIP.
 6. The bridge validates the archive, task ID, source baseline, paths, scope, and repository drift.
 7. Clean candidates are applied only to an isolated, external staging worktree; conflicts and out-of-scope files are withheld for review.
 8. Supported Node project scripts run locally in staging with a scrubbed environment, bounded output, timeouts, and policy-controlled execution.
-9. The coding agent reviews the diff, lifecycle, receipt, drift, validation, privacy, and acceptance evidence before choosing whether to integrate it.
-10. Use `review <import-id>` for the persisted review, `follow-up <import-id>` for unresolved work, and `integrate <import-id> --confirm` for the separate integration boundary.
+9. The coding agent reviews the diff, lifecycle, receipt, drift, validation, privacy, persisted worker report, and acceptance evidence before choosing whether to integrate it. Criteria marked deferred to the host are local gates. They are not sent back to the external worker.
+10. Use `review <import-id>` for the persisted review, `follow-up <import-id>` for unresolved worker-owned work, and `integrate <import-id> --confirm` for the separate integration boundary.
 
 The same protocol supports Claude Code → ChatGPT → Codex and Codex → ChatGPT → Claude Code because essential state lives in the Task Capsule and local task history, not in a provider's conversation database. A result status (`complete`, `partial`, `blocked`, or `research-only`) is orthogonal to lifecycle staging: safe in-scope files from partial results may still be staged and reviewed, while follow-up work records the unresolved criteria.
 
@@ -440,6 +440,7 @@ Project-specific `.agent-task-bridge` configuration overrides are not implemente
 | [`plugins/claude-code/README.md`](plugins/claude-code/README.md) | Claude Code plugin details |
 | [`plugins/codex/README.md`](plugins/codex/README.md) | Codex plugin and local marketplace details |
 | [`docs/releases/v0.2.0.md`](docs/releases/v0.2.0.md) | v0.2 reliability release notes |
+| [`docs/releases/v0.2.1.md`](docs/releases/v0.2.1.md) | v0.2.1 visibility and execution-boundary notes |
 | [`protocol/`](protocol/) | Task and Result Capsule specifications |
 | [`src/`](src/) | Canonical bridge runtime |
 | [`AGENTS.md`](AGENTS.md) | Repository structure and contribution conventions |

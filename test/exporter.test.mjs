@@ -46,7 +46,9 @@ test('exportTask writes a self-contained dirty-state capsule and durable task hi
   const capsuleText = await readFile(result.outputPath, 'utf8');
   const parsed = parseTaskCapsule(capsuleText);
   assert.equal(parsed.manifest.schema_version, '1.1');
-  assert.equal(parsed.manifest.bridge_version, '0.2.0');
+  assert.equal(parsed.manifest.bridge_version, '0.2.1');
+  assert.deepEqual(parsed.manifest.host_owned_steps, parsed.delegation.host_owned_steps);
+  assert.equal(parsed.delegation.host_owned_steps.length, 3);
   assert.equal(parsed.manifest.hash_algorithm, 'sha256');
   assert.equal(parsed.manifest.source_agent, 'claude-code');
   assert.equal(parsed.manifest.project.dirty, true);

@@ -7,7 +7,7 @@ function parseNameStatus(output) {
   });
 }
 
-export async function buildReviewData({ repoRoot, importReport, lifecycle, receipt }) {
+export async function buildReviewData({ repoRoot, importReport, lifecycle, receipt, workerReport = null }) {
   let diffStat = 'No staging diff available.';
   let changedFiles = [];
   if (importReport?.stagingRoot && importReport?.currentHead) {
@@ -20,10 +20,15 @@ export async function buildReviewData({ repoRoot, importReport, lifecycle, recei
   }
   const withheldFiles = (importReport?.conflicts ?? []).map((file) => file.path);
   const validation = importReport?.validation ?? null;
+  const criteria = importReport?.acceptance?.criteria ?? [];
+  const hasUnresolvedWorkerCriteria = criteria.some((criterion) => (
+    criterion.status === 'unverified' || criterion.status === 'unmet' || criterion.status === 'blocked'
+  ));
+  const hasDeferredHostCriteria = criteria.some((criterion) => criterion.status === 'deferred_to_host');
   const partial = Boolean(
     importReport?.resultStatus === 'partial' || importReport?.resultStatus === 'blocked' || importReport?.resultStatus === 'research-only'
     || withheldFiles.length > 0 || validation?.blocked || validation?.skipped
-    || (importReport?.acceptance?.criteria ?? []).some((criterion) => criterion.status !== 'verified')
+    || hasUnresolvedWorkerCriteria
   );
   return {
     task: { taskId: importReport?.taskId ?? receipt?.taskId, sourceBaseCommit: importReport?.sourceBaseCommit },
@@ -37,6 +42,10 @@ export async function buildReviewData({ repoRoot, importReport, lifecycle, recei
     validation,
     acceptance: importReport?.acceptance ?? null,
     activeTree: { before: importReport?.activeTreeBefore ?? null, after: importReport?.activeTreeAfter ?? null, modified: importReport?.activeWorktreeModifiedByImport ?? null },
+    workerReport: workerReport ?? { present: false },
+    deferredToHost: hasDeferredHostCriteria,
+    hasDeferredSteps: hasDeferredHostCriteria,
+    deferredHostSteps: criteria.filter((criterion) => criterion.status === 'deferred_to_host').map((criterion) => criterion.text),
     receipt,
     partial,
   };

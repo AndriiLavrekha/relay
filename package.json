@@ -1,6 +1,6 @@
 {
   "name": "agent-task-bridge",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Portable task delegation bridge between coding agents and external workers such as ChatGPT",
   "type": "module",
   "engines": {
@@ -24,6 +24,7 @@
     "examples",
     "docs/architecture.md",
     "docs/releases/v0.2.0.md",
+    "docs/releases/v0.2.1.md",
     "README.md",
     "LICENSE",
     ".claude-plugin",

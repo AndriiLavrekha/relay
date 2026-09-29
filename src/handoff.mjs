@@ -36,6 +36,7 @@ ${list(delegation?.deliverables)}
 ${list(delegation?.acceptance_criteria)}
 
 Return assumptions, unresolved work, validation claims, and acceptance evidence explicitly. A partial or blocked result is acceptable when clearly reported; complete resulting files are still required for every returned operation.
+${delegation?.host_owned_steps?.length ? `\nHost-owned steps stay with the local agent. Do not fail the task only because these cannot run in the sandbox:\n\n${list(delegation.host_owned_steps)}\n` : ''}
 
 ## Expected Result Capsule contract
 
@@ -43,7 +44,10 @@ ${contract ?? 'ZIP with manifest.json, optional/required REPORT.md per status, a
 `;
 }
 
-export function formatUploadChecklist({ taskId, files = [], contextSummary = {} }) {
+export function formatUploadChecklist({ taskId, files = [], contextSummary = {}, coverage = null }) {
+  const coverageNote = coverage?.hasGaps
+    ? `- [ ] Note: Context coverage gap detected: ${coverage.totalOmittedCount} matching files omitted; ${coverage.scopeViolations?.length ?? 0} scope violations.\n`
+    : '';
   return `# Upload checklist
 
 - [ ] Upload only the Task Capsule for \`${taskId}\`.
@@ -52,7 +56,7 @@ export function formatUploadChecklist({ taskId, files = [], contextSummary = {} 
 - [ ] Request one Result Capsule ZIP with complete resulting files.
 - [ ] Request REPORT.md with validation claims, assumptions, unresolved work, and acceptance evidence.
 - [ ] Do not upload unrelated repository files or credentials.
-
+${coverageNote}
 Context estimate: ${contextSummary.estimated_tokens ?? 'unknown'} tokens (estimate, not billing data); ${contextSummary.capsule_bytes ?? 'unknown'} UTF-8 bytes.
 Selected files: ${files.length || contextSummary.per_file?.length || 0}.
 `;
@@ -74,7 +78,7 @@ export function formatTaskSummary({ manifest, delegation = {}, lifecycle = 'expo
   };
 }
 
-export async function createHandoffBundle({ repoRoot, taskId, capsuleText, manifest, delegation, contextSummary }) {
+export async function createHandoffBundle({ repoRoot, taskId, capsuleText, manifest, delegation, contextSummary, coverage = null }) {
   await assertSafeStorageRoot(repoRoot);
   const directory = path.join(atbRoot(repoRoot), 'tasks', taskId);
   await mkdir(directory, { recursive: true });
@@ -87,7 +91,7 @@ export async function createHandoffBundle({ repoRoot, taskId, capsuleText, manif
   };
   const contract = `# Expected Result Capsule contract\n\n- ZIP entries: manifest.json, REPORT.md when required by status, and files/<repository-relative-path>.\n- Protocol: atb_protocol 1.0; schema_version 1.1 for v0.2 results.\n- Status: complete, partial, blocked, or research-only.\n- Non-delete files: sha256 and size_bytes over raw UTF-8 payload bytes.\n- Worker-reported tests, model, tokens, and acceptance claims are untrusted.\n`;
   const kickoff = formatKickoffPrompt({ taskId, capsulePath: files.task, manifest, delegation, contract });
-  const checklist = formatUploadChecklist({ taskId, files: contextSummary?.per_file ?? [], contextSummary });
+  const checklist = formatUploadChecklist({ taskId, files: contextSummary?.per_file ?? [], contextSummary, coverage });
   const summary = formatTaskSummary({ manifest, delegation, contextSummary });
   await Promise.all([
     writeFile(files.task, capsuleText, 'utf8'),
@@ -103,7 +107,9 @@ export async function createFollowUpCapsule({ repoRoot, importId, review: provid
   const review = providedReview ?? (() => { throw new Error('Review data is required'); })();
   const taskId = review.task?.taskId;
   const original = await loadStoredTask(repoRoot, taskId);
-  const unresolved = (review.acceptance?.criteria ?? []).filter((criterion) => criterion.status !== 'verified').map((criterion) => criterion.text);
+  const unresolved = (review.acceptance?.criteria ?? [])
+    .filter((criterion) => criterion.status !== 'verified' && criterion.status !== 'deferred_to_host')
+    .map((criterion) => criterion.text);
   const withheld = review.withheldFiles ?? [];
   const followUpTaskId = `atb_${Date.now().toString(36)}_${crypto.randomBytes(5).toString('hex')}`;
   const delegation = {

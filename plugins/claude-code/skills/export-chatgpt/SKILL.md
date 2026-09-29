@@ -22,6 +22,7 @@ Use this when the developer wants to delegate a well-bounded part of the current
    - `deliverables`: concrete outputs expected from ChatGPT.
    - `editable_scope`: repository-relative paths or globs ChatGPT may change. Required for code tasks.
    - `acceptance_criteria`: observable requirements for accepting the result.
+   - `host_owned_steps`: optional array of steps reserved for local host verification (for example monorepo builds, live database migrations, and git operations). Omit the field to use the bridge defaults. Pass `[]` only when this task has no host-owned gates.
    - `non_goals`: changes ChatGPT must not make.
    - `architecture_context`: concise repository-derived architectural facts and constraints.
    - `files`: object containing arrays named `editable`, `reference`, `contract`, `validation`, and `configuration`.
@@ -31,6 +32,6 @@ Use this when the developer wants to delegate a well-bounded part of the current
    `node "${CLAUDE_PLUGIN_ROOT}/runtime/bin/agent-task-bridge.mjs" export --delegation "<temporary-json-path>" --repo . --source-agent claude-code --max-tokens <budget>`
 
 7. Delete the temporary delegation JSON after a successful export if it was created outside the bridge's own local storage.
-8. Report the generated `task.md` and `kickoff.md` paths, delegated scope, file count, and estimated context size. Tell the user to upload the Task Capsule and use the generated kickoff prompt in a fresh ChatGPT conversation.
+8. Report the generated `task.md` and `kickoff.md` paths, delegated scope, file count, and estimated context size. Inspect export warnings for `CONTEXT_COVERAGE_GAP` and `EDITABLE_OUTSIDE_SCOPE`. Tell the user which matching files were omitted from the capsule and which `files.editable` entries sit outside `editable_scope`, then let the user decide whether to export the bounded slice anyway. Tell the user to upload the Task Capsule and use the generated kickoff prompt in a fresh ChatGPT conversation.
 
 Do not implement the delegated unit locally after exporting it unless the developer separately asks you to continue that same work.

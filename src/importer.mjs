@@ -15,6 +15,7 @@ import { buildAcceptanceEvidence } from './evidence.mjs';
 import { loadLifecycle, transitionLifecycle, writeLifecycle } from './lifecycle.mjs';
 import { createReceipt, writeImmutableReceipt } from './receipts.mjs';
 import { buildReviewData } from './review.mjs';
+import { parseWorkerReport } from './reporting.mjs';
 
 async function currentState(repoRoot, repoPath) {
   const full = path.join(repoRoot, ...repoPath.split('/'));
@@ -60,6 +61,17 @@ function throwIfAborted(signal) {
 function setLifecycle(report, lifecycle) {
   report.lifecycle = lifecycle;
   if (!report.lifecycleHistory.includes(lifecycle)) report.lifecycleHistory.push(lifecycle);
+}
+
+async function persistWorkerReport(root, taskId, importId, result, report) {
+  if (!taskId || result?.report == null) return null;
+  const workerReportPath = path.join(atbRoot(root), 'tasks', taskId, 'imports', importId, 'REPORT.md');
+  await mkdir(path.dirname(workerReportPath), { recursive: true });
+  await writeFile(workerReportPath, result.report, 'utf8');
+  const workerReport = parseWorkerReport(result.report, { findings: result.reportFindings ?? [], path: workerReportPath });
+  report.workerReportPath = workerReportPath;
+  report.workerReportRedactions = workerReport.privacyFindings.length;
+  return workerReport;
 }
 
 function rejectedReport(importId) {
@@ -247,6 +259,7 @@ export async function importResult({
         report.activeWorktreeModifiedByImport = activeTreeChanged(report.activeTreeBefore, activeTreeAfter);
       }
       if (task && result && report) report.acceptance = buildAcceptanceEvidence(task, result, report);
+      const workerReport = await persistWorkerReport(root, taskId, importId, result, report);
       report.reportPath = await persistImportReport(root, { taskId, importId, report });
       if (lifecycleRecord) {
         const recorded = new Set(lifecycleRecord.events.map((event) => event.state));
@@ -261,7 +274,7 @@ export async function importResult({
       if (task && result && taskId) {
         const receipt = createReceipt({ task, result, importReport: report, lifecycle: lifecycleRecord, observedZipHash: result.archive_sha256 });
         report.receiptPath = await writeImmutableReceipt(root, taskId, importId, receipt);
-        const review = await buildReviewData({ repoRoot: root, importReport: report, lifecycle: lifecycleRecord, receipt });
+        const review = await buildReviewData({ repoRoot: root, importReport: report, lifecycle: lifecycleRecord, receipt, workerReport });
         const reviewPath = path.join(atbRoot(root), 'tasks', taskId, 'imports', importId, 'review.json');
         await writeFile(reviewPath, JSON.stringify(review, null, 2), 'utf8');
         report.reviewPath = reviewPath;

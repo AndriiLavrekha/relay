@@ -3,6 +3,9 @@ import { AtbError, invalidOperationPrecondition, resultIntegrityMismatch } from 
 import { normalizeRepoPath } from './path-safety.mjs';
 import { readZip } from './zip.mjs';
 import { sha256Buffer, verifyResultPayload } from './hash.mjs';
+import { scanSecretText } from './secrets.mjs';
+
+export const MAX_REPORT_UNCOMPRESSED_BYTES = 512 * 1024;
 
 function decodeText(buffer, label) {
   if (buffer.includes(0)) throw new AtbError('BINARY_RESULT_UNSUPPORTED', `Binary result files are not supported in v1: ${label}`);
@@ -75,7 +78,15 @@ export async function inspectResultCapsule(filePath, limits = {}) {
     }
     return { ...decl, content: decodeText(entry, decl.path) };
   });
-  const report = entries.has('REPORT.md') ? decodeText(entries.get('REPORT.md').data, 'REPORT.md') : null;
+  let report = null;
+  if (entries.has('REPORT.md')) {
+    const reportEntry = entries.get('REPORT.md').data;
+    if (reportEntry.length > MAX_REPORT_UNCOMPRESSED_BYTES) {
+      throw new AtbError('REPORT_TOO_LARGE', 'REPORT.md exceeds maximum allowed size of 512 KB');
+    }
+    report = decodeText(reportEntry, 'REPORT.md');
+  }
+  const reportFindings = report === null ? [] : scanSecretText(report);
   if (!manifest.legacy_integrity && (manifest.status === 'research-only' || manifest.status !== 'complete') && report === null) {
     throw new AtbError('RESULT_REPORT_REQUIRED', `REPORT.md is required for result status ${manifest.status}`);
   }
@@ -85,6 +96,7 @@ export async function inspectResultCapsule(filePath, limits = {}) {
   return {
     manifest,
     report,
+    reportFindings,
     files,
     entryNames: [...entries.keys()],
     archive_sha256: sha256Buffer(await readFile(filePath)),

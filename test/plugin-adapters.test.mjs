@@ -55,6 +55,8 @@ test('Claude Code plugin uses the current plugin manifest and namespaced user sk
   assert.match(exportSkill, /acceptance_criteria/);
   assert.match(exportSkill, /agent-task-bridge\.mjs" export/);
   assert.match(exportSkill, /kickoff\.md|--max-tokens/);
+  assert.match(exportSkill, /host_owned_steps/);
+  assert.match(exportSkill, /CONTEXT_COVERAGE_GAP/);
   const importSkill = await readFile(path.join(root, 'plugins', 'claude-code', 'skills', 'import-chatgpt', 'SKILL.md'), 'utf8');
   assert.match(importSkill, /agent-task-bridge\.mjs" import/);
   assert.match(importSkill, /never/i);
@@ -62,6 +64,8 @@ test('Claude Code plugin uses the current plugin manifest and namespaced user sk
   assert.match(importSkill, /review/);
   assert.match(importSkill, /follow-up/);
   assert.match(importSkill, /integrate.*confirm/i);
+  assert.match(importSkill, /deferred_to_host/);
+  assert.match(importSkill, /REPORT\.md/);
 });
 
 test('Codex plugin declares the shared skills and self-contained runtime contract', async () => {
@@ -83,12 +87,16 @@ test('Codex plugin declares the shared skills and self-contained runtime contrac
   assert.match(exportSkill, /acceptance_criteria/);
   assert.match(exportSkill, / export --delegation /);
   assert.match(exportSkill, /kickoff\.md|--max-tokens/);
+  assert.match(exportSkill, /host_owned_steps/);
+  assert.match(exportSkill, /CONTEXT_COVERAGE_GAP/);
   const importSkill = await readFile(path.join(root, 'plugins', 'codex', 'skills', 'import-chatgpt', 'SKILL.md'), 'utf8');
   assert.match(importSkill, / import /);
   assert.match(importSkill, /active working tree/i);
   assert.match(importSkill, /review/);
   assert.match(importSkill, /follow-up/);
   assert.match(importSkill, /integrate.*confirm/i);
+  assert.match(importSkill, /deferred_to_host/);
+  assert.match(importSkill, /REPORT\.md/);
 });
 
 test('Codex documentation provides an explicit local marketplace install flow', async () => {
@@ -102,6 +110,7 @@ test('release package includes verification scripts and architecture documentati
   assert.ok(pkg.files.includes('scripts'));
   assert.ok(pkg.files.includes('docs/architecture.md'));
   assert.ok(pkg.files.includes('docs/releases/v0.2.0.md'));
+  assert.ok(pkg.files.includes('docs/releases/v0.2.1.md'));
 });
 
 test('repository ships local marketplace catalogs for both providers', async () => {

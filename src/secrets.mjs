@@ -56,6 +56,20 @@ export function scanSecretPath(normalizedPath) {
   return [];
 }
 
+export function redactSecretText(text, findings = []) {
+  const categories = new Set(
+    (findings ?? []).filter((finding) => finding?.confidence === 'high').map((finding) => finding.category),
+  );
+  if (categories.size === 0 || typeof text !== 'string') return text ?? '';
+  let output = text;
+  for (const pattern of HIGH_CONFIDENCE_CONTENT_PATTERNS) {
+    if (!categories.has(pattern.category)) continue;
+    const flags = pattern.re.flags.includes('g') ? pattern.re.flags : `${pattern.re.flags}g`;
+    output = output.replace(new RegExp(pattern.re.source, flags), `[REDACTED_SECRET:${pattern.category}]`);
+  }
+  return output;
+}
+
 export function scanSecretText(text) {
   const findings = [];
   for (const pattern of HIGH_CONFIDENCE_CONTENT_PATTERNS) {

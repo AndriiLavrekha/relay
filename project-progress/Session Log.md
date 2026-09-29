@@ -1,6 +1,6 @@
 ---
 project: agent-task-bridge
-updated: 2026-08-24
+updated: 2026-09-29
 ---
 
 # Session Log
@@ -192,3 +192,11 @@ updated: 2026-08-24
 - Updated `README.md` and `plugins/codex/README.md` with the stable upgrade sequence, the GitHub
   latest-release link, explicit pinned-ref replacement, and the optional unreleased `main` path.
 - Verified `git diff --check`; committed and pushed as `4f12ad6`.
+
+## 2026-09-29 — v0.2.1 implementation
+
+- Implemented the approved spec in `docs/superpowers/specs/2026-09-27-v0.2.1-reliability-and-visibility-design.md`.
+- Export warns on context-coverage gaps, persists `REPORT.md` through failed imports, and records host-owned steps.
+- Pointed `.claude-plugin/marketplace.json`, `.agents/plugins/marketplace.json`, the root README, and both plugin READMEs at `v0.2.1`.
+- Verification on 2026-09-29: `npm test` passed 147 of 151 tests with 4 intentional Windows symlink skips and 0 failures. `npm run smoke` passed both provider directions. `npm run bundle:plugins` regenerated both runtimes. `npm pack --dry-run` produced `agent-task-bridge@0.2.1` with 113 files, unpacked size 594.4 kB, package size 86.2 kB, shasum `78780d917c001d29d61e0f16f41961c24fbbba86`.
+- Next step is the annotated tag and GitHub release `v0.2.1`.

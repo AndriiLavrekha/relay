@@ -3,6 +3,12 @@ import { normalizeRepoPath, validateScopePattern } from './path-safety.mjs';
 
 const ROLES = ['editable', 'reference', 'contract', 'validation', 'configuration'];
 
+export const DEFAULT_HOST_OWNED_STEPS = Object.freeze([
+  'Authoritative monorepo/workspace test & build gates',
+  'Live services, databases, and network credentials',
+  'Git commit, branch creation, and repository push',
+]);
+
 function requiredString(value, name) {
   if (typeof value !== 'string' || !value.trim()) throw new AtbError('INVALID_DELEGATION', `Delegation ${name} is required`);
   return value.trim();
@@ -36,6 +42,9 @@ export function validateDelegationRequest(value) {
     acceptance_criteria: stringList(value.acceptance_criteria, 'acceptance_criteria'),
     non_goals: stringList(value.non_goals, 'non_goals'),
     architecture_context: typeof value.architecture_context === 'string' ? value.architecture_context.trim() : '',
+    host_owned_steps: value.host_owned_steps === undefined
+      ? [...DEFAULT_HOST_OWNED_STEPS]
+      : stringList(value.host_owned_steps, 'host_owned_steps'),
     files,
   };
 }

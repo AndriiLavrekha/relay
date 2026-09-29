@@ -45,6 +45,18 @@ Agent Task Bridge captures supported Node project validation commands and packag
 
 For schema 1.1, `REPORT.md` must contain these headings for code results that are not complete: `Summary`, `Returned or changed files`, `Validation claims`, `Assumptions`, and `Unresolved work / follow-up`. Research reports additionally include `Findings`, `Evidence` or references, `Recommendation`, and `Open questions`. Import reports render separate Worker claims, Local evidence, and Acceptance criteria sections. A worker claim never becomes local verification by itself.
 
+`REPORT.md` is untrusted worker text. The importer rejects an uncompressed entry larger than 512 KB with `REPORT_TOO_LARGE`. When the entry is present and the task id is known, the raw report is written to `.agent-task-bridge/tasks/<task-id>/imports/<import-id>/REPORT.md` even if staging, drift checks, validation, or the import signal fails. That directory is git-ignored bridge storage. Review output keeps a parsed copy capped at 64 KB. High-confidence secrets are replaced in that review copy and in terminal review text with `[REDACTED_SECRET:<category>]`. The raw on-disk report is not rewritten. A missing `REPORT.md` leaves `workerReport.present` false and does not fail a result that does not require the file.
+
+Parsed sections are Summary, Assumptions, Validation claims, Unresolved work, Findings, and Recommendations. Heading matches accept Markdown headings and bold labels. If no heading matches, the first paragraph becomes the summary.
+
+## Host-owned acceptance
+
+When the stored task manifest lists `host_owned_steps`, import can classify an acceptance criterion as `deferred_to_host`. Explicit `[host]`, `[host-owned]`, `(host)`, and `host-owned:` tags always defer. Otherwise the bridge matches the criterion against the declared steps by exact text or by database, workspace, or version-control keyword categories that are active only when the step list contains that category. A worker claim of `deferred_to_host` can defer a criterion that matches one of those dictionaries when the task declared at least one host step.
+
+`deferred_to_host` does not by itself set `review.partial`. The review records `deferredToHost`, `hasDeferredSteps`, and `deferredHostSteps` so the host agent runs those gates locally instead of opening a follow-up capsule. A worker result status of `partial`, `blocked`, or `research-only` still marks the review partial. Overall acceptance status is `blocked`, then `unmet`, then `unverified`, then `deferred_to_host` when every criterion is deferred, then `verified_with_deferred`, then `verified`.
+
+Capsules without `host_owned_steps` do not gain this classification from keywords. Their criteria stay on the v0.2 status set unless the criterion text carries an explicit host tag.
+
 ## Integration boundary
 
 Import does not modify the active working tree. A local coding agent or developer reviews the staging diff, conflicts, architecture compatibility, and validation evidence before any separate integration action.

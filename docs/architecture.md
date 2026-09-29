@@ -81,6 +81,14 @@ exported → result-received → inspected → staged → reviewed → integrate
 
 `review`, `follow-up`, and confirmation-gated `integrate` are explicit local workflow boundaries. The bridge does not claim integration merely because staging or validation succeeded.
 
+### v0.2.1 visibility and execution boundary
+
+v0.2.1 remains protocol `1.0` and schema `1.1`. Export now compares `editable_scope` with the embedded file set using read-only `git ls-files` output, ignoring gitignored paths and known binary extensions, and supports `!` exclusions. Gaps are warnings: omitted in-scope text files, editable paths that would later be `OUT_OF_SCOPE`, and literal scope paths that are missing from the repository. The warning is copied into the Task Capsule, the upload checklist, and the export result. It does not block an intentional bounded export.
+
+New task manifests record `host_owned_steps`. The default list reserves authoritative workspace test and build gates, live services and credentials, and git commit or push for the host agent. Import classifies matching acceptance criteria as `deferred_to_host` and does not treat that status alone as a reason to follow up with the external worker. Older manifests without the field keep the previous classification.
+
+`REPORT.md` is stored under the import directory for every inspected result that includes one, including failed, rejected, and interrupted imports. Review text is capped at 64 KB and high-confidence secrets in that view are redacted. The raw report stays in git-ignored bridge storage. An uncompressed report over 512 KB is rejected.
+
 ---
 
 ## 2. Product Positioning
@@ -597,9 +605,13 @@ capsule_type: task
 task_id: "atb_01JXYZ..."
 created_at: "2026-08-23T17:30:00+02:00"
   schema_version: "1.1"
-  bridge_version: "0.2.0"
+  bridge_version: "0.2.1"
   hash_algorithm: "sha256"
-  exporter_version: "0.2.0"
+  exporter_version: "0.2.1"
+  host_owned_steps:
+    - "Authoritative monorepo/workspace test & build gates"
+    - "Live services, databases, and network credentials"
+    - "Git commit, branch creation, and repository push"
 source_agent: "claude-code"
 project:
   name: "example-service"

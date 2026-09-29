@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { validateDelegationRequest } from './delegation.mjs';
-import { collectContext } from './context.mjs';
+import { collectContext, evaluateContextCoverage } from './context.mjs';
 import { fingerprintProject } from './fingerprint.mjs';
 import { findGitRoot, getGitState } from './repository.mjs';
 import { renderTaskCapsule } from './task-capsule.mjs';
@@ -82,17 +82,27 @@ export async function exportTask({
     collectContext(root, delegation),
     discoverValidationCommands(root),
   ]);
+  const coverage = await evaluateContextCoverage(root, delegation, context.files);
+  const warnings = [];
+  if (coverage.hasGaps) {
+    warnings.push({
+      code: 'CONTEXT_COVERAGE_GAP',
+      message: `Detected ${coverage.totalOmittedCount} omitted scope file(s) and ${coverage.scopeViolations.length} scope violation(s)`,
+      details: coverage,
+    });
+  }
   const taskId = makeTaskId();
   const validation = discoveredValidation.map(({ name, display }) => ({ name, command: displayValidationCommand(display), authoritative: 'local' }));
   const manifest = {
     atb_protocol: '1.0',
     capsule_type: 'task',
     schema_version: '1.1',
-    bridge_version: '0.2.0',
+    bridge_version: '0.2.1',
     hash_algorithm: 'sha256',
     task_id: taskId,
     created_at: new Date().toISOString(),
-    exporter_version: '0.2.0',
+    exporter_version: '0.2.1',
+    host_owned_steps: delegation.host_owned_steps,
     source_agent: sourceAgent,
     project: {
       name: fingerprint.project_name,
@@ -113,7 +123,8 @@ export async function exportTask({
     },
     validation,
   };
-  let capsuleText = renderTaskCapsule({ manifest, delegation, fingerprint, repositoryTree: context.repositoryTree, validation, files: context.files });
+  const capsuleModel = { manifest, delegation, fingerprint, repositoryTree: context.repositoryTree, validation, files: context.files, coverage };
+  let capsuleText = renderTaskCapsule(capsuleModel);
   let estimate = estimateTaskCapsule(capsuleText, context.file_breakdown);
   manifest.context = {
     ...manifest.context,
@@ -122,7 +133,7 @@ export async function exportTask({
     safety_margin_tokens: estimate.safetyMarginTokens,
     per_file: estimate.perFile,
   };
-  capsuleText = renderTaskCapsule({ manifest, delegation, fingerprint, repositoryTree: context.repositoryTree, validation, files: context.files });
+  capsuleText = renderTaskCapsule({ ...capsuleModel, manifest });
   estimate = estimateTaskCapsule(capsuleText, context.file_breakdown);
   if (Number.isFinite(Number(maxTokens)) && estimate.estimatedTokens > Number(maxTokens)) {
     throw new AtbError('CONTEXT_TOKEN_BUDGET_EXCEEDED', `Rendered Task Capsule exceeds the ${Number(maxTokens)} token budget`, {
@@ -147,6 +158,7 @@ export async function exportTask({
     manifest,
     delegation,
     contextSummary: manifest.context,
+    coverage,
   });
   let outputPath = stored.outputPath;
   if (outPath) {
@@ -168,5 +180,7 @@ export async function exportTask({
       safety_margin_tokens: estimate.safetyMarginTokens,
       per_file: estimate.perFile,
     },
+    warnings,
+    coverage,
   };
 }

@@ -1,6 +1,6 @@
 ---
 project: agent-task-bridge
-updated: 2026-08-24
+updated: 2026-09-29
 ---
 
 # Tasks
@@ -15,6 +15,8 @@ updated: 2026-08-24
 - [x] Verify Claude Code and Codex marketplace references against `v0.2.0`.
 - [x] Investigate first real post-release partial-verification result and separate bridge behavior
   from host-checkout/environment limitations.
-- [ ] Decide whether to implement host-owned completion metadata, context-coverage warnings, and
-  persisted worker-report visibility.
+- [x] Implement v0.2.1 host-owned steps, context-coverage warnings, and persisted worker-report visibility.
+- [x] Document v0.2.1 in the protocol, architecture, README, release notes, example, and provider skills.
+- [x] Point marketplace catalogs and install docs at `v0.2.1`.
+- [ ] Publish annotated tag and GitHub release `v0.2.1`.
 - [x] Update Codex upgrade guidance to replace a pinned marketplace ref when moving releases.
