@@ -215,3 +215,5 @@ updated: 2026-09-29
 - Pointed install docs at `AndriiLavrekha/task-bridge@v0.2.2` and `codex plugin marketplace add AndriiLavrekha/task-bridge --ref v0.2.2`.
 - Release notes are `docs/releases/v0.2.2.md`.
 - Verification: `npm test` passed 152 tests, skipped 5 Windows symlink cases, and failed 0. Smoke inside that run passed both provider directions. `npm pack --dry-run` produced `agent-task-bridge@0.2.2` with 118 files, unpacked size 612.9 kB, package size 88.5 kB, shasum `8fe78d2177a1c02cdf71706e986d06db54da375d`.
+- Pushed `main` at `3dfa986` and annotated tag `v0.2.2`.
+- Published GitHub release: https://github.com/AndriiLavrekha/task-bridge/releases/tag/v0.2.2.

@@ -20,5 +20,5 @@ updated: 2026-09-29
 - [x] Point marketplace catalogs and install docs at `v0.2.1`.
 - [x] Publish annotated tag and GitHub release `v0.2.1`.
 - [x] Add repo-local `.agent-task-bridge/config.json` for token budget, validation policy, and extra host-owned steps.
-- [ ] Publish annotated tag and GitHub release `v0.2.2`.
+- [x] Publish annotated tag and GitHub release `v0.2.2`.
 - [x] Update Codex upgrade guidance to replace a pinned marketplace ref when moving releases.

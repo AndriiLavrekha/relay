@@ -5,17 +5,17 @@ worktree_dirty: true
 base_branch: main
 base_commit: 78171cc76c5265b0944e86649487f5c880a65325
 handoff: clean
-gate_deploy: not-started
+gate_deploy: done
 gate_review: done
 gate_tests: done
 gate_implementation: done
 project: agent-task-bridge
 progress_schema_version: 1
-status: active
+status: deployed
 path: D:/depot/agent-task-bridge
 agent_last_used: unknown
 updated: 2026-09-29
-last_milestone: local project config implemented
+last_milestone: v0.2.2 published
 deployed: true
 deployment_url: https://github.com/AndriiLavrekha/task-bridge
 sensitivity: normal
@@ -43,14 +43,15 @@ Added local project configuration on top of the published v0.2.1 release. The fi
 
 ## Next Action
 
-Push `main`, create annotated tag `v0.2.2`, and publish the GitHub release.
+No further v0.2.2 work. Agents install the published tag.
 
 ## Remaining Work
 
-- [ ] Publish annotated tag `v0.2.2` and the GitHub release.
+None.
 
 ## Done
 
+- [x] Published annotated tag `v0.2.2` and the GitHub release.
 - [x] Added optional `.agent-task-bridge/config.json` defaults for token budget, validation policy, and extra host steps.
 - [x] Published annotated tag `v0.2.1` and the GitHub release.
 - [x] Implemented v0.2.1 context coverage, worker-report visibility, and host-owned steps.
@@ -75,8 +76,8 @@ this host.
 
 ## Deployment
 
-Published release: https://github.com/AndriiLavrekha/task-bridge/releases/tag/v0.2.1
-Annotated tag `v0.2.1` points at `486408c` on `main`.
+Published release: https://github.com/AndriiLavrekha/task-bridge/releases/tag/v0.2.2
+Annotated tag `v0.2.2` points at `3dfa986` on `main`.
 
 ## Completion Criteria
 
