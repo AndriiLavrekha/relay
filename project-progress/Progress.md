@@ -1,21 +1,21 @@
 ---
 session_id: 01a0ed26-f5b9-7453-afa7-8b41fcc221b0
-checkpoint_at: 2026-09-29T12:54:24Z
+checkpoint_at: 2026-09-29T15:14:11Z
 worktree_dirty: true
 base_branch: main
-base_commit: 665a61b76ccb001b85102a5651240264d45322f4
+base_commit: 78171cc76c5265b0944e86649487f5c880a65325
 handoff: clean
-gate_deploy: done
+gate_deploy: not-started
 gate_review: done
 gate_tests: done
 gate_implementation: done
 project: agent-task-bridge
 progress_schema_version: 1
-status: deployed
+status: active
 path: D:/depot/agent-task-bridge
 agent_last_used: unknown
 updated: 2026-09-29
-last_milestone: v0.2.1 published
+last_milestone: local project config implemented
 deployed: true
 deployment_url: https://github.com/AndriiLavrekha/task-bridge
 sensitivity: normal
@@ -26,34 +26,32 @@ commit_progress: true
 
 ## Resume Snapshot
 
-v0.2.1 is published from `main` commit `486408c`. Export reports context-coverage gaps,
-new capsules record host-owned steps, and import keeps `REPORT.md` in review even when the import
-fails. Protocol `1.0` and schema `1.1` are unchanged. Claude Code and Codex install docs pin
-`v0.2.1`.
+v0.2.2 adds git-excluded `.agent-task-bridge/config.json` for `maxTokens`, `validationPolicy`,
+and `extraHostOwnedSteps`. CLI flags and an explicit delegation `host_owned_steps` field win.
+Protocol `1.0` and schema `1.1` are unchanged. Install docs pin `v0.2.2`.
 
 ## Current State
 
-Package version is `0.2.1`. Provider runtimes match `src/` and `bin/`. Claude and Codex
-marketplace catalogs declare plugin version `0.2.1`. `npm test` passed 147 tests with 4
-intentional Windows symlink skips. `npm run smoke` passed both provider directions.
-`npm pack --dry-run` packed `agent-task-bridge@0.2.1` with 113 files.
+Package version is `0.2.2`. Marketplace catalogs and plugin manifests declare `0.2.2`.
+`npm test` passed 152 tests with 5 intentional Windows symlink skips and 0 failures. Smoke passed
+both provider directions. `npm pack --dry-run` packed `agent-task-bridge@0.2.2` with 118 files.
 
 ## Last Session
 
-Implemented context-coverage diagnostics, durable worker reports, host-owned acceptance status,
-provider skill updates, and protocol/architecture/release documentation. Pointed install docs and marketplace catalogs at `v0.2.1`, then published annotated tag
-`v0.2.1` and the GitHub release. Verification commands above passed on this host before the tag.
+Added local project configuration on top of the published v0.2.1 release. The file is
+`.agent-task-bridge/config.json`. It cannot change privacy blocking or archive safety limits.
 
 ## Next Action
 
-No further v0.2.1 work. Agents install the published tag.
+Push `main`, create annotated tag `v0.2.2`, and publish the GitHub release.
 
 ## Remaining Work
 
-None.
+- [ ] Publish annotated tag `v0.2.2` and the GitHub release.
 
 ## Done
 
+- [x] Added optional `.agent-task-bridge/config.json` defaults for token budget, validation policy, and extra host steps.
 - [x] Published annotated tag `v0.2.1` and the GitHub release.
 - [x] Implemented v0.2.1 context coverage, worker-report visibility, and host-owned steps.
 - [x] Initialized project progress tracking.

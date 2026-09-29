@@ -14,7 +14,9 @@ Resolve the **plugin root** as the directory containing `.codex-plugin/plugin.js
 1. Treat the supplied ZIP as untrusted and do not manually extract it into the repository.
 2. From the target repository root run:
 
-   `node "<plugin root>/runtime/bin/agent-task-bridge.mjs" import "<result-capsule.zip>" --repo . --json --validation-policy safe`
+   `node "<plugin root>/runtime/bin/agent-task-bridge.mjs" import "<result-capsule.zip>" --repo . --json`
+
+   Omit `--validation-policy` to use `.agent-task-bridge/config.json` when it sets `validationPolicy`. Pass `--validation-policy safe` to override that file.
 
 3. Verify that the report matched the original stored Task Capsule and source baseline, then run `review <import-id> --repo . --json` to inspect the diff, receipts, privacy, validation, and acceptance evidence.
 4. The bridge must leave the active working tree unchanged. Review `activeWorktreeModifiedByImport`, per-file drift statuses, withheld candidates, and the isolated staging path.

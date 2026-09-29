@@ -89,6 +89,10 @@ New task manifests record `host_owned_steps`. The default list reserves authorit
 
 `REPORT.md` is stored under the import directory for every inspected result that includes one, including failed, rejected, and interrupted imports. Review text is capped at 64 KB and high-confidence secrets in that view are redacted. The raw report stays in git-ignored bridge storage. An uncompressed report over 512 KB is rejected.
 
+### Local project configuration
+
+`.agent-task-bridge/config.json` is an optional host file. The bridge creates that directory as git-excluded local storage, so the file stays on the machine that wrote it and is not part of the capsule protocol. Recognized keys are `maxTokens`, `validationPolicy`, and `extraHostOwnedSteps`. Unknown keys, a symlink, and malformed JSON fail the command. Export uses `maxTokens` only when `--max-tokens` is omitted, and appends `extraHostOwnedSteps` only when the delegation omits `host_owned_steps`. Import uses `validationPolicy` only when `--validation-policy` is omitted. Privacy policy and the hard safety ceilings stay in code.
+
 ---
 
 ## 2. Product Positioning
@@ -605,9 +609,9 @@ capsule_type: task
 task_id: "atb_01JXYZ..."
 created_at: "2026-08-23T17:30:00+02:00"
   schema_version: "1.1"
-  bridge_version: "0.2.1"
+  bridge_version: "0.2.2"
   hash_algorithm: "sha256"
-  exporter_version: "0.2.1"
+  exporter_version: "0.2.2"
   host_owned_steps:
     - "Authoritative monorepo/workspace test & build gates"
     - "Live services, databases, and network credentials"

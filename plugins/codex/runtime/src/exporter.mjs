@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { validateDelegationRequest } from './delegation.mjs';
+import { applyExtraHostOwnedSteps, loadProjectConfig, resolveMaxTokens } from './config.mjs';
 import { collectContext, evaluateContextCoverage } from './context.mjs';
 import { fingerprintProject } from './fingerprint.mjs';
 import { findGitRoot, getGitState } from './repository.mjs';
@@ -75,7 +76,9 @@ export async function exportTask({
   let raw;
   try { raw = JSON.parse(await readFile(path.resolve(delegationPath), 'utf8')); }
   catch (error) { throw new AtbError('INVALID_DELEGATION_FILE', `Cannot read delegation JSON: ${error.message}`); }
-  const delegation = validateDelegationRequest(raw);
+  const projectConfig = await loadProjectConfig(root);
+  const delegation = applyExtraHostOwnedSteps(raw, validateDelegationRequest(raw), projectConfig);
+  const tokenBudget = resolveMaxTokens(maxTokens, projectConfig);
   const [git, fingerprint, context, discoveredValidation] = await Promise.all([
     getGitState(root),
     fingerprintProject(root),
@@ -97,11 +100,11 @@ export async function exportTask({
     atb_protocol: '1.0',
     capsule_type: 'task',
     schema_version: '1.1',
-    bridge_version: '0.2.1',
+    bridge_version: '0.2.2',
     hash_algorithm: 'sha256',
     task_id: taskId,
     created_at: new Date().toISOString(),
-    exporter_version: '0.2.1',
+    exporter_version: '0.2.2',
     host_owned_steps: delegation.host_owned_steps,
     source_agent: sourceAgent,
     project: {
@@ -135,9 +138,9 @@ export async function exportTask({
   };
   capsuleText = renderTaskCapsule({ ...capsuleModel, manifest });
   estimate = estimateTaskCapsule(capsuleText, context.file_breakdown);
-  if (Number.isFinite(Number(maxTokens)) && estimate.estimatedTokens > Number(maxTokens)) {
-    throw new AtbError('CONTEXT_TOKEN_BUDGET_EXCEEDED', `Rendered Task Capsule exceeds the ${Number(maxTokens)} token budget`, {
-      maxTokens: Number(maxTokens),
+  if (Number.isFinite(tokenBudget) && estimate.estimatedTokens > tokenBudget) {
+    throw new AtbError('CONTEXT_TOKEN_BUDGET_EXCEEDED', `Rendered Task Capsule exceeds the ${tokenBudget} token budget`, {
+      maxTokens: tokenBudget,
       estimatedTokens: estimate.estimatedTokens,
       byteLength: estimate.byteLength,
     });
@@ -182,5 +185,10 @@ export async function exportTask({
     },
     warnings,
     coverage,
+    projectConfig: {
+      present: projectConfig.present,
+      maxTokens: Number.isFinite(tokenBudget) ? tokenBudget : null,
+      extraHostOwnedStepsApplied: raw.host_owned_steps === undefined ? projectConfig.extraHostOwnedSteps : [],
+    },
   };
 }

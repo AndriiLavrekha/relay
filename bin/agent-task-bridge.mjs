@@ -34,7 +34,7 @@ function parseArgs(args) {
 }
 
 function help() {
-  console.log(`Agent Task Bridge ${pkg.version}\n\nUsage:\n  agent-task-bridge export --delegation <file> [--repo <dir>] [--out <file>] [--source-agent <name>] [--max-tokens <n>] [--privacy <mode>] [--confirm-privacy]\n  agent-task-bridge import <result.zip> [--repo <dir>] [--json] [--validation-policy <safe|prompt|skip>] [--confirm-validation]\n  agent-task-bridge task show <task-id> [--repo <dir>] [--json]\n  agent-task-bridge review <import-id> [--repo <dir>] [--json]\n  agent-task-bridge follow-up <import-id> [--repo <dir>] [--json]\n  agent-task-bridge integrate <import-id> --mode branch --branch <name> --confirm\n  agent-task-bridge inspect-task <task.md>\n  agent-task-bridge inspect-result <result.zip>\n  agent-task-bridge validate [--dir <dir>]\n  agent-task-bridge status [--repo <dir>]\n  agent-task-bridge version`);
+  console.log(`Agent Task Bridge ${pkg.version}\n\nUsage:\n  agent-task-bridge export --delegation <file> [--repo <dir>] [--out <file>] [--source-agent <name>] [--max-tokens <n>] [--privacy <mode>] [--confirm-privacy]\n  agent-task-bridge import <result.zip> [--repo <dir>] [--json] [--validation-policy <safe|prompt|skip>] [--confirm-validation]\n  agent-task-bridge task show <task-id> [--repo <dir>] [--json]\n  agent-task-bridge review <import-id> [--repo <dir>] [--json]\n  agent-task-bridge follow-up <import-id> [--repo <dir>] [--json]\n  agent-task-bridge integrate <import-id> --mode branch --branch <name> --confirm\n  agent-task-bridge inspect-task <task.md>\n  agent-task-bridge inspect-result <result.zip>\n  agent-task-bridge validate [--dir <dir>]\n  agent-task-bridge status [--repo <dir>]\n  agent-task-bridge version\n\nOptional repo-local defaults live in .agent-task-bridge/config.json: maxTokens, validationPolicy (safe, prompt, or skip), and extraHostOwnedSteps. That directory is git-excluded. A CLI flag overrides the file. An explicit delegation host_owned_steps field, including [], overrides extraHostOwnedSteps. Privacy blocking and archive safety limits are not configurable.`);
 }
 
 async function main() {
@@ -62,7 +62,7 @@ async function main() {
     const report = await importResult({
       repoRoot: args.repo,
       resultPath: file,
-      validationPolicy: args['validation-policy'] ?? 'safe',
+      validationPolicy: args['validation-policy'],
       validationConfirmed: args['confirm-validation'] === true,
     });
     console.log(args.json ? JSON.stringify(report, null, 2) : formatImportReport(report));

@@ -201,3 +201,17 @@ updated: 2026-09-29
 - Verification on 2026-09-29: `npm test` passed 147 of 151 tests with 4 intentional Windows symlink skips and 0 failures. `npm run smoke` passed both provider directions. `npm run bundle:plugins` regenerated both runtimes. `npm pack --dry-run` produced `agent-task-bridge@0.2.1` with 113 files, unpacked size 594.4 kB, package size 86.2 kB, shasum `78780d917c001d29d61e0f16f41961c24fbbba86`.
 - Pushed `main` at `486408c` and annotated tag `v0.2.1`.
 - Published GitHub release: https://github.com/AndriiLavrekha/task-bridge/releases/tag/v0.2.1.
+
+## 2026-09-29 — local project configuration
+
+- Added `.agent-task-bridge/config.json` for `maxTokens`, `validationPolicy`, and `extraHostOwnedSteps`.
+- Explicit CLI flags and an explicit delegation `host_owned_steps` field override the file. Unknown keys fail closed.
+- `npm test` passed 152 tests, skipped 5 Windows symlink cases, and failed 0. Smoke inside that run passed both provider directions.
+- The slice is local. Published installs remain `v0.2.1`.
+
+## 2026-09-29 — prepare v0.2.2
+
+- Bumped package, plugin, marketplace, and exporter versions to `0.2.2`.
+- Pointed install docs at `AndriiLavrekha/task-bridge@v0.2.2` and `codex plugin marketplace add AndriiLavrekha/task-bridge --ref v0.2.2`.
+- Release notes are `docs/releases/v0.2.2.md`.
+- Verification: `npm test` passed 152 tests, skipped 5 Windows symlink cases, and failed 0. Smoke inside that run passed both provider directions. `npm pack --dry-run` produced `agent-task-bridge@0.2.2` with 118 files, unpacked size 612.9 kB, package size 88.5 kB, shasum `8fe78d2177a1c02cdf71706e986d06db54da375d`.

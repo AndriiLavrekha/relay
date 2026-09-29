@@ -16,6 +16,7 @@ import { loadLifecycle, transitionLifecycle, writeLifecycle } from './lifecycle.
 import { createReceipt, writeImmutableReceipt } from './receipts.mjs';
 import { buildReviewData } from './review.mjs';
 import { parseWorkerReport } from './reporting.mjs';
+import { loadProjectConfig, resolveValidationPolicy } from './config.mjs';
 
 async function currentState(repoRoot, repoPath) {
   const full = path.join(repoRoot, ...repoPath.split('/'));
@@ -96,12 +97,14 @@ export async function importResult({
   resultPath,
   stagingDir,
   signal,
-  validationPolicy = 'safe',
+  validationPolicy,
   validationConfirmed = false,
   validationTimeoutMs = 120_000,
   validationMaxOutputBytes = 512_000,
 } = {}) {
   const root = repoRoot ? await findGitRoot(repoRoot) : await findGitRoot(process.cwd());
+  const projectConfig = await loadProjectConfig(root);
+  const resolvedValidationPolicy = resolveValidationPolicy(validationPolicy, projectConfig);
   const importId = `import_${Date.now().toString(36)}_${crypto.randomBytes(3).toString('hex')}`;
   let report = rejectedReport(importId);
   let taskId = null;
@@ -214,7 +217,7 @@ export async function importResult({
           paths: configChange.paths,
           results: [],
         };
-      } else if (validationPolicy === 'prompt' && !validationConfirmed) {
+      } else if (resolvedValidationPolicy === 'prompt' && !validationConfirmed) {
         report.validation = {
           passed: null,
           blocked: true,
@@ -224,7 +227,7 @@ export async function importResult({
       } else {
         report.validation = await runValidation(report.stagingRoot, validationSnapshot.commands, {
           signal,
-          policy: validationPolicy,
+          policy: resolvedValidationPolicy,
           confirmed: validationConfirmed,
           timeoutMs: validationTimeoutMs,
           maxOutputBytes: validationMaxOutputBytes,

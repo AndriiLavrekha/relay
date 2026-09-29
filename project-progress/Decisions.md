@@ -22,3 +22,17 @@ treat a missing `host_owned_steps` field on older manifests as an empty list.
 
 The release was requested after the spec was implemented. Pin Claude Code and Codex install
 docs and both marketplace catalogs to `v0.2.1`, then publish annotated tag `v0.2.1` on `main`.
+
+## 2026-09-29: Local project configuration stays off the capsule protocol
+
+`.agent-task-bridge/config.json` may set `maxTokens`, `validationPolicy`, and `extraHostOwnedSteps`.
+The file is git-excluded with the rest of that directory. CLI flags win. An explicit delegation
+`host_owned_steps` value, including an empty array, wins over the extra steps. Privacy blocking,
+the report size limit, and archive checks stay in code. Do not tag this slice until a release is
+requested.
+
+## 2026-09-29: Publish v0.2.2 from main
+
+The release was requested after local project configuration landed. Pin install docs and both
+marketplace catalogs to `v0.2.2`, then publish annotated tag `v0.2.2` on `main`. Protocol `1.0`
+and schema `1.1` stay in place.

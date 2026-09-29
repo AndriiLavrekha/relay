@@ -4,9 +4,9 @@ This directory is a self-contained Claude Code plugin. It contains the export/im
 
 ## Local installation from this repository
 
-From Claude Code, add the public `v0.2.1` release as a marketplace and install the plugin:
+From Claude Code, add the public `v0.2.2` release as a marketplace and install the plugin:
 
-1. `/plugin marketplace add AndriiLavrekha/task-bridge@v0.2.1`
+1. `/plugin marketplace add AndriiLavrekha/task-bridge@v0.2.2`
 2. `/plugin install task-bridge@awesome-task-bridge`
 3. Run `/reload-plugins` if Claude asks you to reload.
 

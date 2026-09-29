@@ -1,6 +1,6 @@
 {
   "name": "task-bridge",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Export bounded repository work to ChatGPT and safely stage returned results for local validation and review.",
   "author": {
     "name": "Agent Task Bridge contributors"

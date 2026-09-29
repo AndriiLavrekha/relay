@@ -1,0 +1,7 @@
+{
+  "maxTokens": 80000,
+  "validationPolicy": "safe",
+  "extraHostOwnedSteps": [
+    "Release checklist sign-off"
+  ]
+}

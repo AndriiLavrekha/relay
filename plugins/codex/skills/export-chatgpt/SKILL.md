@@ -22,6 +22,8 @@ The plugin is self-contained. Resolve the **plugin root** as the directory that 
 
    `node "<plugin root>/runtime/bin/agent-task-bridge.mjs" export --delegation "<temporary-json-path>" --repo . --source-agent codex --max-tokens <budget>`
 
+   Omit `--max-tokens` when `.agent-task-bridge/config.json` should supply `maxTokens`. Extra host steps in that file apply only when the delegation omits `host_owned_steps`.
+
 7. Delete the temporary input JSON when appropriate.
 8. Return the generated `task.md` and `kickoff.md` paths, delegated boundaries, file count, and estimated context size. Before handing the capsule over, read export warnings and the upload checklist for `CONTEXT_COVERAGE_GAP` and `EDITABLE_OUTSIDE_SCOPE`. Report omitted in-scope files and editable files that fall outside `editable_scope`; a coverage warning does not block a deliberate bounded export. The developer should upload the Task Capsule and use the kickoff prompt in a fresh ChatGPT conversation.
 
