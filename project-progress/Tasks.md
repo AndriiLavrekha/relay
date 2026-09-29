@@ -18,5 +18,5 @@ updated: 2026-09-29
 - [x] Implement v0.2.1 host-owned steps, context-coverage warnings, and persisted worker-report visibility.
 - [x] Document v0.2.1 in the protocol, architecture, README, release notes, example, and provider skills.
 - [x] Point marketplace catalogs and install docs at `v0.2.1`.
-- [ ] Publish annotated tag and GitHub release `v0.2.1`.
+- [x] Publish annotated tag and GitHub release `v0.2.1`.
 - [x] Update Codex upgrade guidance to replace a pinned marketplace ref when moving releases.

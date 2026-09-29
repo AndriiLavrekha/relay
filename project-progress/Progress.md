@@ -5,17 +5,17 @@ worktree_dirty: true
 base_branch: main
 base_commit: 665a61b76ccb001b85102a5651240264d45322f4
 handoff: clean
-gate_deploy: not-started
+gate_deploy: done
 gate_review: done
 gate_tests: done
 gate_implementation: done
 project: agent-task-bridge
 progress_schema_version: 1
-status: done
+status: deployed
 path: D:/depot/agent-task-bridge
 agent_last_used: unknown
 updated: 2026-09-29
-last_milestone: v0.2.1 implemented, tested, and documented locally
+last_milestone: v0.2.1 published
 deployed: true
 deployment_url: https://github.com/AndriiLavrekha/task-bridge
 sensitivity: normal
@@ -26,12 +26,10 @@ commit_progress: true
 
 ## Resume Snapshot
 
-v0.2.1 implements the approved spec
-`docs/superpowers/specs/2026-09-27-v0.2.1-reliability-and-visibility-design.md`.
-Export reports context-coverage gaps, new capsules record host-owned steps, and import keeps
-`REPORT.md` in review even when the import fails. Protocol `1.0` and schema `1.1` are unchanged.
-Marketplace catalogs and install docs pin `v0.2.1`. The annotated tag and GitHub release are the
-remaining publish step.
+v0.2.1 is published from `main` commit `486408c`. Export reports context-coverage gaps,
+new capsules record host-owned steps, and import keeps `REPORT.md` in review even when the import
+fails. Protocol `1.0` and schema `1.1` are unchanged. Claude Code and Codex install docs pin
+`v0.2.1`.
 
 ## Current State
 
@@ -43,20 +41,20 @@ intentional Windows symlink skips. `npm run smoke` passed both provider directio
 ## Last Session
 
 Implemented context-coverage diagnostics, durable worker reports, host-owned acceptance status,
-provider skill updates, and protocol/architecture/release documentation. Pointed install docs
-and marketplace catalogs at `v0.2.1`. Verification commands above passed on this host.
+provider skill updates, and protocol/architecture/release documentation. Pointed install docs and marketplace catalogs at `v0.2.1`, then published annotated tag
+`v0.2.1` and the GitHub release. Verification commands above passed on this host before the tag.
 
 ## Next Action
 
-Push `main`, create annotated tag `v0.2.1`, and publish the GitHub release so installs resolve
-to this commit.
+No further v0.2.1 work. Agents install the published tag.
 
 ## Remaining Work
 
-- [ ] Publish annotated tag `v0.2.1` and the GitHub release.
+None.
 
 ## Done
 
+- [x] Published annotated tag `v0.2.1` and the GitHub release.
 - [x] Implemented v0.2.1 context coverage, worker-report visibility, and host-owned steps.
 - [x] Initialized project progress tracking.
 - [x] Confirmed the current directory has no Git metadata.
@@ -75,13 +73,12 @@ to this commit.
 ## Blockers
 
 No technical blockers. Four Windows symlink/reparse-point tests remain intentionally skipped on
-this host. The `v0.2.1` tag is not published yet.
+this host.
 
 ## Deployment
 
-Published release remains https://github.com/AndriiLavrekha/task-bridge/releases/tag/v0.2.0 until
-tag `v0.2.1` is pushed. Install docs already name
-https://github.com/AndriiLavrekha/task-bridge/releases/tag/v0.2.1.
+Published release: https://github.com/AndriiLavrekha/task-bridge/releases/tag/v0.2.1
+Annotated tag `v0.2.1` points at `486408c` on `main`.
 
 ## Completion Criteria
 

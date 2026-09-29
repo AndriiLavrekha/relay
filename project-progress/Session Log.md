@@ -199,4 +199,5 @@ updated: 2026-09-29
 - Export warns on context-coverage gaps, persists `REPORT.md` through failed imports, and records host-owned steps.
 - Pointed `.claude-plugin/marketplace.json`, `.agents/plugins/marketplace.json`, the root README, and both plugin READMEs at `v0.2.1`.
 - Verification on 2026-09-29: `npm test` passed 147 of 151 tests with 4 intentional Windows symlink skips and 0 failures. `npm run smoke` passed both provider directions. `npm run bundle:plugins` regenerated both runtimes. `npm pack --dry-run` produced `agent-task-bridge@0.2.1` with 113 files, unpacked size 594.4 kB, package size 86.2 kB, shasum `78780d917c001d29d61e0f16f41961c24fbbba86`.
-- Next step is the annotated tag and GitHub release `v0.2.1`.
+- Pushed `main` at `486408c` and annotated tag `v0.2.1`.
+- Published GitHub release: https://github.com/AndriiLavrekha/task-bridge/releases/tag/v0.2.1.
