@@ -15,7 +15,7 @@ status: deployed
 path: D:/depot/agent-task-bridge
 agent_last_used: unknown
 updated: 2026-09-29
-last_milestone: v0.2.2 published
+last_milestone: v0.2.3 specifications published
 deployed: true
 deployment_url: https://github.com/AndriiLavrekha/task-bridge
 sensitivity: normal
@@ -44,16 +44,18 @@ commands are unchanged from v0.2.2.
 
 ## Next Action
 
-Publish annotated tag `v0.2.3` from `main`. After that, the next product step is an implementation
-plan for the live Codex and ChatGPT round trip.
+No further v0.2.3 release work. Agents install tag `v0.2.3`. The next product step is an
+implementation plan for the live Codex and ChatGPT round trip. The five specifications are not
+implemented.
 
 ## Remaining Work
 
-- Publish annotated tag and GitHub release `v0.2.3`.
-- The five approved specifications are not implemented.
+The five approved specifications are not implemented. Order when implementation starts: live round
+trip, related-file warnings, OS validation sandbox, Windows symlink CI, handoff commands.
 
 ## Done
 
+- [x] Published annotated tag `v0.2.3` and the GitHub release. The five specifications are not implemented in that tag.
 - [x] Approved the five 2026-09-29 specifications.
 - [x] Published annotated tag `v0.2.2` and the GitHub release.
 - [x] Added optional `.agent-task-bridge/config.json` defaults for token budget, validation policy, and extra host steps.
@@ -80,8 +82,8 @@ this host.
 
 ## Deployment
 
-Published release: https://github.com/AndriiLavrekha/task-bridge/releases/tag/v0.2.2
-Annotated tag `v0.2.2` points at `3dfa986` on `main`. Tag `v0.2.3` is not published yet.
+Published release: https://github.com/AndriiLavrekha/task-bridge/releases/tag/v0.2.3
+Annotated tag `v0.2.3` points at `004d995` on `main`. Tag `v0.2.2` remains at `3dfa986`.
 
 ## Completion Criteria
 

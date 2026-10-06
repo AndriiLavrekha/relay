@@ -23,4 +23,4 @@ updated: 2026-09-29
 - [x] Publish annotated tag and GitHub release `v0.2.2`.
 - [x] Update Codex upgrade guidance to replace a pinned marketplace ref when moving releases.
 - [x] Approve the five 2026-09-29 specifications.
-- [ ] Publish annotated tag and GitHub release `v0.2.3`. The five specifications are not implemented in that tag.
+- [x] Publish annotated tag and GitHub release `v0.2.3`. The five specifications are not implemented in that tag.

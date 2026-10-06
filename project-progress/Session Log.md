@@ -224,3 +224,5 @@ updated: 2026-09-29
 - v0.2.3 records those specifications. Export and import behavior matches v0.2.2. The five items are not implemented.
 - Install docs pin `AndriiLavrekha/task-bridge@v0.2.3` and `codex plugin marketplace add AndriiLavrekha/task-bridge --ref v0.2.3`.
 - Verification: `npm test` passed 152 tests, skipped 5 Windows symlink cases, and failed 0. Smoke passed both provider directions. `npm pack --dry-run` produced `agent-task-bridge@0.2.3` with 124 files, unpacked size 648.1 kB, package size 99.8 kB, shasum `95dc8f82ae1d7f74a7d4c3a33f05924e99558dac`.
+- Pushed `main` at `004d995` and annotated tag `v0.2.3`.
+- Published GitHub release: https://github.com/AndriiLavrekha/task-bridge/releases/tag/v0.2.3.
