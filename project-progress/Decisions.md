@@ -31,6 +31,13 @@ The file is git-excluded with the rest of that directory. CLI flags win. An expl
 the report size limit, and archive checks stay in code. Do not tag this slice until a release is
 requested.
 
+## 2026-09-29: Publish approved specifications as v0.2.3
+
+The five next-work specifications were approved. v0.2.3 records them and bumps the package
+version. Export and import behavior matches v0.2.2. The five items are not implemented in this
+tag. Protocol `1.0` and schema `1.1` stay in place. Work is already on `main`, so there is no
+feature branch to merge.
+
 ## 2026-09-29: Publish v0.2.2 from main
 
 The release was requested after local project configuration landed. Pin install docs and both

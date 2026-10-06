@@ -100,11 +100,11 @@ export async function exportTask({
     atb_protocol: '1.0',
     capsule_type: 'task',
     schema_version: '1.1',
-    bridge_version: '0.2.2',
+    bridge_version: '0.2.3',
     hash_algorithm: 'sha256',
     task_id: taskId,
     created_at: new Date().toISOString(),
-    exporter_version: '0.2.2',
+    exporter_version: '0.2.3',
     host_owned_steps: delegation.host_owned_steps,
     source_agent: sourceAgent,
     project: {

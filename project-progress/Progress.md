@@ -1,10 +1,10 @@
 ---
 session_id: 01a0ed26-f5b9-7453-afa7-8b41fcc221b0
-checkpoint_at: 2026-09-29T15:14:11Z
+checkpoint_at: 2026-09-29T17:02:04Z
 worktree_dirty: true
 base_branch: main
-base_commit: 78171cc76c5265b0944e86649487f5c880a65325
-handoff: clean
+base_commit: d40a423fbe97954e70adf961cc842172b7b03301
+handoff: interrupted
 gate_deploy: done
 gate_review: done
 gate_tests: done
@@ -26,31 +26,35 @@ commit_progress: true
 
 ## Resume Snapshot
 
-v0.2.2 adds git-excluded `.agent-task-bridge/config.json` for `maxTokens`, `validationPolicy`,
-and `extraHostOwnedSteps`. CLI flags and an explicit delegation `host_owned_steps` field win.
-Protocol `1.0` and schema `1.1` are unchanged. Install docs pin `v0.2.2`.
+v0.2.3 publishes five approved specifications. Export and import behavior matches v0.2.2.
+`bridge_version` is `0.2.3`. The five items are not implemented. Install docs pin `v0.2.3`.
+Protocol `1.0` and schema `1.1` are unchanged.
 
 ## Current State
 
-Package version is `0.2.2`. Marketplace catalogs and plugin manifests declare `0.2.2`.
+Package version is `0.2.3`. Marketplace catalogs and plugin manifests declare `0.2.3`.
 `npm test` passed 152 tests with 5 intentional Windows symlink skips and 0 failures. Smoke passed
-both provider directions. `npm pack --dry-run` packed `agent-task-bridge@0.2.2` with 118 files.
+both provider directions. `npm pack --dry-run` packed `agent-task-bridge@0.2.3` with 124 files,
+unpacked size 648.1 kB, package size 99.8 kB, shasum `95dc8f82ae1d7f74a7d4c3a33f05924e99558dac`.
 
 ## Last Session
 
-Added local project configuration on top of the published v0.2.1 release. The file is
-`.agent-task-bridge/config.json`. It cannot change privacy blocking or archive safety limits.
+Approved the five 2026-09-29 specifications and bumped version metadata to `0.2.3`. Runtime
+commands are unchanged from v0.2.2.
 
 ## Next Action
 
-No further v0.2.2 work. Agents install the published tag.
+Publish annotated tag `v0.2.3` from `main`. After that, the next product step is an implementation
+plan for the live Codex and ChatGPT round trip.
 
 ## Remaining Work
 
-None.
+- Publish annotated tag and GitHub release `v0.2.3`.
+- The five approved specifications are not implemented.
 
 ## Done
 
+- [x] Approved the five 2026-09-29 specifications.
 - [x] Published annotated tag `v0.2.2` and the GitHub release.
 - [x] Added optional `.agent-task-bridge/config.json` defaults for token budget, validation policy, and extra host steps.
 - [x] Published annotated tag `v0.2.1` and the GitHub release.
@@ -71,19 +75,19 @@ None.
 
 ## Blockers
 
-No technical blockers. Four Windows symlink/reparse-point tests remain intentionally skipped on
+No technical blockers. Five Windows symlink and reparse-point tests remain intentionally skipped on
 this host.
 
 ## Deployment
 
 Published release: https://github.com/AndriiLavrekha/task-bridge/releases/tag/v0.2.2
-Annotated tag `v0.2.2` points at `3dfa986` on `main`.
+Annotated tag `v0.2.2` points at `3dfa986` on `main`. Tag `v0.2.3` is not published yet.
 
 ## Completion Criteria
 
-- The approved v0.2.1 spec is implemented.
-- Protocol, architecture, README, release notes, example delegation, and both provider skills describe the new behavior.
-- `npm test`, `npm run smoke`, `npm run bundle:plugins`, and `npm pack --dry-run` pass for `0.2.1`.
+- The five 2026-09-29 specifications are approved and packaged.
+- `npm test`, `npm run smoke`, `npm run bundle:plugins`, and `npm pack --dry-run` pass for `0.2.3`.
+- Annotated tag `v0.2.3` is the GitHub release.
 - Older capsules without `host_owned_steps` keep their previous acceptance classification.
 
 ## Verification

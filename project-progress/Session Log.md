@@ -217,3 +217,10 @@ updated: 2026-09-29
 - Verification: `npm test` passed 152 tests, skipped 5 Windows symlink cases, and failed 0. Smoke inside that run passed both provider directions. `npm pack --dry-run` produced `agent-task-bridge@0.2.2` with 118 files, unpacked size 612.9 kB, package size 88.5 kB, shasum `8fe78d2177a1c02cdf71706e986d06db54da375d`.
 - Pushed `main` at `3dfa986` and annotated tag `v0.2.2`.
 - Published GitHub release: https://github.com/AndriiLavrekha/task-bridge/releases/tag/v0.2.2.
+
+## 2026-09-29 — approve specifications for v0.2.3
+
+- Approved five specifications under `docs/superpowers/specs/2026-09-29-*.md`.
+- v0.2.3 records those specifications. Export and import behavior matches v0.2.2. The five items are not implemented.
+- Install docs pin `AndriiLavrekha/task-bridge@v0.2.3` and `codex plugin marketplace add AndriiLavrekha/task-bridge --ref v0.2.3`.
+- Verification: `npm test` passed 152 tests, skipped 5 Windows symlink cases, and failed 0. Smoke passed both provider directions. `npm pack --dry-run` produced `agent-task-bridge@0.2.3` with 124 files, unpacked size 648.1 kB, package size 99.8 kB, shasum `95dc8f82ae1d7f74a7d4c3a33f05924e99558dac`.

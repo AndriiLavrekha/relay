@@ -22,3 +22,5 @@ updated: 2026-09-29
 - [x] Add repo-local `.agent-task-bridge/config.json` for token budget, validation policy, and extra host-owned steps.
 - [x] Publish annotated tag and GitHub release `v0.2.2`.
 - [x] Update Codex upgrade guidance to replace a pinned marketplace ref when moving releases.
+- [x] Approve the five 2026-09-29 specifications.
+- [ ] Publish annotated tag and GitHub release `v0.2.3`. The five specifications are not implemented in that tag.
