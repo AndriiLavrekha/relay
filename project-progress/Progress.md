@@ -1,10 +1,10 @@
 ---
 provider_last_used: claude-code
-session_id: 2f9afbe2-f1aa-4b11-8e34-3247b3d6f7eb
-checkpoint_at: 2026-11-21T11:13:16Z
-worktree_dirty: false
-base_branch: fix/round-trip-integration
-base_commit: 8f2c894b43248ff68630574a2330178b4b99cb60
+session_id: c445b617-7a99-47ef-9003-9e74a6263c89
+checkpoint_at: 2026-11-21T23:02:33Z
+worktree_dirty: true
+base_branch: main
+base_commit: a8c9da9470924ee0ee126fd66a59f45be10b6f4a
 handoff: clean
 gate_deploy: done
 gate_review: done
@@ -27,14 +27,7 @@ commit_progress: true
 
 ## Resume Snapshot
 
-v0.3.0 ships the round-trip integration fixes:
-
-- Worker side: `pack_result.py`, the text-reply transport, and the Integration Contract.
-- Import: elision detection, three-way merge, line-ending restore, and `--brief`.
-- Validation: dependency links, multi-language discovery, junction-safe cleanup.
-- Follow-up re-export and branch-mode integrate that commits.
-
-Protocol `1.0` and schema `1.1` are unchanged. `bridge_version` is `0.3.0`. Install docs pin `AndriiLavrekha/relay@v0.3.0`. The repository is private.
+v0.3.1 is tagged locally (not yet pushed until the user says so): fixes the kickoff prompt leaking the local capsule path (now `task.md`), validation output being dropped after the first chunk, and adds a timeout hint. Protocol `1.0` and schema `1.1` unchanged; `bridge_version` is `0.3.1`. Install docs pin `AndriiLavrekha/relay@v0.3.1`. The live ChatGPT round trip (Task 2, agentic-wars-game clan hall) succeeded via pack_result.py. The repository is private.
 
 ## Current State
 
@@ -49,23 +42,11 @@ Verification:
 
 ## Last Session
 
-The audit found the following, and all of it is now fixed:
-
-- Staging validation lacked git-ignored dependencies. Reproduced.
-- The worker hand-computed hashes and the base commit.
-- Abbreviated files were staged silently. `--allow-elision` now overrides after review.
-- `LOCAL_CHANGED` files were withheld whole instead of three-way merged.
-- `follow-up` embedded the stale baseline.
-- `integrate` ran `git worktree add` without `cwd`. Branch mode now commits and removes its temporary worktree.
-- Validation discovery was Node-only.
-- The review dumped full logs. `--brief` now gives a compact view.
-- `task_id` reached `loadStoredTask` without a format check.
-
-New this session: a junction-safe staging cleanup. New modules: `src/elision.mjs`, `src/merge.mjs`, `src/reply.mjs`, `src/packer.mjs`. New tests: `test/round-trip.test.mjs`. The approved live round-trip spec gained "Validation executed" and "Return transport" rows; its preconditions still pin `v0.2.2`.
+Live ChatGPT round trip succeeded (Task 2 of agentic-wars-game clan hall; ZIP via pack_result.py, imported and pushed by another agent). Found and fixed: (1) process.mjs appendBounded counted the cap's remaining budget instead of kept bytes, so validation output after the first chunk was dropped and flagged truncated (build/test diagnostics lost in import reports); regression test added. (2) Timeout lines in the import report now hint at validationTimeoutMs / validationCommands. Earlier: kickoff.md uses `task.md` (committed 98bfb16). Runtimes rebuilt; npm test 165 pass, 0 fail, 7 skipped. Process/reporting fixes uncommitted.
 
 ## Next Action
 
-Install v0.3.0 in Claude Code and Codex. Then run the live round-trip spec on ChatGPT Plus against a repository that has installed dependencies, and record the "Validation executed" and "Return transport" rows. Optional later: a read-only ChatGPT developer-mode MCP connector (`get_task`).
+Commit the process.mjs/reporting.mjs fixes after `npm run smoke`. Then consider: embedding type signatures/tooling versions in the capsule; showing worker claims separately in import output; cleaning retained staging worktrees (two left in Temp after double import); `handoff show/check` in the design spec vs CLI `task show`/`inspect-result`. Record "Validation executed" and "Return transport" (pack_result.py) rows from the live run.
 
 ## Remaining Work
 

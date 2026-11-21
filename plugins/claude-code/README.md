@@ -4,9 +4,9 @@ This directory is a self-contained Claude Code plugin. It contains the export/im
 
 ## Local installation from this repository
 
-From Claude Code, add the `v0.3.0` release as a marketplace and install the plugin:
+From Claude Code, add the `v0.3.1` release as a marketplace and install the plugin:
 
-1. `/plugin marketplace add AndriiLavrekha/relay@v0.3.0`
+1. `/plugin marketplace add AndriiLavrekha/relay@v0.3.1`
 2. `/plugin install task-bridge@awesome-task-bridge`
 3. Run `/reload-plugins` if Claude asks you to reload.
 

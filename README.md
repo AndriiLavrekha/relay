@@ -47,17 +47,17 @@ The `AndriiLavrekha/relay` repository is private. Claude Code and Codex clone th
 
 ### Install the Claude Code plugin
 
-From Claude Code, add the `v0.3.0` marketplace release and install the plugin:
+From Claude Code, add the `v0.3.1` marketplace release and install the plugin:
 
 ```text
-/plugin marketplace add AndriiLavrekha/relay@v0.3.0
+/plugin marketplace add AndriiLavrekha/relay@v0.3.1
 /plugin install task-bridge@awesome-task-bridge
 ```
 
 Or use the CLI:
 
 ```bash
-claude plugin marketplace add AndriiLavrekha/relay@v0.3.0
+claude plugin marketplace add AndriiLavrekha/relay@v0.3.1
 claude plugin install task-bridge@awesome-task-bridge
 ```
 
@@ -75,14 +75,14 @@ codex plugin marketplace add /absolute/path/to/agent-task-bridge
 codex plugin add task-bridge@awesome-task-bridge
 ```
 
-For the GitHub marketplace, pin the v0.3.0 release with `--ref v0.3.0`:
+For the GitHub marketplace, pin the v0.3.1 release with `--ref v0.3.1`:
 
 ```bash
-codex plugin marketplace add AndriiLavrekha/relay --ref v0.3.0
+codex plugin marketplace add AndriiLavrekha/relay --ref v0.3.1
 codex plugin add task-bridge@awesome-task-bridge
 ```
 
-Start a new Codex session after installation so the plugin and skills reload. See [`plugins/codex/README.md`](plugins/codex/README.md) for workspace-local marketplace details. Release notes: [`v0.3.0`](https://github.com/AndriiLavrekha/relay/releases/tag/v0.3.0).
+Start a new Codex session after installation so the plugin and skills reload. See [`plugins/codex/README.md`](plugins/codex/README.md) for workspace-local marketplace details. Release notes: [`v0.3.1`](https://github.com/AndriiLavrekha/relay/releases/tag/v0.3.1).
 
 ## Upgrade
 
@@ -107,15 +107,15 @@ Restart Claude Code or reload plugins after the update.
 ```bash
 codex plugin remove task-bridge@awesome-task-bridge
 codex plugin marketplace remove awesome-task-bridge
-codex plugin marketplace add AndriiLavrekha/relay --ref v0.3.0
+codex plugin marketplace add AndriiLavrekha/relay --ref v0.3.1
 codex plugin add task-bridge@awesome-task-bridge
 codex plugin list
 ```
 
 The [latest stable release](https://github.com/AndriiLavrekha/relay/releases/latest) is
-`v0.3.0`. `codex plugin marketplace upgrade` only refreshes the currently configured Git ref; it
-does not move an existing marketplace from an older pinned tag to `v0.3.0`. Re-add the marketplace
-with `--ref v0.3.0` when moving off an older pin.
+`v0.3.1`. `codex plugin marketplace upgrade` only refreshes the currently configured Git ref; it
+does not move an existing marketplace from an older pinned tag to `v0.3.1`. Re-add the marketplace
+with `--ref v0.3.1` when moving off an older pin.
 
 For unreleased development code, use `--ref main` instead of a release tag. Start a new Codex
 session after the update. If prompted, review and trust the updated plugin hooks.
@@ -509,6 +509,7 @@ A git-excluded `.agent-task-bridge/config.json` can set local defaults for `maxT
 | [`docs/releases/v0.2.1.md`](docs/releases/v0.2.1.md) | v0.2.1 visibility and execution-boundary notes |
 | [`docs/releases/v0.2.2.md`](docs/releases/v0.2.2.md) | v0.2.2 local project configuration |
 | [`docs/releases/v0.3.0.md`](docs/releases/v0.3.0.md) | v0.3.0 approved specifications |
+| [`docs/releases/v0.3.1.md`](docs/releases/v0.3.1.md) | v0.3.1 fixes |
 | [`protocol/`](protocol/) | Task and Result Capsule specifications |
 | [`src/`](src/) | Canonical bridge runtime |
 | [`AGENTS.md`](AGENTS.md) | Repository structure and contribution conventions |
