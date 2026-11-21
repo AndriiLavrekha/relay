@@ -19,9 +19,10 @@ export function abortReason(signal, message = 'Process interrupted') {
 function appendBounded(chunks, chunk, maxBytes, state) {
   const remaining = maxBytes === Infinity ? chunk.length : Math.max(0, maxBytes - state.bytes);
   if (remaining < chunk.length) state.truncated = true;
-  if (remaining > 0) {
-    chunks.push(chunk.subarray(0, remaining));
-    state.bytes += remaining;
+  const kept = chunk.subarray(0, remaining);
+  if (kept.length > 0) {
+    chunks.push(kept);
+    state.bytes += kept.length;
   }
 }
 
