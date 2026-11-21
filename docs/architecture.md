@@ -91,7 +91,20 @@ New task manifests record `host_owned_steps`. The default list reserves authorit
 
 ### Local project configuration
 
-`.agent-task-bridge/config.json` is an optional host file. The bridge creates that directory as git-excluded local storage, so the file stays on the machine that wrote it and is not part of the capsule protocol. Recognized keys are `maxTokens`, `validationPolicy`, and `extraHostOwnedSteps`. Unknown keys, a symlink, and malformed JSON fail the command. Export uses `maxTokens` only when `--max-tokens` is omitted, and appends `extraHostOwnedSteps` only when the delegation omits `host_owned_steps`. Import uses `validationPolicy` only when `--validation-policy` is omitted. Privacy policy and the hard safety ceilings stay in code.
+`.agent-task-bridge/config.json` is an optional host file. The bridge creates that directory as git-excluded local storage, so the file stays on the machine that wrote it and is not part of the capsule protocol. Recognized keys are `maxTokens`, `validationPolicy`, `extraHostOwnedSteps`, `validationCommands`, and `validationTimeoutMs`. Unknown keys, a symlink, and malformed JSON fail the command. Export uses `maxTokens` only when `--max-tokens` is omitted, and appends `extraHostOwnedSteps` only when the delegation omits `host_owned_steps`. Import uses `validationPolicy` only when `--validation-policy` is omitted. `validationCommands` replaces discovered validation commands for both the capsule's validation contract and staged validation. Privacy policy and the hard safety ceilings stay in code.
+
+### Round-trip integration boundary
+
+These additions keep protocol `1.0` and schema `1.1`.
+
+- **Worker side.** The capsule's Integration Contract and embedded `pack_result.py` move hashing, the task ID, and the base commit out of model output. A text-reply fallback (`<<<ATB_RESULT:...>>>`) serves workers without code execution.
+- **Host side.** Before staging, import:
+  - accepts that reply;
+  - restores baseline line endings;
+  - withholds abbreviated files as `SUSPECT_ELISION`;
+  - three-way merges files changed locally since export (`MERGED_CLEAN`, or a conflict-marker candidate);
+  - links git-ignored dependency directories into staging so validation actually runs.
+- **After import.** `follow-up` re-exports from the current checkout. Branch-mode `integrate` commits on the new branch and removes its temporary worktree. `--brief` gives host agents a compact review.
 
 ---
 

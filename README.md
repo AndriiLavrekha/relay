@@ -125,11 +125,11 @@ session after the update. If prompted, review and trust the updated plugin hooks
 1. Work normally in Claude Code or Codex.
 2. Invoke the provider's export skill and specify one bounded unit of work.
 3. The bridge writes one Task Capsule Markdown file under the repository task history and generates a kickoff prompt, upload checklist, result contract, and token/file summary beside it. Export also warns when the editable scope and the embedded file list disagree. An explicit `--out` path may still be used for a copy.
-4. Upload that file to a fresh ChatGPT conversation and ask for Result Capsule v1 as a ZIP.
-5. Invoke the provider's import skill with the downloaded ZIP.
-6. The bridge validates the archive, task ID, source baseline, paths, scope, and repository drift.
+4. Upload that file to a fresh ChatGPT conversation with the kickoff prompt. The capsule carries an Integration Contract (plan first, match conventions, no placeholders, tests per criterion) and a stdlib-only `pack_result.py`. On ChatGPT Plus, ChatGPT runs the script in its Python sandbox and returns a ZIP whose hashes, task ID, and base commit were computed, not typed. Without code execution (for example ChatGPT Go), ChatGPT replies in the capsule's `<<<ATB_RESULT:...>>>` text framing and you save the reply as a `.md` file.
+5. Invoke the provider's import skill with the downloaded ZIP or saved reply. The bridge builds the ZIP from a text reply itself.
+6. The bridge validates the archive, task ID, source baseline, paths, scope, and repository drift. Returned files take the baseline's line endings, abbreviated files (`// ... rest unchanged`, or a large unexplained shrink) are withheld as `SUSPECT_ELISION`, and a file you changed locally while ChatGPT worked is three-way merged (`MERGED_CLEAN`) instead of withheld, unless the edits overlap.
 7. Clean candidates are applied only to an isolated, external staging worktree; conflicts and out-of-scope files are withheld for review.
-8. Supported Node project scripts run locally in staging with a scrubbed environment, bounded output, timeouts, and policy-controlled execution.
+8. Validation runs locally in staging with a scrubbed environment, bounded output, timeouts, and policy-controlled execution. Git-ignored `node_modules`, `vendor`, `.venv`, and `venv` directories are linked into staging for the run, and toolchain caches (Cargo, rustup, NuGet, Go) stay reachable. Discovery covers npm/pnpm/yarn/bun scripts, `cargo test`, `go test ./...`, `dotnet test`, CMake + CTest, pytest, and Composer/PHPUnit when the tool is installed; `validationCommands` in `config.json` replaces discovery.
 9. The coding agent reviews the diff, lifecycle, receipt, drift, validation, privacy, persisted worker report, and acceptance evidence before choosing whether to integrate it. Criteria marked deferred to the host are local gates. They are not sent back to the external worker.
 10. Use `review <import-id>` for the persisted review, `follow-up <import-id>` for unresolved worker-owned work, and `integrate <import-id> --confirm` for the separate integration boundary.
 
@@ -381,7 +381,9 @@ node bin/agent-task-bridge.mjs help
 node bin/agent-task-bridge.mjs export --delegation examples/delegation.example.json --repo /path/to/repo --source-agent codex
 node bin/agent-task-bridge.mjs inspect-task <task.md>
 node bin/agent-task-bridge.mjs inspect-result <result.zip>
-node bin/agent-task-bridge.mjs import <result.zip> --repo /path/to/repo
+node bin/agent-task-bridge.mjs import <result.zip|reply.md> --repo /path/to/repo [--brief]
+node bin/agent-task-bridge.mjs review <import-id> --repo /path/to/repo --brief
+node bin/agent-task-bridge.mjs integrate <import-id> --repo /path/to/repo --mode branch --branch <name> --confirm
 node bin/agent-task-bridge.mjs validate --dir <staging-or-project-dir>
 node bin/agent-task-bridge.mjs status --repo /path/to/repo
 ```
@@ -425,11 +427,11 @@ The external worker's code, model, status, tests, token usage, and prose remain 
 
 ## Current MVP boundary
 
-Version 1 targets Git repositories with Node.js, TypeScript, or JavaScript fingerprinting and validation discovery. It supports text-based code and non-code delegation.
+Version 1 targets Git repositories. Fingerprinting is Node.js-oriented; validation discovery covers Node, Rust, Go, .NET, CMake, Python (pytest), and PHP when their tools are installed. It supports text-based code and non-code delegation.
 
 The host agent remains responsible for semantic context selection. The MVP does not automatically expand dependency graphs or index the whole repository, provide automated ChatGPT transport, call OpenAI or Anthropic APIs, support binary payloads, offer hosted telemetry or cloud storage, or automatically apply changes to the active branch.
 
-A git-excluded `.agent-task-bridge/config.json` can set local defaults for `maxTokens`, `validationPolicy` (`safe`, `prompt`, or `skip`), and `extraHostOwnedSteps`. See [`examples/project-config.example.json`](examples/project-config.example.json). Missing file keeps the shipped defaults. CLI flags override the file. An explicit delegation `host_owned_steps` value, including `[]`, overrides the extra steps. The file cannot change privacy blocking, the 512 KB report limit, archive checks, or the embedded-byte ceiling. Safe import requires Git worktree support.
+A git-excluded `.agent-task-bridge/config.json` can set local defaults for `maxTokens`, `validationPolicy` (`safe`, `prompt`, or `skip`), `extraHostOwnedSteps`, `validationCommands` (`[{ "name", "command", "args" }]`, replaces discovery; use it for C++ presets, custom test runners, or monorepo filters), and `validationTimeoutMs` (default 120000 per command; raise it for C++ and .NET builds). See [`examples/project-config.example.json`](examples/project-config.example.json). Missing file keeps the shipped defaults. CLI flags override the file. An explicit delegation `host_owned_steps` value, including `[]`, overrides the extra steps. The file cannot change privacy blocking, the 512 KB report limit, archive checks, or the embedded-byte ceiling. Safe import requires Git worktree support.
 
 ## Documentation
 

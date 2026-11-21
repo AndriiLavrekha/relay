@@ -63,6 +63,8 @@ Write the results in `project-progress/Session Log.md` under a dated heading. Re
 | Import safety | After import completes, `activeWorktreeModifiedByImport` is false. Staging is outside the repository. |
 | Worker report | When `REPORT.md` is present, review `workerReport` shows the parsed sections, and high-confidence secrets in that view are redacted. The stored copy under `.agent-task-bridge/` stays raw. |
 | Host boundary | Criteria the host owns have review status `deferred_to_host`. A `follow-up` capsule includes a criterion only when its status is neither `verified` nor `deferred_to_host`. |
+| Validation executed | The host repository has installed dependencies, for example a git-ignored `node_modules`. Import reports at least one validation result whose status is `PASS` or `FAIL` for a real reason, never a missing dependency. `validation.dependencyLinks` lists the linked directories. A repository without dependencies does not satisfy this row. |
+| Return transport | Record whether ChatGPT used `pack_result.py` (Option A) or the text reply (Option B), and the ChatGPT plan. Option A results carry `transport: "pack_result.py"` in `manifest.json`. |
 
 Also record the Codex plugin version, the task id, the result status, and any command that failed.
 

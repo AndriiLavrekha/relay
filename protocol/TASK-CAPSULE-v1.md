@@ -69,3 +69,9 @@ The exporter scans selected files, delegation text, project fingerprint, validat
 ## Result expectation
 
 For code work, the external worker returns Result Capsule v1: a ZIP with `manifest.json`, optional `REPORT.md`, and complete changed/created files under `files/<repo-relative-path>`. The returned manifest must repeat the exact Task Capsule `task_id` and `project.base_commit`.
+
+The rendered capsule carries three worker-facing sections:
+
+- **Integration Contract.** Plan first, match the embedded code's conventions, add no dependencies, keep `contract` signatures, return complete files with no placeholders, add tests per acceptance criterion, record only commands actually run, and map each criterion to evidence in `REPORT.md`.
+- **Option A, `pack_result.py`.** A stdlib-only Python script with the task ID, base commit, and baseline SHA-256 of each embedded file filled in. The worker writes files to `atb_out/files/` and runs it. The script derives `create` versus `modify`, skips files identical to the baseline, warns on elision placeholders, and writes the ZIP. A model never types hashes or the commit.
+- **Option B, text reply.** A fallback for workers without code execution. The reply starts with `<<<ATB_RESULT:<file_boundary>>>`, followed by optional `status:` and `summary:` lines, then `<<<ATB_FILE:<file_boundary>>> <path>` blocks, each closed by `<<<ATB_END:<file_boundary>>>`. Each block body may sit inside one Markdown fence, which the parser removes. The reply may also hold `<<<ATB_DELETE:<file_boundary>>> <path>` lines and one `<<<ATB_REPORT:<file_boundary>>>` block. The host derives the task from `file_boundary`, checks it against the stored capsule, derives operations from the embedded file list, and computes hashes. A block without an end marker rejects the whole reply as truncated.

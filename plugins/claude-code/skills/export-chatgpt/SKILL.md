@@ -12,7 +12,7 @@ Use this when the developer wants to delegate a well-bounded part of the current
 
 1. Inspect the current request, relevant repository files, existing plan/status, architecture, tests, and current Git state. Do not copy the conversation transcript.
 2. Bound one independently useful work unit. If the request is broad, select the smallest coherent unit that can be returned and integrated independently.
-3. Select only the repository files ChatGPT needs. Classify them as `editable`, `reference`, `contract`, `validation`, or `configuration`.
+3. Select only the repository files ChatGPT needs. Classify them as `editable`, `reference`, `contract`, `validation`, or `configuration`. So the returned code plugs in without rework, embed the interfaces it must call as `contract` files and one existing test plus one neighbouring source file as `reference` files; ChatGPT copies their conventions.
 4. Create a temporary JSON delegation request with this shape:
    - `objective`: higher-level user objective.
    - `work_unit`: exact delegated work.
@@ -34,6 +34,6 @@ Use this when the developer wants to delegate a well-bounded part of the current
    Omit `--max-tokens` when `.agent-task-bridge/config.json` should supply `maxTokens`. Extra host steps in that file apply only when the delegation omits `host_owned_steps`.
 
 7. Delete the temporary delegation JSON after a successful export if it was created outside the bridge's own local storage.
-8. Report the generated `task.md` and `kickoff.md` paths, delegated scope, file count, and estimated context size. Inspect export warnings for `CONTEXT_COVERAGE_GAP` and `EDITABLE_OUTSIDE_SCOPE`. Tell the user which matching files were omitted from the capsule and which `files.editable` entries sit outside `editable_scope`, then let the user decide whether to export the bounded slice anyway. Tell the user to upload the Task Capsule and use the generated kickoff prompt in a fresh ChatGPT conversation.
+8. Report the generated `task.md` and `kickoff.md` paths, delegated scope, file count, and estimated context size. Inspect export warnings for `CONTEXT_COVERAGE_GAP` and `EDITABLE_OUTSIDE_SCOPE`. Tell the user which matching files were omitted from the capsule and which `files.editable` entries sit outside `editable_scope`, then let the user decide whether to export the bounded slice anyway. Tell the user to upload the Task Capsule and use the generated kickoff prompt in a fresh ChatGPT conversation. ChatGPT returns either a ZIP built by the capsule's `pack_result.py` (preferred) or a text reply the user saves as a `.md` file; `import` accepts both.
 
 Do not implement the delegated unit locally after exporting it unless the developer separately asks you to continue that same work.
