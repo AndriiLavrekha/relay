@@ -43,19 +43,21 @@ Choose the path that matches your agent:
 | Codex | [`task-bridge` Codex plugin](#install-the-codex-plugin) | Ask Codex to export a bounded task |
 | Any local checkout | Clone or open this repository | Run `node bin/agent-task-bridge.mjs help` |
 
+The `AndriiLavrekha/relay` repository is private. Claude Code and Codex clone the marketplace with your own Git credentials. Run `gh auth login` or configure a Git credential helper before adding it.
+
 ### Install the Claude Code plugin
 
-From Claude Code, add the public `v0.2.3` marketplace release and install the plugin:
+From Claude Code, add the `v0.3.0` marketplace release and install the plugin:
 
 ```text
-/plugin marketplace add AndriiLavrekha/task-bridge@v0.2.3
+/plugin marketplace add AndriiLavrekha/relay@v0.3.0
 /plugin install task-bridge@awesome-task-bridge
 ```
 
 Or use the CLI:
 
 ```bash
-claude plugin marketplace add AndriiLavrekha/task-bridge@v0.2.3
+claude plugin marketplace add AndriiLavrekha/relay@v0.3.0
 claude plugin install task-bridge@awesome-task-bridge
 ```
 
@@ -73,14 +75,14 @@ codex plugin marketplace add /absolute/path/to/agent-task-bridge
 codex plugin add task-bridge@awesome-task-bridge
 ```
 
-For the public GitHub marketplace, pin the v0.2.3 release with `--ref v0.2.3`:
+For the GitHub marketplace, pin the v0.3.0 release with `--ref v0.3.0`:
 
 ```bash
-codex plugin marketplace add AndriiLavrekha/task-bridge --ref v0.2.3
+codex plugin marketplace add AndriiLavrekha/relay --ref v0.3.0
 codex plugin add task-bridge@awesome-task-bridge
 ```
 
-Start a new Codex session after installation so the plugin and skills reload. See [`plugins/codex/README.md`](plugins/codex/README.md) for workspace-local marketplace details. Release notes: [`v0.2.3`](https://github.com/AndriiLavrekha/task-bridge/releases/tag/v0.2.3).
+Start a new Codex session after installation so the plugin and skills reload. See [`plugins/codex/README.md`](plugins/codex/README.md) for workspace-local marketplace details. Release notes: [`v0.3.0`](https://github.com/AndriiLavrekha/relay/releases/tag/v0.3.0).
 
 ## Upgrade
 
@@ -105,15 +107,15 @@ Restart Claude Code or reload plugins after the update.
 ```bash
 codex plugin remove task-bridge@awesome-task-bridge
 codex plugin marketplace remove awesome-task-bridge
-codex plugin marketplace add AndriiLavrekha/task-bridge --ref v0.2.3
+codex plugin marketplace add AndriiLavrekha/relay --ref v0.3.0
 codex plugin add task-bridge@awesome-task-bridge
 codex plugin list
 ```
 
-The [latest stable release](https://github.com/AndriiLavrekha/task-bridge/releases/latest) is
-`v0.2.3`. `codex plugin marketplace upgrade` only refreshes the currently configured Git ref; it
-does not move an existing marketplace from an older pinned tag to `v0.2.3`. Re-add the marketplace
-with `--ref v0.2.3` when moving off an older pin.
+The [latest stable release](https://github.com/AndriiLavrekha/relay/releases/latest) is
+`v0.3.0`. `codex plugin marketplace upgrade` only refreshes the currently configured Git ref; it
+does not move an existing marketplace from an older pinned tag to `v0.3.0`. Re-add the marketplace
+with `--ref v0.3.0` when moving off an older pin.
 
 For unreleased development code, use `--ref main` instead of a release tag. Start a new Codex
 session after the update. If prompted, review and trust the updated plugin hooks.
@@ -444,7 +446,7 @@ A git-excluded `.agent-task-bridge/config.json` can set local defaults for `maxT
 | [`docs/releases/v0.2.0.md`](docs/releases/v0.2.0.md) | v0.2 reliability release notes |
 | [`docs/releases/v0.2.1.md`](docs/releases/v0.2.1.md) | v0.2.1 visibility and execution-boundary notes |
 | [`docs/releases/v0.2.2.md`](docs/releases/v0.2.2.md) | v0.2.2 local project configuration |
-| [`docs/releases/v0.2.3.md`](docs/releases/v0.2.3.md) | v0.2.3 approved specifications |
+| [`docs/releases/v0.3.0.md`](docs/releases/v0.3.0.md) | v0.3.0 approved specifications |
 | [`protocol/`](protocol/) | Task and Result Capsule specifications |
 | [`src/`](src/) | Canonical bridge runtime |
 | [`AGENTS.md`](AGENTS.md) | Repository structure and contribution conventions |

@@ -1,24 +1,24 @@
 ---
 provider_last_used: claude-code
 session_id: 2f9afbe2-f1aa-4b11-8e34-3247b3d6f7eb
-checkpoint_at: 2026-11-21T11:06:42Z
-worktree_dirty: true
-base_branch: main
-base_commit: c845dd99b2c73a5e89c4795485b51500e33b2500
+checkpoint_at: 2026-11-21T11:13:16Z
+worktree_dirty: false
+base_branch: fix/round-trip-integration
+base_commit: 8f2c894b43248ff68630574a2330178b4b99cb60
 handoff: clean
-gate_deploy: not-started
-gate_review: not-started
+gate_deploy: done
+gate_review: done
 gate_tests: done
 gate_implementation: done
 project: agent-task-bridge
 progress_schema_version: 1
-status: active
+status: deployed
 path: D:/depot/agent-task-bridge
 agent_last_used: unknown
 updated: 2026-11-21
-last_milestone: Round-trip integration fixes implemented, uncommitted
+last_milestone: v0.3.0 released: round-trip integration fixes
 deployed: true
-deployment_url: https://github.com/AndriiLavrekha/task-bridge
+deployment_url: https://github.com/AndriiLavrekha/relay
 sensitivity: normal
 commit_progress: true
 ---
@@ -27,23 +27,25 @@ commit_progress: true
 
 ## Resume Snapshot
 
-Uncommitted on `main` (2026-11-21): round-trip integration fixes from an audit. Packer script embedded in the capsule, text-reply import, elision detection, three-way merge, dependency-linked multi-language validation, follow-up re-export, integrate cwd fix plus branch commit, `--brief` review, and a task-id check. Protocol `1.0` and schema `1.1` are unchanged. `bridge_version` is still `0.2.3`; there has been no release or version bump.
+v0.3.0 ships the round-trip integration fixes:
+
+- Worker side: `pack_result.py`, the text-reply transport, and the Integration Contract.
+- Import: elision detection, three-way merge, line-ending restore, and `--brief`.
+- Validation: dependency links, multi-language discovery, junction-safe cleanup.
+- Follow-up re-export and branch-mode integrate that commits.
+
+Protocol `1.0` and schema `1.1` are unchanged. `bridge_version` is `0.3.0`. Install docs pin `AndriiLavrekha/relay@v0.3.0`. The repository is private.
 
 ## Current State
 
-The working tree has uncommitted round-trip fixes on top of `v0.2.3`.
+Package version is `0.3.0`. Marketplace catalogs and plugin manifests declare `0.3.0`.
 
 Verification:
-- `npm test`: 171 tests, 164 passed, 7 skipped, 0 failed. Pristine HEAD also has 7 skips, out of 157 tests.
+- `npm test`: 171 tests, 164 passed, 7 skipped (Windows symlink/reparse fixtures), 0 failed.
 - `npm run smoke` passed.
-- `npm pack --dry-run`: 136 files, package size 118.1 kB.
-
-Live checks:
-- A real xUnit solution passed `dotnet test` in staging, with CRLF line endings restored.
-- A repository with a git-ignored dependency in `node_modules` passed `npm test` in staging.
-- `cmake` is not installed on this host, so C++ validation is unverified.
-
-Bug fixed this session: staging cleanup used `git worktree remove --force`, which follows Windows junctions and deleted the real `node_modules`. Cleanup now detaches links first. Regression test: `test/round-trip.test.mjs`.
+- `npm pack --dry-run`: `agent-task-bridge@0.3.0`, 137 files, package size 119.3 kB, shasum `f5320c6622beb8b767ab8bbdc4232a3a9f79d6af`.
+- `claude plugin validate .` passed.
+- A real xUnit solution passed `dotnet test` in staging.
 
 ## Last Session
 
@@ -63,10 +65,7 @@ New this session: a junction-safe staging cleanup. New modules: `src/elision.mjs
 
 ## Next Action
 
-1. The owner reviews and commits the uncommitted round-trip fixes. Suggested split: validation, transport, import checks, integrate/follow-up, docs.
-2. Bump the version and release.
-3. Run the live round-trip spec on ChatGPT Plus against a repository that has installed dependencies. The spec gained "Validation executed" and "Return transport" rows.
-4. Optional later: a read-only ChatGPT developer-mode MCP connector (`get_task`). Plus may not allow write actions, so results still return via ZIP or text reply.
+Install v0.3.0 in Claude Code and Codex. Then run the live round-trip spec on ChatGPT Plus against a repository that has installed dependencies, and record the "Validation executed" and "Return transport" rows. Optional later: a read-only ChatGPT developer-mode MCP connector (`get_task`).
 
 ## Remaining Work
 
@@ -101,8 +100,10 @@ No technical blockers. Seven Windows symlink/reparse-point tests are skipped on 
 
 ## Deployment
 
-Published release: https://github.com/AndriiLavrekha/task-bridge/releases/tag/v0.2.3
-Annotated tag `v0.2.3` points at `004d995` on `main`. Tag `v0.2.2` remains at `3dfa986`.
+Published release: https://github.com/AndriiLavrekha/relay/releases/tag/v0.3.0 (annotated tag `v0.3.0` on `main`). The repository is renamed from `task-bridge` to `relay` and is private, so installs need the user's Git credentials.
+
+- Claude Code: `/plugin marketplace add AndriiLavrekha/relay@v0.3.0`, then `/plugin install task-bridge@awesome-task-bridge`.
+- Codex: `codex plugin marketplace add AndriiLavrekha/relay --ref v0.3.0`, then `codex plugin add task-bridge@awesome-task-bridge`.
 
 ## Completion Criteria
 

@@ -2,12 +2,12 @@
 
 This directory is a self-contained Codex plugin bundle with `.codex-plugin/plugin.json`, export/import skills, and a generated copy of the deterministic bridge runtime.
 
-## Install the v0.2.3 release
+## Install the v0.3.0 release
 
-Add the public GitHub marketplace pinned to the release tag, then install the plugin:
+Add the GitHub marketplace pinned to the release tag, then install the plugin:
 
 ```text
-codex plugin marketplace add AndriiLavrekha/task-bridge --ref v0.2.3
+codex plugin marketplace add AndriiLavrekha/relay --ref v0.3.0
 codex plugin add task-bridge@awesome-task-bridge
 ```
 
@@ -15,13 +15,13 @@ Start a new Codex session after installation.
 
 ## Upgrade to the latest stable release
 
-The [latest stable release](https://github.com/AndriiLavrekha/task-bridge/releases/latest) is
-`v0.2.3`:
+The [latest stable release](https://github.com/AndriiLavrekha/relay/releases/latest) is
+`v0.3.0`:
 
 ```text
 codex plugin remove task-bridge@awesome-task-bridge
 codex plugin marketplace remove awesome-task-bridge
-codex plugin marketplace add AndriiLavrekha/task-bridge --ref v0.2.3
+codex plugin marketplace add AndriiLavrekha/relay --ref v0.3.0
 codex plugin add task-bridge@awesome-task-bridge
 codex plugin list
 ```
