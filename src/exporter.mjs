@@ -9,7 +9,7 @@ import { findGitRoot, getGitState } from './repository.mjs';
 import { renderTaskCapsule } from './task-capsule.mjs';
 import { storeTask } from './storage.mjs';
 import { AtbError } from './errors.mjs';
-import { discoverValidationCommands } from './validation.mjs';
+import { resolveValidationCommands } from './validation.mjs';
 import { scanText } from './privacy.mjs';
 import { writeLifecycle } from './lifecycle.mjs';
 import { createHandoffBundle } from './handoff.mjs';
@@ -83,7 +83,7 @@ export async function exportTask({
     getGitState(root),
     fingerprintProject(root),
     collectContext(root, delegation),
-    discoverValidationCommands(root),
+    resolveValidationCommands(root, projectConfig),
   ]);
   const coverage = await evaluateContextCoverage(root, delegation, context.files);
   const warnings = [];

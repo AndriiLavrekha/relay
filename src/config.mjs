@@ -4,7 +4,7 @@ import { AtbError } from './errors.mjs';
 import { VALIDATION_POLICIES } from './validation.mjs';
 
 export const PROJECT_CONFIG_FILENAME = 'config.json';
-export const PROJECT_CONFIG_KEYS = Object.freeze(['maxTokens', 'validationPolicy', 'extraHostOwnedSteps']);
+export const PROJECT_CONFIG_KEYS = Object.freeze(['maxTokens', 'validationPolicy', 'extraHostOwnedSteps', 'validationCommands', 'validationTimeoutMs']);
 
 export function emptyProjectConfig() {
   return {
@@ -13,7 +13,22 @@ export function emptyProjectConfig() {
     maxTokens: null,
     validationPolicy: null,
     extraHostOwnedSteps: [],
+    validationCommands: [],
+    validationTimeoutMs: null,
   };
+}
+
+function parseValidationCommands(value, filePath) {
+  const invalid = () => new AtbError('INVALID_PROJECT_CONFIG', 'validationCommands must be an array of { name, command, args? } with non-empty string name and command and string args', { path: filePath });
+  if (!Array.isArray(value)) throw invalid();
+  return value.map((entry) => {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) throw invalid();
+    const { name, command, args = [] } = entry;
+    if (typeof name !== 'string' || !name.trim() || typeof command !== 'string' || !command.trim()) throw invalid();
+    if (!Array.isArray(args) || args.some((arg) => typeof arg !== 'string')) throw invalid();
+    if (Object.keys(entry).some((key) => !['name', 'command', 'args'].includes(key))) throw invalid();
+    return { name: name.trim(), command: command.trim(), args };
+  });
 }
 
 export function projectConfigPath(repoRoot) {
@@ -54,6 +69,13 @@ export function parseProjectConfig(text, filePath = PROJECT_CONFIG_FILENAME) {
       throw new AtbError('INVALID_PROJECT_CONFIG', 'extraHostOwnedSteps must be an array of non-empty strings', { path: filePath });
     }
     config.extraHostOwnedSteps = value.extraHostOwnedSteps.map((item) => item.trim());
+  }
+  if (value.validationCommands !== undefined) config.validationCommands = parseValidationCommands(value.validationCommands, filePath);
+  if (value.validationTimeoutMs !== undefined) {
+    if (!Number.isInteger(value.validationTimeoutMs) || value.validationTimeoutMs < 1000) {
+      throw new AtbError('INVALID_PROJECT_CONFIG', 'validationTimeoutMs must be an integer of at least 1000', { path: filePath });
+    }
+    config.validationTimeoutMs = value.validationTimeoutMs;
   }
   return config;
 }
