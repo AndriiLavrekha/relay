@@ -93,7 +93,7 @@ export async function createHandoffBundle({ repoRoot, taskId, capsuleText, manif
     summary: path.join(directory, 'summary.json'),
   };
   const contract = `# Expected Result Capsule contract\n\n- Preferred: the worker runs the capsule's pack_result.py, which writes the ZIP with computed hashes.\n- Fallback: a saved text reply using the capsule's <<<ATB_RESULT:...>>> framing; \`import\` accepts the .md file and builds the ZIP locally.\n- ZIP entries: manifest.json, REPORT.md when required by status, and files/<repository-relative-path>.\n- Protocol: atb_protocol 1.0; schema_version 1.1 for v0.2 results.\n- Status: complete, partial, blocked, or research-only.\n- Non-delete files: sha256 and size_bytes over raw UTF-8 payload bytes.\n- Worker-reported tests, model, tokens, and acceptance claims are untrusted.\n`;
-  const kickoff = formatKickoffPrompt({ taskId, capsulePath: files.task, manifest, delegation, contract });
+  const kickoff = formatKickoffPrompt({ taskId, capsulePath: path.basename(files.task), manifest, delegation, contract });
   const checklist = formatUploadChecklist({ taskId, files: contextSummary?.per_file ?? [], contextSummary, coverage });
   const summary = formatTaskSummary({ manifest, delegation, contextSummary });
   await Promise.all([

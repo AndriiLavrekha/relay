@@ -35,6 +35,8 @@ test('createHandoffBundle writes deterministic kickoff artifacts and summary', a
   }
   const kickoff = await readFile(path.join(result.directory, 'kickoff.md'), 'utf8');
   assert.match(kickoff, /complete resulting files/i);
+  assert.match(kickoff, /Execute Task Capsule `task\.md`/);
+  assert.doesNotMatch(kickoff, /[\\/]tasks[\\/]/);
   assert.match(kickoff, /REPORT\.md/);
   assert.match(kickoff, /Validation claims/);
   assert.match(kickoff, /acceptance evidence/i);
