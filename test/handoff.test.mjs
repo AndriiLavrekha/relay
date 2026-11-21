@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { access, mkdtemp, readFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createFollowUpCapsule, createHandoffBundle, formatKickoffPrompt } from '../src/handoff.mjs';
@@ -58,6 +58,13 @@ test('formatKickoffPrompt states the untrusted worker contract', () => {
 test('createFollowUpCapsule preserves scope and records unresolved review work', async () => {
   const root = await mkdtemp(path.join(tmpdir(), 'atb-follow-up-'));
   await runProcess('git', ['init', '-b', 'main'], { cwd: root });
+  await mkdir(path.join(root, 'src'), { recursive: true });
+  await writeFile(path.join(root, 'src', 'a.js'), 'export const a = 1;\n');
+  await writeFile(path.join(root, 'src', 'b.js'), 'export const b = 1;\n');
+  await runProcess('git', ['add', '.'], { cwd: root });
+  await runProcess('git', ['-c', 'user.email=test@example.invalid', '-c', 'user.name=ATB Test', 'commit', '-m', 'initial'], { cwd: root });
+  // Simulates work integrated after the original export: the follow-up must embed this, not the stale baseline.
+  await writeFile(path.join(root, 'src', 'a.js'), 'export const a = 2;\n');
   const originalManifest = {
     atb_protocol: '1.0', capsule_type: 'task', schema_version: '1.1', task_id: 'atb_original',
     file_boundary: 'ATB_original_boundary', created_at: new Date().toISOString(),
@@ -89,4 +96,6 @@ test('createFollowUpCapsule preserves scope and records unresolved review work',
   assert.deepEqual(parsed.delegation.editable_scope, ['src/**']);
   assert.match(parsed.delegation.objective, /unresolved/i);
   assert.ok(parsed.delegation.files.reference.includes('src/b.js'));
+  assert.equal(parsed.files.find((file) => file.path === 'src/a.js').content, 'export const a = 2;\n');
+  assert.ok(parsed.files.some((file) => file.path === 'src/b.js'), 'withheld files are embedded, not only listed');
 });

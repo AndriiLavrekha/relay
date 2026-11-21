@@ -42,8 +42,23 @@ test('integrateImport requires confirmation and preserves active tree for branch
   await assert.rejects(() => integrateImport({ repoRoot: value.root, importId: value.importId, mode: 'branch', branchName, confirmed: false }), (error) => error?.code === 'INTEGRATION_CONFIRMATION_REQUIRED');
   const result = await integrateImport({ repoRoot: value.root, importId: value.importId, mode: 'branch', branchName, confirmed: true });
   assert.equal(result.branchName, branchName);
-  assert.equal(await readFile(path.join(result.integrationRoot, 'src', 'a.js'), 'utf8'), 'export const a = 2;\n');
+  assert.match(result.commit, /^[0-9a-f]{40}$/);
+  assert.equal(result.integrationRoot, null, 'temporary worktree is removed after the branch commit');
+  assert.equal((await runProcess('git', ['show', `${branchName}:src/a.js`], { cwd: value.root })).stdout, 'export const a = 2;\n');
   assert.equal((await runProcess('git', ['branch', '--show-current'], { cwd: value.root })).stdout.trim(), 'main');
+});
+
+test('integrateImport branch mode works when the process cwd is outside the repository', async () => {
+  const value = await fixture();
+  const branchName = `atb-cwd-${Date.now().toString(36)}`;
+  const previous = process.cwd();
+  process.chdir(tmpdir());
+  try {
+    const result = await integrateImport({ repoRoot: value.root, importId: value.importId, mode: 'branch', branchName, confirmed: true });
+    assert.match(result.commit, /^[0-9a-f]{40}$/);
+  } finally {
+    process.chdir(previous);
+  }
 });
 
 test('integrateImport refuses active-tree drift before in-place mutation', async () => {

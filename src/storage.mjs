@@ -122,6 +122,10 @@ export async function storeTask(repoRoot, taskId, capsuleText) {
 }
 
 export async function loadStoredTask(repoRoot, taskId) {
+  // Task IDs reach here from untrusted result manifests; only a single safe path segment may name a stored task.
+  if (typeof taskId !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(taskId)) {
+    throw new AtbError('UNSAFE_TASK_ID', `Task ID is not a safe stored-task name: ${String(taskId).slice(0, 80)}`);
+  }
   await assertSafeStorageRoot(repoRoot);
   const taskPath = path.join(atbRoot(repoRoot), 'tasks', taskId, 'task.md');
   let text;

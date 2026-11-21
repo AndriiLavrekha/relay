@@ -71,11 +71,15 @@ export async function exportTask({
   maxTokens,
   privacyPolicy = 'default',
   privacyConfirmed = false,
+  delegationRequest,
+  continuationOf,
 }) {
   const root = repoRoot ? await findGitRoot(repoRoot) : await findGitRoot(process.cwd());
-  let raw;
-  try { raw = JSON.parse(await readFile(path.resolve(delegationPath), 'utf8')); }
-  catch (error) { throw new AtbError('INVALID_DELEGATION_FILE', `Cannot read delegation JSON: ${error.message}`); }
+  let raw = delegationRequest;
+  if (raw === undefined) {
+    try { raw = JSON.parse(await readFile(path.resolve(delegationPath), 'utf8')); }
+    catch (error) { throw new AtbError('INVALID_DELEGATION_FILE', `Cannot read delegation JSON: ${error.message}`); }
+  }
   const projectConfig = await loadProjectConfig(root);
   const delegation = applyExtraHostOwnedSteps(raw, validateDelegationRequest(raw), projectConfig);
   const tokenBudget = resolveMaxTokens(maxTokens, projectConfig);
@@ -107,6 +111,7 @@ export async function exportTask({
     exporter_version: '0.2.3',
     host_owned_steps: delegation.host_owned_steps,
     source_agent: sourceAgent,
+    ...(continuationOf ? { continuation_of: continuationOf } : {}),
     project: {
       name: fingerprint.project_name,
       vcs: 'git',
@@ -151,7 +156,7 @@ export async function exportTask({
   const lifecycle = {
     taskId,
     state: 'exported',
-    events: [{ state: 'exported', at: new Date().toISOString(), source: 'export' }],
+    events: [{ state: 'exported', at: new Date().toISOString(), source: continuationOf ? 'follow-up' : 'export', ...(continuationOf ? { continuationOf } : {}) }],
   };
   const lifecyclePath = await writeLifecycle(root, lifecycle);
   const handoff = await createHandoffBundle({

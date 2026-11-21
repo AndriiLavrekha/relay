@@ -1,10 +1,8 @@
-import crypto from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { assertSafeStorageRoot, atbRoot } from './storage.mjs';
-import { loadStoredTask, storeTask } from './storage.mjs';
-import { renderTaskCapsule } from './task-capsule.mjs';
-import { writeLifecycle } from './lifecycle.mjs';
+import { assertSafeStorageRoot, atbRoot, loadStoredTask } from './storage.mjs';
+import { FILE_ROLES } from './delegation.mjs';
+import { exportTask } from './exporter.mjs';
 
 function list(values) {
   return values?.length ? values.map((value) => `- ${value}`).join('\n') : '- None specified';
@@ -108,7 +106,7 @@ export async function createHandoffBundle({ repoRoot, taskId, capsuleText, manif
   return { directory, files, summary };
 }
 
-export async function createFollowUpCapsule({ repoRoot, importId, review: providedReview }) {
+export async function createFollowUpCapsule({ repoRoot, importId, review: providedReview, privacyConfirmed = false }) {
   const review = providedReview ?? (() => { throw new Error('Review data is required'); })();
   const taskId = review.task?.taskId;
   const original = await loadStoredTask(repoRoot, taskId);
@@ -116,49 +114,35 @@ export async function createFollowUpCapsule({ repoRoot, importId, review: provid
     .filter((criterion) => criterion.status !== 'verified' && criterion.status !== 'deferred_to_host')
     .map((criterion) => criterion.text);
   const withheld = review.withheldFiles ?? [];
-  const followUpTaskId = `atb_${Date.now().toString(36)}_${crypto.randomBytes(5).toString('hex')}`;
+  const originalFiles = original.delegation.files ?? {};
+  // Context is re-read from the current checkout, so files integrated or changed since the original export are current.
+  const files = {};
+  for (const role of FILE_ROLES) {
+    const listed = role === 'reference' ? [...(originalFiles.reference ?? []), ...withheld] : originalFiles[role] ?? [];
+    files[role] = [];
+    for (const repoPath of new Set(listed)) if (await isRegularFile(repoRoot, repoPath)) files[role].push(repoPath);
+  }
   const delegation = {
     ...original.delegation,
     title: `Follow up: ${original.delegation.title ?? original.delegation.work_unit}`,
-    objective: `Address the unresolved work from import ${importId}.`,
+    objective: `Address the unresolved work from import ${importId}. Original objective: ${original.delegation.objective}`,
     work_unit: 'Resolve only the persisted review findings and return complete resulting files.',
+    current_work_state: `A previous attempt (import ${importId}) left these criteria unresolved. The embedded files are the current repository state.${withheld.length ? ` Previously withheld files: ${withheld.join(', ')}.` : ''}`,
     deliverables: ['Complete resulting files for resolved work', 'REPORT.md with validation claims and unresolved work'],
     acceptance_criteria: unresolved.length ? unresolved : original.delegation.acceptance_criteria,
-    files: {
-      ...original.delegation.files,
-      reference: [...new Set([...(original.delegation.files.reference ?? []), ...withheld])],
-    },
+    files,
   };
-  const manifest = {
-    ...original.manifest,
-    task_id: followUpTaskId,
-    schema_version: '1.1',
-    created_at: new Date().toISOString(),
-    work: { ...(original.manifest.work ?? {}), title: delegation.title },
-    continuation_of: importId,
-    context: { ...(original.manifest.context ?? {}), file_count: original.files.length },
-  };
-  const capsuleText = renderTaskCapsule({
-    manifest,
-    delegation,
-    fingerprint: original.fingerprint ?? {},
-    repositoryTree: original.repositoryTree,
-    validation: original.validation,
-    files: original.files,
-  });
-  await storeTask(repoRoot, followUpTaskId, capsuleText);
-  const lifecyclePath = await writeLifecycle(repoRoot, {
-    taskId: followUpTaskId,
-    state: 'exported',
-    events: [{ state: 'exported', at: new Date().toISOString(), source: 'follow-up', continuationOf: importId }],
-  });
-  const handoff = await createHandoffBundle({
+  const exported = await exportTask({
     repoRoot,
-    taskId: followUpTaskId,
-    capsuleText,
-    manifest,
-    delegation,
-    contextSummary: manifest.context,
+    delegationRequest: delegation,
+    sourceAgent: original.manifest.source_agent ?? 'unknown',
+    privacyConfirmed,
+    continuationOf: importId,
   });
-  return { taskId: followUpTaskId, capsulePath: handoff.files.task, manifest, lifecyclePath, handoff };
+  return { taskId: exported.taskId, capsulePath: exported.handoff.files.task, manifest: exported.manifest, lifecyclePath: exported.lifecyclePath, handoff: exported.handoff, warnings: exported.warnings };
+}
+
+async function isRegularFile(repoRoot, repoPath) {
+  try { return (await lstat(path.join(repoRoot, ...repoPath.split('/')))).isFile(); }
+  catch { return false; }
 }
