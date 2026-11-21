@@ -76,7 +76,7 @@ export function scanSecretText(text) {
     if (pattern.re.test(text)) findings.push(highConfidenceFinding(pattern.category, pattern.detail));
   }
   for (const line of text.split(/\r?\n/)) {
-    if (/\b(?:file_boundary|sha(?:1|256|512)|base_commit|task_id)\b|ATB_FILE_(?:BEGIN|END)/i.test(line)) continue;
+    if (/\b(?:file_boundary|sha(?:1|256|512)|base_commit|task_id)\b|<<<ATB_(?:FILE_BEGIN|FILE_END|RESULT|FILE|DELETE|REPORT|END):/i.test(line)) continue;
     const values = line.match(/[A-Za-z0-9+/_=-]{32,}/g) ?? [];
     if (values.some((value) => isEntropyCandidate(value, line))) {
       findings.push(warningFinding('entropy-candidate', 'detected high-entropy value candidate'));

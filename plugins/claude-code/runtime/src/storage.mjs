@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { lstat, mkdir, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, readFile, readdir, realpath, rm, rmdir, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { runProcess } from './process.mjs';
 import { AtbError } from './errors.mjs';
@@ -38,7 +38,29 @@ export async function ensureLocalStorageIgnored(repoRoot) {
   return excludePath;
 }
 
+async function untrackedDirectories(cwd, extraArgs = []) {
+  const listed = await runProcess('git', ['ls-files', '--others', '--directory', ...extraArgs, '-z'], { cwd, allowFailure: true });
+  return listed.code === 0 ? listed.stdout.split('\0').filter(Boolean).map((entry) => entry.replaceAll('\\', '/').replace(/\/+$/, '')) : [];
+}
+
+// `git worktree remove --force` follows Windows junctions and deletes their targets (the active repo's
+// node_modules). Detach every link first: untracked entries of the staging tree, plus the repository's
+// ignored directories, which is where validation links dependencies.
+async function detachStagingLinks(repoRoot, stagingRoot) {
+  const candidates = new Set([
+    ...await untrackedDirectories(stagingRoot),
+    ...await untrackedDirectories(repoRoot, ['--ignored', '--exclude-standard']),
+  ]);
+  for (const relative of candidates) {
+    const target = path.join(stagingRoot, ...relative.split('/'));
+    const info = await lstat(target).catch(() => null);
+    if (!info?.isSymbolicLink()) continue;
+    await unlink(target).catch(() => rmdir(target));
+  }
+}
+
 export async function removeIsolatedStagingWorktree(repoRoot, stagingRoot) {
+  await detachStagingLinks(repoRoot, stagingRoot);
   await runProcess('git', ['worktree', 'remove', '--force', stagingRoot], { cwd: repoRoot });
   await rm(stagingRoot, { force: true, recursive: true });
 }
@@ -100,6 +122,10 @@ export async function storeTask(repoRoot, taskId, capsuleText) {
 }
 
 export async function loadStoredTask(repoRoot, taskId) {
+  // Task IDs reach here from untrusted result manifests; only a single safe path segment may name a stored task.
+  if (typeof taskId !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(taskId)) {
+    throw new AtbError('UNSAFE_TASK_ID', `Task ID is not a safe stored-task name: ${String(taskId).slice(0, 80)}`);
+  }
   await assertSafeStorageRoot(repoRoot);
   const taskPath = path.join(atbRoot(repoRoot), 'tasks', taskId, 'task.md');
   let text;

@@ -71,21 +71,40 @@ export async function integrateImport({ repoRoot, importId, mode = 'branch', bra
     const parent = report.stagingRoot ? path.dirname(report.stagingRoot) : os.tmpdir();
     integrationRoot = await mkdtemp(path.join(parent, 'atb-integration-'));
     await rm(integrationRoot, { force: true, recursive: true });
-    await runProcess('git', ['worktree', 'add', '-b', createdBranch, integrationRoot, 'HEAD']);
+    await runProcess('git', ['worktree', 'add', '-b', createdBranch, integrationRoot, 'HEAD'], { cwd: repoRoot });
   }
   try {
     await applyReviewedFiles(report.stagingRoot, integrationRoot, report);
+    // Branch mode commits on the new branch and drops the temporary worktree; on commit failure the worktree stays for manual finishing.
+    let commit = null;
+    if (mode === 'branch') {
+      commit = await commitIntegrationBranch(integrationRoot, report);
+      if (commit.sha) {
+        await runProcess('git', ['worktree', 'remove', integrationRoot], { cwd: repoRoot, allowFailure: true });
+        integrationRoot = null;
+      }
+    }
     const lifecycle = artifacts.lifecycle ?? await loadLifecycle(repoRoot, artifacts.taskId, importId);
     let nextLifecycle = lifecycle;
     if (nextLifecycle?.state === 'reviewed') {
-      nextLifecycle = transitionLifecycle(nextLifecycle, 'integrated', { mode, branchName: createdBranch, integrationRoot });
+      nextLifecycle = transitionLifecycle(nextLifecycle, 'integrated', { mode, branchName: createdBranch, integrationRoot, commit: commit?.sha ?? null });
       await writeLifecycle(repoRoot, nextLifecycle);
     }
-    const integration = { mode, integrationRoot, branchName: createdBranch, files: report.stagedFiles ?? [], lifecycle: nextLifecycle };
+    const integration = { mode, integrationRoot, branchName: createdBranch, commit: commit?.sha ?? null, commitError: commit?.error ?? null, files: report.stagedFiles ?? [], lifecycle: nextLifecycle };
     await writeFile(path.join(artifacts.directory, 'integration.json'), JSON.stringify(integration, null, 2), 'utf8');
     return integration;
   } catch (error) {
-    if (mode === 'branch') await runProcess('git', ['worktree', 'remove', '--force', integrationRoot], { cwd: repoRoot, allowFailure: true });
+    if (mode === 'branch' && integrationRoot) await runProcess('git', ['worktree', 'remove', '--force', integrationRoot], { cwd: repoRoot, allowFailure: true });
     throw error;
   }
+}
+
+async function commitIntegrationBranch(root, report) {
+  const paths = report.stagedFiles ?? [];
+  if (paths.length === 0) return { sha: null, error: 'No staged files to commit' };
+  await runProcess('git', ['add', '-A', '--', ...paths], { cwd: root });
+  const message = `atb: integrate ${report.taskId ?? 'task'} (${report.importId ?? 'import'})`;
+  const committed = await runProcess('git', ['commit', '-m', message], { cwd: root, allowFailure: true });
+  if (committed.code !== 0) return { sha: null, error: (committed.stderr || committed.stdout).trim().slice(-2000) };
+  return { sha: (await runProcess('git', ['rev-parse', 'HEAD'], { cwd: root })).stdout.trim(), error: null };
 }

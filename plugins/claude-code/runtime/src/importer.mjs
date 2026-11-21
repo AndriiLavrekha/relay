@@ -9,7 +9,13 @@ import { sha256Buffer } from './hash.mjs';
 import { classifyDrift } from './drift.mjs';
 import { createIsolatedStaging, cleanupIsolatedStaging, applyStagedFile, fingerprintActiveTree, isSafeStagingPath } from './staging.mjs';
 import { AtbError } from './errors.mjs';
-import { captureValidationSnapshot, runValidation, validationConfigChanged } from './validation.mjs';
+import { captureValidationSnapshot, linkDependencyDirectories, runValidation, unlinkDependencyDirectories, validationConfigChanged } from './validation.mjs';
+import { detectElision, eolStyle, normalizeEol } from './elision.mjs';
+import { mergeThreeWay } from './merge.mjs';
+import { materializeResult } from './reply.mjs';
+
+// MERGED_CLEAN files are staged with the three-way merge result; everything else is withheld as a candidate.
+const STAGEABLE_STATUSES = new Set(['CLEAN_UNCHANGED', 'NEW_EXPECTED', 'MERGED_CLEAN']);
 import { abortReason } from './process.mjs';
 import { buildAcceptanceEvidence } from './evidence.mjs';
 import { loadLifecycle, transitionLifecycle, writeLifecycle } from './lifecycle.mjs';
@@ -99,12 +105,14 @@ export async function importResult({
   signal,
   validationPolicy,
   validationConfirmed = false,
-  validationTimeoutMs = 120_000,
+  validationTimeoutMs,
   validationMaxOutputBytes = 512_000,
+  allowElision = false,
 } = {}) {
   const root = repoRoot ? await findGitRoot(repoRoot) : await findGitRoot(process.cwd());
   const projectConfig = await loadProjectConfig(root);
   const resolvedValidationPolicy = resolveValidationPolicy(validationPolicy, projectConfig);
+  const resolvedValidationTimeoutMs = validationTimeoutMs ?? projectConfig.validationTimeoutMs ?? 120_000;
   const importId = `import_${Date.now().toString(36)}_${crypto.randomBytes(3).toString('hex')}`;
   let report = rejectedReport(importId);
   let taskId = null;
@@ -115,7 +123,9 @@ export async function importResult({
   let stagingAttempted = false;
   try {
     throwIfAborted(signal);
-    result = await inspectResultCapsule(path.resolve(resultPath));
+    const materialized = await materializeResult({ repoRoot: root, resultPath: path.resolve(resultPath) });
+    result = await inspectResultCapsule(materialized.resultPath);
+    result.transport = materialized;
     throwIfAborted(signal);
     task = await loadStoredTask(root, result.manifest.task_id);
     throwIfAborted(signal);
@@ -136,14 +146,42 @@ export async function importResult({
     const baseline = new Map(task.files.map((file) => [file.path, file]));
     const [currentGit, validationSnapshot] = await Promise.all([
       getGitState(root),
-      captureValidationSnapshot(root),
+      captureValidationSnapshot(root, { projectConfig }),
     ]);
     throwIfAborted(signal);
     const fileReports = [];
-    for (const file of result.files) {
+    // Copies: EOL normalization and merges change content without touching the inspected archive data.
+    const incoming = result.files.map((file) => ({ ...file }));
+    for (const file of incoming) {
       const current = await currentState(root, file.path);
-      const status = classifyDrift({ path: file.path, operation: file.operation, baseline, current, editableScope: task.delegation.editable_scope ?? [] });
-      fileReports.push({ path: file.path, operation: file.operation, status, current });
+      let status = classifyDrift({ path: file.path, operation: file.operation, baseline, current, editableScope: task.delegation.editable_scope ?? [] });
+      const fileReport = { path: file.path, operation: file.operation, status, current };
+      fileReports.push(fileReport);
+      if (file.operation === 'delete' || status === 'OUT_OF_SCOPE' || status === 'INVALID_OPERATION_PRECONDITION') continue;
+      const baselineContent = baseline.get(file.path)?.content ?? null;
+      if (baselineContent !== null) {
+        const normalized = normalizeEol(file.content, eolStyle(baselineContent));
+        if (normalized !== file.content) { file.content = normalized; fileReport.eolNormalized = true; }
+      }
+      const elision = detectElision({ content: file.content, baselineContent });
+      if (elision.suspect) {
+        // allowElision: the host reviewed the markers and found genuine comments or an intentional shrink.
+        fileReport.elision = { markers: elision.markers, shrink: elision.shrink, allowed: allowElision };
+        if (!allowElision) {
+          fileReport.status = 'SUSPECT_ELISION';
+          continue;
+        }
+      }
+      if (status === 'LOCAL_CHANGED' && file.operation === 'modify') {
+        const local = await readFile(path.join(root, ...file.path.split('/')), 'utf8');
+        const merge = await mergeThreeWay({ base: baselineContent, current: local, worker: file.content });
+        if (merge.ok && merge.conflicts === 0) {
+          file.content = merge.content;
+          fileReport.status = 'MERGED_CLEAN';
+        } else {
+          fileReport.merge = merge.ok ? { conflicts: merge.conflicts, content: merge.content } : { error: merge.error };
+        }
+      }
     }
 
     const candidateRoot = path.join(atbRoot(root), 'tasks', taskId, 'imports', importId, 'candidates');
@@ -166,6 +204,8 @@ export async function importResult({
       excludedPaths: [],
       candidateRoot,
       resultSummary: result.manifest.summary ?? '',
+      transport: result.transport.transport,
+      ...(result.transport.replyPath ? { replyPath: result.transport.replyPath, replyCapsulePath: result.transport.resultPath } : {}),
       files: fileReports,
       stagedFiles: [],
       conflicts: [],
@@ -188,21 +228,26 @@ export async function importResult({
       report.excludedPaths = staging.excludedWorkingTreePaths;
       throwIfAborted(signal);
       await mkdir(candidateRoot, { recursive: true });
-      for (let i = 0; i < result.files.length; i++) {
+      for (let i = 0; i < incoming.length; i++) {
         throwIfAborted(signal);
-        const file = result.files[i];
+        const file = incoming[i];
         let status = fileReports[i].status;
-        if ((status === 'CLEAN_UNCHANGED' || status === 'NEW_EXPECTED') && !(await isSafeStagingPath(report.stagingRoot, file.path))) {
+        if (STAGEABLE_STATUSES.has(status) && !(await isSafeStagingPath(report.stagingRoot, file.path))) {
           status = 'UNSAFE_SYMLINK_PATH';
           fileReports[i].status = status;
         }
-        if (status === 'CLEAN_UNCHANGED' || status === 'NEW_EXPECTED') {
+        if (STAGEABLE_STATUSES.has(status)) {
           await applyStagedFile(report.stagingRoot, file);
           report.stagedFiles.push(file.path);
           fileReports[i].appliedToStaging = true;
         } else {
           fileReports[i].candidatePath = await saveCandidate(candidateRoot, file);
           fileReports[i].appliedToStaging = false;
+          if (fileReports[i].merge?.content !== undefined) {
+            const { content, ...merge } = fileReports[i].merge;
+            merge.conflictMarkersPath = await saveCandidate(`${candidateRoot}-merge`, { ...file, content });
+            fileReports[i].merge = merge;
+          }
         }
       }
       report.conflicts = fileReports.filter((file) => !file.appliedToStaging).map((file) => ({ path: file.path, status: file.status }));
@@ -225,15 +270,17 @@ export async function importResult({
           results: [],
         };
       } else {
+        const dependencyLinks = resolvedValidationPolicy === 'skip' ? [] : await linkDependencyDirectories(root, report.stagingRoot);
         report.validation = await runValidation(report.stagingRoot, validationSnapshot.commands, {
           signal,
           policy: resolvedValidationPolicy,
           confirmed: validationConfirmed,
-          timeoutMs: validationTimeoutMs,
+          timeoutMs: resolvedValidationTimeoutMs,
           maxOutputBytes: validationMaxOutputBytes,
           repoRoot: report.stagingRoot,
-        });
+        }).finally(() => unlinkDependencyDirectories(dependencyLinks));
         report.validation.blocked = false;
+        report.validation.dependencyLinks = dependencyLinks.map((link) => link.path);
         const skipped = report.validation.results.find((entry) => entry.status === 'SKIPPED');
         if (skipped) throw new AtbError('VALIDATION_PROCESS_FAILED', `Validation command could not start: ${skipped.name}`);
       }
