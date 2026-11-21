@@ -1,5 +1,62 @@
 import { runProcess } from './process.mjs';
 
+const BRIEF_OUTPUT_LINES = 30;
+
+function tail(text, lines = BRIEF_OUTPUT_LINES) {
+  const all = String(text ?? '').trimEnd().split(/\r?\n/);
+  return all.slice(-lines).join('\n');
+}
+
+// Compact review for the host agent: decisions and failures only, not full validation logs.
+export function briefReview(review, importReport = null) {
+  const files = importReport?.files ?? [];
+  const validation = review?.validation ?? null;
+  const criteria = review?.acceptance?.criteria ?? [];
+  const withheld = files.filter((file) => !file.appliedToStaging).map((file) => ({
+    path: file.path,
+    status: file.status,
+    ...(file.elision ? { elision: file.elision } : {}),
+    ...(file.merge ? { merge: file.merge } : {}),
+    ...(file.candidatePath ? { candidatePath: file.candidatePath } : {}),
+  }));
+  let next = 'Inspect the staged diff, then integrate with explicit confirmation.';
+  if (validation?.passed === false) next = 'Validation failed: inspect the failing command output before integrating.';
+  else if (withheld.length) next = 'Resolve withheld files (merge conflicts, suspected elision, scope) before integrating, or use follow-up.';
+  else if (review?.partial) next = 'Result is partial: run deferred host steps and consider follow-up for unresolved criteria.';
+  return {
+    importId: importReport?.importId ?? review?.receipt?.importId ?? null,
+    taskId: review?.task?.taskId ?? null,
+    resultStatus: review?.result?.status ?? null,
+    summary: review?.result?.summary ?? '',
+    lifecycle: review?.lifecycle ?? null,
+    partial: Boolean(review?.partial),
+    transport: importReport?.transport ?? null,
+    drift: review?.drift ?? null,
+    activeWorktreeModified: review?.activeTree?.modified ?? importReport?.activeWorktreeModifiedByImport ?? null,
+    stagingRoot: importReport?.stagingRoot ?? null,
+    diffStat: review?.diffStat ?? null,
+    staged: files.filter((file) => file.appliedToStaging).map((file) => ({ path: file.path, status: file.status, ...(file.eolNormalized ? { eolNormalized: true } : {}), ...(file.elision ? { elision: file.elision } : {}) })),
+    withheld,
+    validation: validation && {
+      passed: validation.passed ?? null,
+      blocked: Boolean(validation.blocked),
+      ...(validation.reason ? { reason: validation.reason } : {}),
+      partial: Boolean(validation.partial),
+      dependencyLinks: validation.dependencyLinks ?? [],
+      results: (validation.results ?? []).map((result) => ({
+        name: result.name,
+        status: result.status,
+        exitCode: result.exitCode ?? null,
+        ...(result.status === 'PASS' ? {} : { outputTail: tail(`${result.stdout ?? ''}\n${result.stderr ?? ''}`) }),
+      })),
+    },
+    acceptance: { overallStatus: review?.acceptance?.overallStatus ?? null, criteria: criteria.map(({ id, status, text }) => ({ id, status, text })) },
+    worker: review?.workerReport?.present ? { summary: review.workerReport.summary ?? '', unresolved: review.workerReport.unresolved ?? [], assumptions: review.workerReport.assumptions ?? [] } : null,
+    deferredHostSteps: review?.deferredHostSteps ?? [],
+    next,
+  };
+}
+
 function parseNameStatus(output) {
   return output.split(/\r?\n/).filter(Boolean).map((line) => {
     const [status, ...rest] = line.split('\t');

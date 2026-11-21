@@ -12,6 +12,7 @@ import { discoverValidationCommands, runValidation } from '../src/validation.mjs
 import { formatImportReport, formatReviewReport } from '../src/reporting.mjs';
 import { AtbError } from '../src/errors.mjs';
 import { createFollowUpCapsule, formatTaskSummary } from '../src/handoff.mjs';
+import { briefReview } from '../src/review.mjs';
 import { loadLifecycle, writeLifecycle } from '../src/lifecycle.mjs';
 import { integrateImport } from '../src/integration.mjs';
 
@@ -34,7 +35,7 @@ function parseArgs(args) {
 }
 
 function help() {
-  console.log(`Agent Task Bridge ${pkg.version}\n\nUsage:\n  agent-task-bridge export --delegation <file> [--repo <dir>] [--out <file>] [--source-agent <name>] [--max-tokens <n>] [--privacy <mode>] [--confirm-privacy]\n  agent-task-bridge import <result.zip> [--repo <dir>] [--json] [--validation-policy <safe|prompt|skip>] [--confirm-validation]\n  agent-task-bridge task show <task-id> [--repo <dir>] [--json]\n  agent-task-bridge review <import-id> [--repo <dir>] [--json]\n  agent-task-bridge follow-up <import-id> [--repo <dir>] [--json]\n  agent-task-bridge integrate <import-id> --mode branch --branch <name> --confirm\n  agent-task-bridge inspect-task <task.md>\n  agent-task-bridge inspect-result <result.zip>\n  agent-task-bridge validate [--dir <dir>]\n  agent-task-bridge status [--repo <dir>]\n  agent-task-bridge version\n\nOptional repo-local defaults live in .agent-task-bridge/config.json: maxTokens, validationPolicy (safe, prompt, or skip), and extraHostOwnedSteps. That directory is git-excluded. A CLI flag overrides the file. An explicit delegation host_owned_steps field, including [], overrides extraHostOwnedSteps. Privacy blocking and archive safety limits are not configurable.`);
+  console.log(`Agent Task Bridge ${pkg.version}\n\nUsage:\n  agent-task-bridge export --delegation <file> [--repo <dir>] [--out <file>] [--source-agent <name>] [--max-tokens <n>] [--privacy <mode>] [--confirm-privacy]\n  agent-task-bridge import <result.zip|reply.md> [--repo <dir>] [--json|--brief] [--validation-policy <safe|prompt|skip>] [--confirm-validation] [--allow-elision]\n  agent-task-bridge task show <task-id> [--repo <dir>] [--json]\n  agent-task-bridge review <import-id> [--repo <dir>] [--json|--brief]\n  agent-task-bridge follow-up <import-id> [--repo <dir>] [--json] [--confirm-privacy]\n  agent-task-bridge integrate <import-id> --mode branch --branch <name> --confirm   (commits on the new branch)\n  agent-task-bridge inspect-task <task.md>\n  agent-task-bridge inspect-result <result.zip>\n  agent-task-bridge validate [--dir <dir>]\n  agent-task-bridge status [--repo <dir>]\n  agent-task-bridge version\n\nOptional repo-local defaults live in .agent-task-bridge/config.json: maxTokens, validationPolicy (safe, prompt, or skip), extraHostOwnedSteps, validationCommands ([{ name, command, args }], replaces auto-discovery), and validationTimeoutMs. That directory is git-excluded. A CLI flag overrides the file. An explicit delegation host_owned_steps field, including [], overrides extraHostOwnedSteps. Privacy blocking and archive safety limits are not configurable.`);
 }
 
 async function main() {
@@ -64,7 +65,13 @@ async function main() {
       resultPath: file,
       validationPolicy: args['validation-policy'],
       validationConfirmed: args['confirm-validation'] === true,
+      allowElision: args['allow-elision'] === true,
     });
+    if (args.brief) {
+      const review = report.reviewPath ? JSON.parse(await readFile(report.reviewPath, 'utf8')) : null;
+      console.log(JSON.stringify(briefReview(review, report), null, 2));
+      return;
+    }
     console.log(args.json ? JSON.stringify(report, null, 2) : formatImportReport(report));
     return;
   }
@@ -109,7 +116,8 @@ async function main() {
     const root = await findGitRoot(args.repo ?? process.cwd());
     const artifacts = await findImportArtifacts(root, importId);
     if (!artifacts?.review) throw new AtbError('IMPORT_NOT_FOUND', `Review not found for import: ${importId}`);
-    console.log(args.json ? JSON.stringify(artifacts.review, null, 2) : formatReviewReport(artifacts.review));
+    if (args.brief) console.log(JSON.stringify(briefReview(artifacts.review, artifacts.report), null, 2));
+    else console.log(args.json ? JSON.stringify(artifacts.review, null, 2) : formatReviewReport(artifacts.review));
     return;
   }
   if (command === 'follow-up') {
@@ -118,7 +126,7 @@ async function main() {
     const root = await findGitRoot(args.repo ?? process.cwd());
     const artifacts = await findImportArtifacts(root, importId);
     if (!artifacts?.review) throw new AtbError('IMPORT_NOT_FOUND', `Review not found for import: ${importId}`);
-    const result = await createFollowUpCapsule({ repoRoot: root, importId, review: artifacts.review });
+    const result = await createFollowUpCapsule({ repoRoot: root, importId, review: artifacts.review, privacyConfirmed: args['confirm-privacy'] === true });
     if (artifacts.lifecycle) {
       await writeLifecycle(root, { ...artifacts.lifecycle, events: [...(artifacts.lifecycle.events ?? []), { state: artifacts.lifecycle.state, at: new Date().toISOString(), continuationOf: result.taskId }] });
     }
