@@ -137,6 +137,75 @@ session after the update. If prompted, review and trust the updated plugin hooks
 
 The same protocol supports Claude Code → ChatGPT → Codex and Codex → ChatGPT → Claude Code because essential state lives in the Task Capsule and local task history, not in a provider's conversation database. A result status (`complete`, `partial`, `blocked`, or `research-only`) is orthogonal to lifecycle staging: safe in-scope files from partial results may still be staged and reviewed, while follow-up work records the unresolved criteria.
 
+## Delegating a feature
+
+The plugin packages and checks the handoff. Your local agent (Claude Code or Codex) does the thinking: it plans the work, reads the codebase, and decides which files ChatGPT sees. The bridge does not build a dependency graph, and ChatGPT sees only the files embedded in the capsule. Steer the agent carefully.
+
+### 1. Plan locally and split along the seams
+
+The plugin has no built-in brainstorming step. Plan with your agent before exporting anything:
+
+```text
+I want to build <feature>. Plan it and split it into units. For each unit, tell me
+whether to delegate it to ChatGPT or keep it local, and why. Don't export anything yet.
+```
+
+Good units to delegate are self-contained: a module behind an interface, a parser or algorithm, a test suite, or a migration of isolated files. Keep cross-cutting wiring local: registration, dependency injection, routing, configuration, and edits spread across many files.
+
+### 2. Create the seam first and commit it
+
+Ask your agent to add the interface, types, and an empty stub where the feature connects, then commit. ChatGPT then implements behind a contract that already exists instead of guessing how to connect, and the returned code plugs in with little rework. The capsule records the current commit, and import validation runs on top of it.
+
+### 3. Export one unit with an explicit request
+
+One capsule holds one unit. Say exactly what ChatGPT may edit and what it must follow:
+
+```text
+/task-bridge:export-chatgpt
+Unit: implement CSV export in src/reports/csv/ behind the ReportExporter interface.
+- Editable: src/reports/csv/**, test/reports/csv/**
+- Contract: src/reports/exporter.ts, src/reports/types.ts
+- Reference: src/reports/pdf/ (existing exporter whose conventions to copy) and one existing test
+- Acceptance: RFC 4180 quoting; header row from column labels; tests for empty report,
+  quotes/newlines, and unicode
+- Non-goals: no UI wiring, no new dependencies
+- Host-owned: full workspace test run; wiring into ReportController
+Show me the delegation JSON before you run the export.
+```
+
+In Codex, ask in plain words, for example "use the export-chatgpt skill to delegate …". The last line of the request lets you correct the scope, file list, and criteria before the capsule is written. Write acceptance criteria you can check. ChatGPT maps each criterion to a test, and the import review reports a status for each one.
+
+Each file role does one job:
+
+| Role | Use it for |
+|---|---|
+| `editable` | Files ChatGPT may change. New files are allowed under `editable_scope` globs. |
+| `contract` | Interfaces and types the code must call or implement. ChatGPT keeps their signatures. |
+| `reference` | Neighbouring code and one existing test whose conventions ChatGPT should copy. |
+| `validation` / `configuration` | Build, test, and settings files that explain how the project runs. |
+
+### 4. Hand it to ChatGPT
+
+1. Start a new ChatGPT conversation.
+2. Upload `.agent-task-bridge/tasks/<task-id>/task.md`.
+3. Paste the contents of `kickoff.md` as the message.
+
+On ChatGPT Plus, ChatGPT runs the embedded `pack_result.py` and offers a ZIP to download. Without code execution, it replies in the capsule's `<<<ATB_RESULT:...>>>` text framing. Copy the reply with ChatGPT's copy button and save it as `reply.md`.
+
+### 5. Bring it back
+
+```text
+/task-bridge:import-chatgpt <path to result.zip or reply.md>
+```
+
+The agent gets a brief review. It lists the staged files and the withheld ones, such as overlapping local edits or files that look abbreviated. It also shows local test results and the status of each acceptance criterion. Your working tree is not touched.
+
+`integrate --mode branch --branch <name> --confirm` commits the result on a new branch. Your agent then does the host-owned wiring. `follow-up <import-id>` creates a new capsule for anything unresolved; run it from the checkout that holds the integrated work.
+
+### When it pays off
+
+Delegation saves local-agent tokens when ChatGPT writes a large, bounded implementation and its tests. The local agent spends tokens only on planning, the delegation, and a short review. Small changes, work spread across many files, and exploratory work are usually cheaper to do locally. You can export several units one after another, or in parallel when their editable scopes do not overlap.
+
 ## Usage examples
 
 Every delegation follows the same handoff:
@@ -145,9 +214,9 @@ Every delegation follows the same handoff:
 1. Describe one bounded task to Claude Code or Codex.
 2. The provider creates a temporary delegation JSON request.
 3. Agent Task Bridge exports one Task Capsule Markdown file.
-4. Upload that single .md file to a fresh ChatGPT conversation.
-5. Ask ChatGPT to return one Result Capsule v1 .zip file.
-6. Give the ZIP to the provider's import skill.
+4. Upload that single .md file to a fresh ChatGPT conversation and paste kickoff.md as the message.
+5. ChatGPT returns a Result Capsule .zip built by pack_result.py, or a text reply you save as reply.md.
+6. Give the ZIP or reply.md to the provider's import skill.
 7. Review the isolated staging report and diff before integrating anything. The bridge stores an immutable receipt containing the Task Capsule hash, Result Capsule hash, baseline, import ID, and local validation evidence.
 ```
 
@@ -193,23 +262,16 @@ node bin/agent-task-bridge.mjs inspect-task \
   .agent-task-bridge/exports/retry-backoff.task.md
 ```
 
-In ChatGPT, upload only the generated `.task.md` file and use a prompt like this:
+In ChatGPT, upload only the generated `.task.md` file. Paste the generated `kickoff.md` from `.agent-task-bridge/tasks/<task-id>/` as the message. It asks ChatGPT to follow the capsule's Integration Contract. It also tells ChatGPT to return the result through the embedded `pack_result.py` (a ZIP) or through the text-reply framing when it cannot run code.
 
-```text
-Execute the attached Agent Task Bridge Task Capsule v1.
-Stay within its editable scope and acceptance criteria.
-Return a Result Capsule v1 ZIP containing the complete changed files,
-manifest.json, and a concise REPORT.md. Do not return a patch or partial files.
-```
-
-When the ZIP is back, inspect and import it without manually extracting it:
+When the ZIP or saved reply is back, import it without manually extracting it:
 
 ```bash
 node bin/agent-task-bridge.mjs inspect-result result.zip
-node bin/agent-task-bridge.mjs import result.zip --repo . --json
+node bin/agent-task-bridge.mjs import result.zip --repo . --brief   # or: import reply.md
 
 # inspect the persisted review and integrate only after explicit confirmation
-node bin/agent-task-bridge.mjs review <import-id> --repo .
+node bin/agent-task-bridge.mjs review <import-id> --repo . --brief
 node bin/agent-task-bridge.mjs integrate <import-id> --repo . --mode branch --branch bridge/retry-backoff --confirm
 ```
 
