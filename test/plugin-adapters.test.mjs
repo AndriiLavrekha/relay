@@ -115,6 +115,7 @@ test('release package includes verification scripts and architecture documentati
   assert.ok(pkg.files.includes('docs/releases/v0.2.3.md'));
   assert.ok(pkg.files.includes('docs/releases/v0.3.0.md'));
   assert.ok(pkg.files.includes('docs/releases/v0.3.1.md'));
+  assert.ok(pkg.files.includes('docs/releases/v0.3.2.md'));
 });
 
 test('repository ships local marketplace catalogs for both providers', async () => {

@@ -1,10 +1,10 @@
 ---
 provider_last_used: claude-code
 session_id: c445b617-7a99-47ef-9003-9e74a6263c89
-checkpoint_at: 2026-11-21T23:02:33Z
+checkpoint_at: 2026-11-21T23:37:11Z
 worktree_dirty: true
 base_branch: main
-base_commit: a8c9da9470924ee0ee126fd66a59f45be10b6f4a
+base_commit: 2c081ec1790a1c4e6ba9a49d1a7770713f8b84ec
 handoff: clean
 gate_deploy: done
 gate_review: done
@@ -15,7 +15,7 @@ progress_schema_version: 1
 status: deployed
 path: D:/depot/agent-task-bridge
 agent_last_used: unknown
-updated: 2026-11-21
+updated: 2026-11-22
 last_milestone: v0.3.0 released: round-trip integration fixes
 deployed: true
 deployment_url: https://github.com/AndriiLavrekha/relay
@@ -27,7 +27,7 @@ commit_progress: true
 
 ## Resume Snapshot
 
-v0.3.1 is tagged locally (not yet pushed until the user says so): fixes the kickoff prompt leaking the local capsule path (now `task.md`), validation output being dropped after the first chunk, and adds a timeout hint. Protocol `1.0` and schema `1.1` unchanged; `bridge_version` is `0.3.1`. Install docs pin `AndriiLavrekha/relay@v0.3.1`. The live ChatGPT round trip (Task 2, agentic-wars-game clan hall) succeeded via pack_result.py. The repository is private.
+v0.3.2 released: capsule contract adds a static self-review rule (ChatGPT cannot run the project toolchain), Project Fingerprint reports tsconfig strictness (through relative extends) and declared tooling versions, export skill asks for type definitions as contract files, import skills (Claude Code and Codex) require reading staged validation before integrate. Protocol 1.0 and schema 1.1 unchanged; bridge_version 0.3.2. Install docs pin AndriiLavrekha/relay@v0.3.2. Motivated by a live run where ChatGPT returned code with TS18048 errors and 4 failing tests that the agent only saw after integrating in place on the 0.3.0 runtime. npm test: 166 pass, 0 fail, 7 skipped (Windows symlink). The repository is private.
 
 ## Current State
 
@@ -46,7 +46,7 @@ Live ChatGPT round trip succeeded (Task 2 of agentic-wars-game clan hall; ZIP vi
 
 ## Next Action
 
-Commit the process.mjs/reporting.mjs fixes after `npm run smoke`. Then consider: embedding type signatures/tooling versions in the capsule; showing worker claims separately in import output; cleaning retained staging worktrees (two left in Temp after double import); `handoff show/check` in the design spec vs CLI `task show`/`inspect-result`. Record "Validation executed" and "Return transport" (pack_result.py) rows from the live run.
+User installs v0.3.2 and re-runs a TypeScript delegation to check that returned work has fewer type errors. Then consider: making `integrate --mode in-place` refuse when staged validation failed (currently only skill text enforces it); embedding type signatures automatically instead of relying on the export agent; showing worker claims separately in import output; cleaning retained staging worktrees (two atb-integration-* worktrees left in Temp).
 
 ## Remaining Work
 

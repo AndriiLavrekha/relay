@@ -9,7 +9,7 @@
       "name": "task-bridge",
       "source": "./plugins/claude-code",
       "description": "Delegate bounded repository work to ChatGPT and safely review returned results.",
-      "version": "0.3.1"
+      "version": "0.3.2"
     }
   ]
 }
