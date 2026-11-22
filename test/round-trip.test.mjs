@@ -260,3 +260,26 @@ test('briefReview keeps decisions and failing output tails only', () => {
   assert.deepEqual(brief.withheld.map((file) => file.status), ['SUSPECT_ELISION']);
   assert.match(brief.next, /Validation failed/);
 });
+
+test('parseResultReply accepts the Markdown-escaped text the ChatGPT Copy button produces', () => {
+  const b = 'ATB_atb_demo_0123456789abcdef';
+  const code = 'export const re = /[\\u0300-\\u036f]/g; // backslashes in content stay';
+  const escaped = [
+    `<<\\<ATB_RESULT:${b}>>>\\`,
+    'status: complete\\',
+    'summary: Escaped copy.',
+    '',
+    `<<\\<ATB_FILE:${b}>>> src/a.mjs`,
+    '',
+    '```',
+    code,
+    '```',
+    '',
+    `<<\\<ATB_END:${b}>>>`,
+  ].join('\n');
+  const parsed = parseResultReply(escaped);
+  assert.equal(parsed.boundary, b);
+  assert.equal(parsed.status, 'complete');
+  assert.equal(parsed.summary, 'Escaped copy.');
+  assert.deepEqual(parsed.files, [{ path: 'src/a.mjs', content: `${code}\n` }]);
+});

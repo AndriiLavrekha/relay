@@ -39,7 +39,14 @@ function cleanPath(value, lineNumber) {
   return normalizeRepoPath(cleaned);
 }
 
-export function parseResultReply(text) {
+// ChatGPT's Copy button re-serialises the reply as Markdown: it escapes marker brackets (<<\<) and ends lines with a hard-break backslash.
+// Only marker lines are unescaped, so file content is never altered.
+function unescapeMarkerLine(line) {
+  return /^\s*<<\\?<ATB_/.test(line) ? line.replace(/\\([<>_])/g, '$1').replace(/\\\s*$/, '') : line;
+}
+
+export function parseResultReply(rawText) {
+  const text = rawText.split(/\r?\n/).map(unescapeMarkerLine).join('\n');
   const header = text.match(/<<<ATB_RESULT:([A-Za-z0-9_]+)>>>/);
   if (!header) throw invalid('Reply is missing the <<<ATB_RESULT:...>>> header line');
   const boundary = header[1];
@@ -81,8 +88,8 @@ export function parseResultReply(text) {
       block = { type: 'report', lines: [] };
     } else if (result.files.length === 0 && result.deletes.length === 0) {
       const field = trimmed.match(/^\**(status|summary)\**\s*:\s*(.*)$/i);
-      if (field?.[1].toLowerCase() === 'status' && !result.status) result.status = field[2].trim().replace(/[`*]/g, '').toLowerCase();
-      if (field?.[1].toLowerCase() === 'summary' && !result.summary) result.summary = field[2].trim();
+      if (field?.[1].toLowerCase() === 'status' && !result.status) result.status = field[2].trim().replace(/[`*\\]/g, '').toLowerCase();
+      if (field?.[1].toLowerCase() === 'summary' && !result.summary) result.summary = field[2].trim().replace(/\\$/, '');
     }
   }
   if (block) throw invalid(`Reply block for ${block.path ?? 'REPORT'} is missing its ${markers.end} line; the reply may be truncated`);
