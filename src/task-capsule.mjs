@@ -74,7 +74,8 @@ The host merges your files into a live repository and runs its own build and tes
 4. **Stay in scope.** Edit only paths covered by \`editable_scope\`. New files go under the same scope. Out-of-scope changes are withheld.
 5. **Tests.** Add or update tests for each acceptance criterion using the project's existing test framework and layout.
 6. **Run what you can.** If you can execute code, run the tests or a syntax check you are able to run and record the exact command and output in \`REPORT.md\`. If you cannot run them, write \`not executed\`. Never claim a run that did not happen.
-7. **Map evidence.** In \`REPORT.md\`, map every acceptance criterion to the test name or \`path:line\` that satisfies it.
+7. **Review statically before returning.** The host builds with the real toolchain, so what you cannot execute you must check by reading. Apply the Project Fingerprint's \`typescript_options\` and \`tooling\` versions: narrow every optional or possibly-undefined value before use (including indexed access under \`noUncheckedIndexedAccess\`), match the declared types in the \`contract\` files exactly, and trace each test you wrote through your code line by line. List what you checked this way in \`REPORT.md\` under Validation claims, separate from anything you executed.
+8. **Map evidence.** In \`REPORT.md\`, map every acceptance criterion to the test name or \`path:line\` that satisfies it.
 `;
 
 function resultReturnSection({ boundary, taskId, baseCommit, files }) {

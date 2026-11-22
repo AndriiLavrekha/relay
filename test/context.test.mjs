@@ -43,6 +43,16 @@ test('fingerprintProject identifies Node/npm/TypeScript scripts and frameworks',
   assert.ok(nodeMajor >= 22, `expected Node.js >=22, got ${fp.runtime.node}`);
 });
 
+test('fingerprintProject reports tsconfig strictness through extends and declared tooling versions', async () => {
+  const root = await makeNodeRepo();
+  await writeFile(path.join(root, 'tsconfig.base.json'), '{\n  // shared\n  "compilerOptions": { "strict": true, "noUncheckedIndexedAccess": true, "target": "ES2022", },\n  "$comment": "see http://x.test/a,b",\n}\n');
+  await writeFile(path.join(root, 'tsconfig.json'), '{ "extends": "./tsconfig.base", /* local */ "compilerOptions": { "target": "ES2023", "outDir": "dist" } }\n');
+  await writeFile(path.join(root, 'package.json'), JSON.stringify({ name: 'x', devDependencies: { typescript: '^5.9.0', vitest: '^3.0.0', left: '1' } }));
+  const fp = await fingerprintProject(root);
+  assert.deepEqual(fp.typescript_options, { strict: true, noUncheckedIndexedAccess: true, target: 'ES2023' });
+  assert.deepEqual(fp.tooling, { typescript: '^5.9.0', vitest: '^3.0.0' });
+});
+
 test('collectContext reads exact working-tree content and de-duplicates files by strongest role', async () => {
   const root = await makeNodeRepo();
   await writeFile(path.join(root, 'src', 'index.ts'), 'export const value: number = 2; // dirty\n');

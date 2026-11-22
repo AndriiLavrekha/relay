@@ -12,7 +12,7 @@ Use this when the developer wants to delegate a well-bounded part of the current
 
 1. Inspect the current request, relevant repository files, existing plan/status, architecture, tests, and current Git state. Do not copy the conversation transcript.
 2. Bound one independently useful work unit. If the request is broad, select the smallest coherent unit that can be returned and integrated independently.
-3. Select only the repository files ChatGPT needs. Classify them as `editable`, `reference`, `contract`, `validation`, or `configuration`. So the returned code plugs in without rework, embed the interfaces it must call as `contract` files and one existing test plus one neighbouring source file as `reference` files; ChatGPT copies their conventions.
+3. Select only the repository files ChatGPT needs. Classify them as `editable`, `reference`, `contract`, `validation`, or `configuration`. So the returned code plugs in without rework, embed the interfaces it must call as `contract` files and one existing test plus one neighbouring source file as `reference` files; ChatGPT copies their conventions. ChatGPT cannot run the project toolchain, so also embed the type or interface definitions (state shapes, optional fields) that the editable files read or write as `contract` files, and the `tsconfig` that sets strictness when it is not already summarized in the capsule fingerprint.
 4. Create a temporary JSON delegation request with this shape:
    - `objective`: higher-level user objective.
    - `work_unit`: exact delegated work.

@@ -41,6 +41,7 @@ test('task capsules publish the responsibility matrix and host-owned steps', () 
   assert.match(markdown, /External Worker \(ChatGPT\)/);
   assert.match(markdown, /Authoritative monorepo\/workspace test & build gates/);
   assert.match(markdown, /Do not mark a task failed/);
+  assert.match(markdown, /\*\*Review statically before returning\.\*\*.*noUncheckedIndexedAccess/);
   const parsed = parseTaskCapsule(markdown);
   assert.deepEqual(parsed.manifest.host_owned_steps, [...DEFAULT_HOST_OWNED_STEPS]);
   assert.deepEqual(parsed.delegation.host_owned_steps, [...DEFAULT_HOST_OWNED_STEPS]);
