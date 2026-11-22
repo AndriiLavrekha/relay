@@ -1,10 +1,10 @@
 ---
 provider_last_used: claude-code
 session_id: c445b617-7a99-47ef-9003-9e74a6263c89
-checkpoint_at: 2026-11-21T23:37:11Z
+checkpoint_at: 2026-11-22T01:24:25Z
 worktree_dirty: true
 base_branch: main
-base_commit: 2c081ec1790a1c4e6ba9a49d1a7770713f8b84ec
+base_commit: 2caa69ad579809e58f35c88b77801105e71f2a14
 handoff: clean
 gate_deploy: done
 gate_review: done
@@ -27,7 +27,7 @@ commit_progress: true
 
 ## Resume Snapshot
 
-v0.3.2 released: capsule contract adds a static self-review rule (ChatGPT cannot run the project toolchain), Project Fingerprint reports tsconfig strictness (through relative extends) and declared tooling versions, export skill asks for type definitions as contract files, import skills (Claude Code and Codex) require reading staged validation before integrate. Protocol 1.0 and schema 1.1 unchanged; bridge_version 0.3.2. Install docs pin AndriiLavrekha/relay@v0.3.2. Motivated by a live run where ChatGPT returned code with TS18048 errors and 4 failing tests that the agent only saw after integrating in place on the 0.3.0 runtime. npm test: 166 pass, 0 fail, 7 skipped (Windows symlink). The repository is private.
+v0.3.3 released: import now accepts ChatGPT's Markdown-escaped Copy-button replies (unescapes only `<<<ATB_` marker lines), and adds the experimental Claude Code skill `delegate-chatgpt-browser` (user-invoked only, caution gate every run, drives the developer's logged-in Chrome; OpenAI ToS risk documented in README and skill). Protocol 1.0 and schema 1.1 unchanged; bridge_version 0.3.3. Install docs pin AndriiLavrekha/relay@v0.3.3. Prototype findings: browser route worked end to end on a fixture capsule; `codex exec` could not be tested because the ChatGPT account hit its Codex usage limit (reset Nov 25 2026). npm test: 168 pass, 0 fail, 7 skipped. The repository is private.
 
 ## Current State
 
@@ -46,7 +46,7 @@ Live ChatGPT round trip succeeded (Task 2 of agentic-wars-game clan hall; ZIP vi
 
 ## Next Action
 
-User installs v0.3.2 and re-runs a TypeScript delegation to check that returned work has fewer type errors. Then consider: making `integrate --mode in-place` refuse when staged validation failed (currently only skill text enforces it); embedding type signatures automatically instead of relying on the export agent; showing worker claims separately in import output; cleaning retained staging worktrees (two atb-integration-* worktrees left in Temp).
+User installs v0.3.3 and tries /task-bridge:delegate-chatgpt-browser end to end (the skill has not been run by a fresh agent yet). After the Codex limit resets (Nov 25 2026 2:36 PM), prototype `codex exec` on a capsule and consider `delegate --worker codex` tested against a stub codex binary. Also consider: making `integrate --mode in-place` refuse when staged validation failed; embedding type signatures automatically; cleaning leftover atb-integration worktrees in Temp.
 
 ## Remaining Work
 

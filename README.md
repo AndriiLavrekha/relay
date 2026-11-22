@@ -47,17 +47,17 @@ The `AndriiLavrekha/relay` repository is private. Claude Code and Codex clone th
 
 ### Install the Claude Code plugin
 
-From Claude Code, add the `v0.3.2` marketplace release and install the plugin:
+From Claude Code, add the `v0.3.3` marketplace release and install the plugin:
 
 ```text
-/plugin marketplace add AndriiLavrekha/relay@v0.3.2
+/plugin marketplace add AndriiLavrekha/relay@v0.3.3
 /plugin install task-bridge@awesome-task-bridge
 ```
 
 Or use the CLI:
 
 ```bash
-claude plugin marketplace add AndriiLavrekha/relay@v0.3.2
+claude plugin marketplace add AndriiLavrekha/relay@v0.3.3
 claude plugin install task-bridge@awesome-task-bridge
 ```
 
@@ -75,14 +75,14 @@ codex plugin marketplace add /absolute/path/to/agent-task-bridge
 codex plugin add task-bridge@awesome-task-bridge
 ```
 
-For the GitHub marketplace, pin the v0.3.2 release with `--ref v0.3.2`:
+For the GitHub marketplace, pin the v0.3.3 release with `--ref v0.3.3`:
 
 ```bash
-codex plugin marketplace add AndriiLavrekha/relay --ref v0.3.2
+codex plugin marketplace add AndriiLavrekha/relay --ref v0.3.3
 codex plugin add task-bridge@awesome-task-bridge
 ```
 
-Start a new Codex session after installation so the plugin and skills reload. See [`plugins/codex/README.md`](plugins/codex/README.md) for workspace-local marketplace details. Release notes: [`v0.3.2`](https://github.com/AndriiLavrekha/relay/releases/tag/v0.3.2).
+Start a new Codex session after installation so the plugin and skills reload. See [`plugins/codex/README.md`](plugins/codex/README.md) for workspace-local marketplace details. Release notes: [`v0.3.3`](https://github.com/AndriiLavrekha/relay/releases/tag/v0.3.3).
 
 ## Upgrade
 
@@ -107,15 +107,15 @@ Restart Claude Code or reload plugins after the update.
 ```bash
 codex plugin remove task-bridge@awesome-task-bridge
 codex plugin marketplace remove awesome-task-bridge
-codex plugin marketplace add AndriiLavrekha/relay --ref v0.3.2
+codex plugin marketplace add AndriiLavrekha/relay --ref v0.3.3
 codex plugin add task-bridge@awesome-task-bridge
 codex plugin list
 ```
 
 The [latest stable release](https://github.com/AndriiLavrekha/relay/releases/latest) is
-`v0.3.2`. `codex plugin marketplace upgrade` only refreshes the currently configured Git ref; it
-does not move an existing marketplace from an older pinned tag to `v0.3.2`. Re-add the marketplace
-with `--ref v0.3.2` when moving off an older pin.
+`v0.3.3`. `codex plugin marketplace upgrade` only refreshes the currently configured Git ref; it
+does not move an existing marketplace from an older pinned tag to `v0.3.3`. Re-add the marketplace
+with `--ref v0.3.3` when moving off an older pin.
 
 For unreleased development code, use `--ref main` instead of a release tag. Start a new Codex
 session after the update. If prompted, review and trust the updated plugin hooks.
@@ -205,6 +205,15 @@ The agent gets a brief review. It lists the staged files and the withheld ones, 
 ### When it pays off
 
 Delegation saves local-agent tokens when ChatGPT writes a large, bounded implementation and its tests. The local agent spends tokens only on planning, the delegation, and a short review. Small changes, work spread across many files, and exploratory work are usually cheaper to do locally. You can export several units one after another, or in parallel when their editable scopes do not overlap.
+
+### Experimental: skip the copy-paste with browser delegation (Claude Code only)
+
+> [!CAUTION]
+> **Experimental and risky.** `/task-bridge:delegate-chatgpt-browser` drives your own logged-in Chrome through the Claude in Chrome extension to upload the capsule to chatgpt.com, send the kickoff, copy the reply, and import it. OpenAI's Terms of Use restrict automatically or programmatically extracting data or Output from its services, so this may violate them, and an account can be warned or restricted. It also breaks whenever the ChatGPT interface changes. It is off by default, runs only when you type the command, asks for an explicit yes every time, and the Codex plugin does not include it. The supported route is the manual flow above.
+
+What it does, after you confirm: opens its own tab, attaches `task.md`, pastes `kickoff.md`, sends one message, waits for the reply, copies it through ChatGPT's Copy button and your clipboard, and runs the normal `import`. Review, validation, and `integrate` still follow the `import-chatgpt` rules. It never logs in, never touches credentials, and stops at a CAPTCHA, a usage limit, or any screen it does not expect.
+
+`import` accepts the Markdown-escaped text that ChatGPT's Copy button produces, so a manual copy of a text reply works too. When saving a copied reply from the Windows clipboard, write it as UTF-8 (`[IO.File]::WriteAllText(...)`); redirecting PowerShell output with `>` corrupts non-ASCII characters.
 
 ## Usage examples
 
@@ -511,6 +520,7 @@ A git-excluded `.agent-task-bridge/config.json` can set local defaults for `maxT
 | [`docs/releases/v0.3.0.md`](docs/releases/v0.3.0.md) | v0.3.0 approved specifications |
 | [`docs/releases/v0.3.1.md`](docs/releases/v0.3.1.md) | v0.3.1 fixes |
 | [`docs/releases/v0.3.2.md`](docs/releases/v0.3.2.md) | v0.3.2 changes |
+| [`docs/releases/v0.3.3.md`](docs/releases/v0.3.3.md) | v0.3.3 reply import fix and experimental browser delegation |
 | [`protocol/`](protocol/) | Task and Result Capsule specifications |
 | [`src/`](src/) | Canonical bridge runtime |
 | [`AGENTS.md`](AGENTS.md) | Repository structure and contribution conventions |

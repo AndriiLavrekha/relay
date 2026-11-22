@@ -116,6 +116,7 @@ test('release package includes verification scripts and architecture documentati
   assert.ok(pkg.files.includes('docs/releases/v0.3.0.md'));
   assert.ok(pkg.files.includes('docs/releases/v0.3.1.md'));
   assert.ok(pkg.files.includes('docs/releases/v0.3.2.md'));
+  assert.ok(pkg.files.includes('docs/releases/v0.3.3.md'));
 });
 
 test('repository ships local marketplace catalogs for both providers', async () => {
@@ -193,4 +194,15 @@ test('v0.2 documentation records the shipped safety boundaries and deferred tran
   assert.match(release, /automatic (API|transport).*(deferred|outside)/is);
   assert.match(release, /OS-level sandboxing.*deferred/is);
   assert.match(release, /same-volume fallback/i);
+});
+
+test('experimental browser delegation is a Claude Code only, user-invoked, caution-gated skill', async () => {
+  const skill = await readFile(path.join(root, 'plugins', 'claude-code', 'skills', 'delegate-chatgpt-browser', 'SKILL.md'), 'utf8');
+  assert.match(skill, /name: delegate-chatgpt-browser/);
+  assert.match(skill, /disable-model-invocation: true/);
+  assert.match(skill, /EXPERIMENTAL/);
+  assert.match(skill, /Terms of Use/);
+  assert.match(skill, /explicit yes/);
+  assert.match(skill, /Never enter credentials/);
+  await assert.rejects(readFile(path.join(root, 'plugins', 'codex', 'skills', 'delegate-chatgpt-browser', 'SKILL.md'), 'utf8'), { code: 'ENOENT' });
 });
