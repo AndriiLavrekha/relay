@@ -2,123 +2,116 @@
 
 # Agent Task Bridge
 
-### Delegate one bounded unit of repository work to ChatGPT — locally, safely, and reviewably.
+### Delegate bounded repository tasks to ChatGPT. Validate locally before anything touches your branch.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)](#license)
 [![Node.js](https://img.shields.io/badge/node.js-%3E%3D22-339933?style=for-the-badge&logo=node.js&logoColor=white)](#requirements)
-[![Plugins](https://img.shields.io/badge/plugins-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Gemini-8A2BE2?style=for-the-badge)](#quick-start)
+[![Plugins](https://img.shields.io/badge/plugins-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Gemini-8A2BE2?style=for-the-badge)](#install)
 
-Local-first delegation for Claude Code, OpenAI Codex, and Gemini (Gemini CLI & Antigravity). The bridge exports a small Task Capsule, treats the returned Result Capsule as untrusted input, detects repository drift, stages clean changes in an isolated worktree, and runs validation locally before anything reaches your active branch.
+Local-first delegation for **Claude Code**, **OpenAI Codex**, and **Gemini** (Gemini CLI & Antigravity). Export a self-contained Task Capsule, run it in ChatGPT, and import the Result Capsule into an isolated Git worktree with drift checks and local validation.
 
-[Quick start](#quick-start) · [Install](#quick-start) · [Upgrade](#upgrade) · [How it works](#how-it-works) · [Security](#security-model)
+[Install](#install) · [5-Step Workflow](#the-5-step-workflow) · [Safety & Security](#what-it-protects) · [CLI & Configuration](#cli--configuration) · [Docs](#documentation)
 
 </div>
 
 ---
 
-## Why Agent Task Bridge?
+## How it works at a glance
 
-Coding agents are good at understanding the current task, but they should not need to upload an entire repository or share a conversation database to delegate one focused unit of work.
-
-Agent Task Bridge keeps the handoff local and explicit:
+Your coding agent already knows the codebase, but delegating a self-contained module or test suite shouldn't require uploading your whole repo or trusting unverified model output.
 
 ```text
-Coding agent
-    │  export one bounded task
-    ▼
-Task Capsule (.md) ── upload to ChatGPT ──► Result Capsule (.zip)
-    ▲                                           │
-    └──── local drift checks, staging, validation, review
+  Local Agent (Claude Code / Codex / Gemini)
+      │
+      ├─ 1. plan-chatgpt     Split feature along clean module seams
+      ├─ 2. export-chatgpt   Package one bounded Task Capsule (task.md + kickoff.md)
+      ▼
+  ChatGPT (Web)
+      │
+      ├─ 3. Execute task     Returns Result Capsule (.zip via pack_result.py, or reply.md)
+      ▼
+  Local Bridge (Isolated External Staging Worktree)
+      │
+      ├─ 4. import-chatgpt   Verify hashes, detect drift, 3-way merge, run local tests
+      └─ 5. integrate        Commit to a branch (--confirm) after review passes
 ```
 
-The host agent chooses the context. The bridge records repository truth, verifies the return package, and leaves integration into the active branch as a separate decision.
+Because task state lives in the capsule and local `.agent-task-bridge/` history, you can even export from one agent and import in another (for example, `Gemini → ChatGPT → Claude Code` or `Codex → ChatGPT → Gemini`).
 
-## Quick start
+---
 
-Choose the path that matches your agent:
+## Install
 
-| I use… | Install | Then… |
+> **Note:** `AndriiLavrekha/relay` is private. Make sure your Git credentials are configured (`gh auth login` or a Git credential helper) before installing. Requires **Node.js >= 22** and **Git** (zero third-party npm dependencies; no API keys required).
+
+| Host Agent | Install Command | Skills / Commands |
 | --- | --- | --- |
-| Claude Code | [`task-bridge` Claude plugin](#install-the-claude-code-plugin) | Invoke `/task-bridge:plan-chatgpt` or `/task-bridge:export-chatgpt` |
-| Codex | [`task-bridge` Codex plugin](#install-the-codex-plugin) | Ask Codex to plan or export a bounded task |
-| Gemini CLI / Antigravity | [`task-bridge` Gemini plugin](#install-the-gemini-plugin) | Invoke `/plan-chatgpt` or `/export-chatgpt` |
-| Any local checkout | Clone or open this repository | Run `node bin/agent-task-bridge.mjs help` |
+| **Claude Code** | [Install plugin](#1-claude-code) | `/task-bridge:plan-chatgpt`<br>`/task-bridge:export-chatgpt`<br>`/task-bridge:import-chatgpt` |
+| **OpenAI Codex** | [Install plugin](#2-openai-codex) | Ask Codex to use `plan-chatgpt`, `export-chatgpt`, or `import-chatgpt` |
+| **Gemini CLI** | [Install extension](#3-gemini-gemini-cli--antigravity) | `/plan-chatgpt`<br>`/export-chatgpt`<br>`/import-chatgpt` |
+| **Antigravity (`agy`)** | [Install plugin](#3-gemini-gemini-cli--antigravity) | `/plan-chatgpt`<br>`/export-chatgpt`<br>`/import-chatgpt` |
+| **Standalone CLI** | Clone repository | `node bin/agent-task-bridge.mjs help` |
 
-The `AndriiLavrekha/relay` repository is private. Claude Code, Codex, and Gemini clone the repository or marketplace with your own Git credentials. Run `gh auth login` or configure a Git credential helper before adding it.
+### 1. Claude Code
 
-### Install the Claude Code plugin
-
-From Claude Code, add the `v0.3.4` marketplace release and install the plugin:
+In Claude Code:
 
 ```text
 /plugin marketplace add AndriiLavrekha/relay@v0.3.4
 /plugin install task-bridge@awesome-task-bridge
 ```
 
-Or use the CLI:
+Or from your terminal:
 
 ```bash
 claude plugin marketplace add AndriiLavrekha/relay@v0.3.4
 claude plugin install task-bridge@awesome-task-bridge
 ```
 
-After installation, start a new session or run `/reload-plugins` if Claude asks. The plugin provides namespaced skills:
+Start a new session or run `/reload-plugins`. See [`plugins/claude-code/README.md`](plugins/claude-code/README.md).
 
-- `/task-bridge:plan-chatgpt` decomposes a feature along clean module seams into local host-owned wiring and bounded exportable units.
-- `/task-bridge:export-chatgpt` creates a Task Capsule.
-- `/task-bridge:import-chatgpt` validates and stages a returned Result Capsule.
+### 2. OpenAI Codex
 
-### Install the Codex plugin
-
-From a checkout of this repository, add its local marketplace:
-
-```bash
-codex plugin marketplace add /absolute/path/to/agent-task-bridge
-codex plugin add task-bridge@awesome-task-bridge
-```
-
-For the GitHub marketplace, pin the v0.3.4 release with `--ref v0.3.4`:
+Pin the `v0.3.4` release from GitHub:
 
 ```bash
 codex plugin marketplace add AndriiLavrekha/relay --ref v0.3.4
 codex plugin add task-bridge@awesome-task-bridge
 ```
 
-Start a new Codex session after installation so the plugin and skills reload. See [`plugins/codex/README.md`](plugins/codex/README.md) for workspace-local marketplace details. Release notes: [`v0.3.4`](https://github.com/AndriiLavrekha/relay/releases/tag/v0.3.4).
+Or install from a local checkout:
 
-### Install the Gemini plugin
+```bash
+codex plugin marketplace add /absolute/path/to/relay
+codex plugin add task-bridge@awesome-task-bridge
+```
 
-For **Gemini CLI**, install the extension from the repository URL (or link a local checkout):
+Start a new Codex session after installation. See [`plugins/codex/README.md`](plugins/codex/README.md).
+
+### 3. Gemini (Gemini CLI & Antigravity)
+
+**Gemini CLI:**
 
 ```bash
 gemini extensions install https://github.com/AndriiLavrekha/relay --ref v0.3.4
-# or from a local checkout:
+# Or link a local checkout:
 gemini extensions link /absolute/path/to/relay
 ```
 
-For **Antigravity CLI / IDE (`agy`)**, install the `plugins/gemini` bundle from the `v0.3.4` release tag (or from a local checkout):
+**Antigravity CLI / IDE (`agy`):**
 
 ```bash
 agy plugin install https://github.com/AndriiLavrekha/relay/tree/v0.3.4/plugins/gemini
-# or from a local checkout:
+# Or install from a local checkout:
 agy plugin install /absolute/path/to/relay/plugins/gemini
 ```
 
-When opening a checkout of this repository directly in Antigravity, `.agents/plugins.json` automatically discovers `plugins/gemini`. Start a new Gemini or Antigravity session after installation. The plugin provides:
-
-- `/plan-chatgpt` (`plan-chatgpt` skill) decomposes a feature along clean module seams into local host-owned wiring and bounded exportable units.
-- `/export-chatgpt` (`export-chatgpt` skill) creates a Task Capsule (`--source-agent gemini`).
-- `/import-chatgpt` (`import-chatgpt` skill) validates and stages a returned Result Capsule.
-
-See [`plugins/gemini/README.md`](plugins/gemini/README.md) for details.
-
-## Upgrade
-
-Use the command path that matches your installation:
+*(Opening a checkout of this repo in Antigravity also auto-discovers `plugins/gemini` via `.agents/plugins.json`.)* Start a new session after installing. See [`plugins/gemini/README.md`](plugins/gemini/README.md).
 
 <details>
-<summary><strong>Claude Code</strong></summary>
+<summary><strong>Upgrading to v0.3.4</strong></summary>
 
+**Claude Code**
 ```bash
 claude plugin marketplace remove awesome-task-bridge
 claude plugin marketplace add AndriiLavrekha/relay@v0.3.4
@@ -126,13 +119,7 @@ claude plugin update task-bridge@awesome-task-bridge
 claude plugin list
 ```
 
-Restart Claude Code or reload plugins after the update.
-
-</details>
-
-<details>
-<summary><strong>Codex</strong></summary>
-
+**OpenAI Codex** (`codex plugin marketplace upgrade` only refreshes the current ref; re-add the marketplace to move to a new release tag)
 ```bash
 codex plugin remove task-bridge@awesome-task-bridge
 codex plugin marketplace remove awesome-task-bridge
@@ -141,19 +128,7 @@ codex plugin add task-bridge@awesome-task-bridge
 codex plugin list
 ```
 
-The [latest stable release](https://github.com/AndriiLavrekha/relay/releases/latest) is
-`v0.3.4`. `codex plugin marketplace upgrade` only refreshes the currently configured Git ref; it
-does not move an existing marketplace from an older pinned tag to `v0.3.4`. Re-add the marketplace
-with `--ref v0.3.4` when moving off an older pin.
-
-For unreleased development code, use `--ref main` instead of a release tag. Start a new Codex
-session after the update. If prompted, review and trust the updated plugin hooks.
-
-</details>
-
-<details>
-<summary><strong>Gemini (Gemini CLI & Antigravity)</strong></summary>
-
+**Gemini CLI & Antigravity**
 ```bash
 # Gemini CLI
 gemini extensions update task-bridge
@@ -163,119 +138,99 @@ agy plugin uninstall task-bridge
 agy plugin install https://github.com/AndriiLavrekha/relay/tree/v0.3.4/plugins/gemini
 ```
 
-Restart your Gemini or Antigravity session after updating.
+Restart your agent session after upgrading. Latest release notes: [`v0.3.4`](docs/releases/v0.3.4.md).
 
 </details>
 
-## How it works
+---
 
-1. Work normally in Claude Code or Codex.
-2. Invoke the provider's export skill and specify one bounded unit of work.
-3. The bridge writes one Task Capsule Markdown file under the repository task history and generates a kickoff prompt, upload checklist, result contract, and token/file summary beside it. Export also warns when the editable scope and the embedded file list disagree. An explicit `--out` path may still be used for a copy.
-4. Upload that file to a fresh ChatGPT conversation with the kickoff prompt. The capsule carries an Integration Contract (plan first, match conventions, no placeholders, tests per criterion) and a stdlib-only `pack_result.py`. On ChatGPT Plus, ChatGPT runs the script in its Python sandbox and returns a ZIP whose hashes, task ID, and base commit were computed, not typed. Without code execution (for example ChatGPT Go), ChatGPT replies in the capsule's `<<<ATB_RESULT:...>>>` text framing and you save the reply as a `.md` file.
-5. Invoke the provider's import skill with the downloaded ZIP or saved reply. The bridge builds the ZIP from a text reply itself.
-6. The bridge validates the archive, task ID, source baseline, paths, scope, and repository drift. Returned files take the baseline's line endings, abbreviated files (`// ... rest unchanged`, or a large unexplained shrink) are withheld as `SUSPECT_ELISION`, and a file you changed locally while ChatGPT worked is three-way merged (`MERGED_CLEAN`) instead of withheld, unless the edits overlap.
-7. Clean candidates are applied only to an isolated, external staging worktree; conflicts and out-of-scope files are withheld for review.
-8. Validation runs locally in staging with a scrubbed environment, bounded output, timeouts, and policy-controlled execution. Git-ignored `node_modules`, `vendor`, `.venv`, and `venv` directories are linked into staging for the run, and toolchain caches (Cargo, rustup, NuGet, Go) stay reachable. Discovery covers npm/pnpm/yarn/bun scripts, `cargo test`, `go test ./...`, `dotnet test`, CMake + CTest, pytest, and Composer/PHPUnit when the tool is installed; `validationCommands` in `config.json` replaces discovery.
-9. The coding agent reviews the diff, lifecycle, receipt, drift, validation, privacy, persisted worker report, and acceptance evidence before choosing whether to integrate it. Criteria marked deferred to the host are local gates. They are not sent back to the external worker.
-10. Use `review <import-id>` for the persisted review, `follow-up <import-id>` for unresolved worker-owned work, and `integrate <import-id> --confirm` for the separate integration boundary.
+## The 5-step workflow
 
-The same protocol supports Claude Code, Codex, and Gemini interchangeably (for example Gemini → ChatGPT → Claude Code or Claude Code → ChatGPT → Gemini) because essential state lives in the Task Capsule and local task history, not in a provider's conversation database. A result status (`complete`, `partial`, `blocked`, or `research-only`) is orthogonal to lifecycle staging: safe in-scope files from partial results may still be staged and reviewed, while follow-up work records the unresolved criteria.
+Delegation pays off when ChatGPT writes a bounded implementation and its tests while your local agent spends tokens only on planning, seam creation, and review.
 
-## Delegating a feature
+### Step 1: Plan and split along clean seams
 
-The plugin packages and checks the handoff. Your local agent (Claude Code, Codex, or Gemini) does the thinking: it plans the work, reads the codebase, and decides which files ChatGPT sees. The bridge does not build a dependency graph, and ChatGPT sees only the files embedded in the capsule. Steer the agent carefully.
-
-### 1. Plan locally and split along the seams
-
-Use the `plan-chatgpt` skill (`/task-bridge:plan-chatgpt` in Claude Code, `/plan-chatgpt` in Gemini CLI & Antigravity, or ask Codex/Gemini to use `plan-chatgpt`) before exporting anything:
+Ask your local agent to decompose the feature before exporting anything:
 
 ```text
-/plan-chatgpt I want to build <feature>. Plan it and split it into units along clean seams.
-For each unit, tell me whether to delegate it to ChatGPT or keep it local, draft the delegation
-scope and files, and propose the seam commit first. Don't export anything yet.
+/plan-chatgpt I want to build <feature>. Split it into units along clean seams.
+Tell me which units to delegate to ChatGPT vs. keep local, draft the delegation scope
+and file roles, and propose the seam commit first. Don't export yet.
 ```
+*(In Claude Code use `/task-bridge:plan-chatgpt`; in Codex ask in plain words to use `plan-chatgpt`.)*
 
-Good units to delegate are self-contained: a module behind an interface, a parser or algorithm, a test suite, or a migration of isolated files. Keep cross-cutting wiring local: registration, dependency injection, routing, configuration, and edits spread across many files.
+- **Good to delegate:** Self-contained modules behind an interface, parsers, algorithms, isolated test suites, or file migrations.
+- **Keep local (host-owned):** Cross-cutting registration, dependency injection, routing, configuration, and edits spread across many files.
 
-### 2. Create the seam first and commit it
+### Step 2: Commit the interface seam locally
 
-Ask your agent to add the interface, types, and an empty stub where the feature connects, then commit. ChatGPT then implements behind a contract that already exists instead of guessing how to connect, and the returned code plugs in with little rework. The capsule records the current commit, and import validation runs on top of it.
+Have your local agent add the interface, types, and minimal stub where the feature connects, then commit. ChatGPT now implements against a committed contract in `HEAD`, and import validation runs cleanly on top of it.
 
-### 3. Export one unit with an explicit request
-
-One capsule holds one unit. Say exactly what ChatGPT may edit and what it must follow:
+### Step 3: Export one bounded unit
 
 ```text
 /task-bridge:export-chatgpt
 Unit: implement CSV export in src/reports/csv/ behind the ReportExporter interface.
 - Editable: src/reports/csv/**, test/reports/csv/**
 - Contract: src/reports/exporter.ts, src/reports/types.ts
-- Reference: src/reports/pdf/ (existing exporter whose conventions to copy) and one existing test
-- Acceptance: RFC 4180 quoting; header row from column labels; tests for empty report,
-  quotes/newlines, and unicode
+- Reference: src/reports/pdf/ (copy conventions) and one existing test
+- Acceptance: RFC 4180 quoting; header row from column labels; tests for empty, quotes/newlines, unicode
 - Non-goals: no UI wiring, no new dependencies
 - Host-owned: full workspace test run; wiring into ReportController
-Show me the delegation JSON before you run the export.
 ```
 
-In Codex, ask in plain words, for example "use the export-chatgpt skill to delegate …". The last line of the request lets you correct the scope, file list, and criteria before the capsule is written. Write acceptance criteria you can check. ChatGPT maps each criterion to a test, and the import review reports a status for each one.
+The bridge classifies embedded files by role and checks for coverage gaps (`CONTEXT_COVERAGE_GAP` / `EDITABLE_OUTSIDE_SCOPE`) and sensitive data before writing `.agent-task-bridge/tasks/<task-id>/`:
 
-Each file role does one job:
+| File Role | Purpose in the Task Capsule |
+| --- | --- |
+| `editable` | Files ChatGPT may modify (new files are allowed under `editable_scope` globs). |
+| `contract` | Interfaces, types, and state shapes ChatGPT must call or implement without changing signatures. |
+| `reference` | One neighboring implementation and one existing test whose conventions ChatGPT should match. |
+| `validation` / `configuration` | Build, test, and strictness settings (`package.json`, `tsconfig.json`). |
 
-| Role | Use it for |
-|---|---|
-| `editable` | Files ChatGPT may change. New files are allowed under `editable_scope` globs. |
-| `contract` | Interfaces and types the code must call or implement. ChatGPT keeps their signatures. |
-| `reference` | Neighbouring code and one existing test whose conventions ChatGPT should copy. |
-| `validation` / `configuration` | Build, test, and settings files that explain how the project runs. |
+### Step 4: Run in ChatGPT
 
-### 4. Hand it to ChatGPT
-
-1. Start a new ChatGPT conversation.
+1. Open a fresh ChatGPT conversation.
 2. Upload `.agent-task-bridge/tasks/<task-id>/task.md`.
-3. Paste the contents of `kickoff.md` as the message.
+3. Paste `kickoff.md` as the prompt.
 
-On ChatGPT Plus, ChatGPT runs the embedded `pack_result.py` and offers a ZIP to download. Without code execution, it replies in the capsule's `<<<ATB_RESULT:...>>>` text framing. Copy the reply with ChatGPT's copy button and save it as `reply.md`.
+- **With Python sandbox (e.g. ChatGPT Plus):** ChatGPT runs the capsule's embedded `pack_result.py` and gives you a downloadable `result.zip` with precomputed SHA-256 hashes, task ID, and base commit.
+- **Without code execution (e.g. ChatGPT Go):** ChatGPT replies using the capsule's `<<<ATB_RESULT:...>>>` text framing. Click ChatGPT's **Copy** button and save the reply as `reply.md` (the importer automatically unescapes Markdown-escaped marker lines and builds the ZIP locally).
 
-### 5. Bring it back
-
-```text
-/task-bridge:import-chatgpt <path to result.zip or reply.md>
-```
-
-The agent gets a brief review. It lists the staged files and the withheld ones, such as overlapping local edits or files that look abbreviated. It also shows local test results and the status of each acceptance criterion. Your working tree is not touched.
-
-`integrate --mode branch --branch <name> --confirm` commits the result on a new branch. Your agent then does the host-owned wiring. `follow-up <import-id>` creates a new capsule for anything unresolved; run it from the checkout that holds the integrated work.
-
-### When it pays off
-
-Delegation saves local-agent tokens when ChatGPT writes a large, bounded implementation and its tests. The local agent spends tokens only on planning, the delegation, and a short review. Small changes, work spread across many files, and exploratory work are usually cheaper to do locally. You can export several units one after another, or in parallel when their editable scopes do not overlap.
-
-### Experimental: skip the copy-paste with browser delegation (Claude Code only)
-
-> [!CAUTION]
-> **Experimental and risky.** `/task-bridge:delegate-chatgpt-browser` drives your own logged-in Chrome through the Claude in Chrome extension to upload the capsule to chatgpt.com, send the kickoff, copy the reply, and import it. OpenAI's Terms of Use restrict automatically or programmatically extracting data or Output from its services, so this may violate them, and an account can be warned or restricted. It also breaks whenever the ChatGPT interface changes. It is off by default, runs only when you type the command, asks for an explicit yes every time, and the Codex plugin does not include it. The supported route is the manual flow above.
-
-What it does, after you confirm: opens its own tab, attaches `task.md`, pastes `kickoff.md`, sends one message, waits for the reply, copies it through ChatGPT's Copy button and your clipboard, and runs the normal `import`. Review, validation, and `integrate` still follow the `import-chatgpt` rules. It never logs in, never touches credentials, and stops at a CAPTCHA, a usage limit, or any screen it does not expect.
-
-`import` accepts the Markdown-escaped text that ChatGPT's Copy button produces, so a manual copy of a text reply works too. When saving a copied reply from the Windows clipboard, write it as UTF-8 (`[IO.File]::WriteAllText(...)`); redirecting PowerShell output with `>` corrupts non-ASCII characters.
-
-## Usage examples
-
-Every delegation follows the same handoff:
+### Step 5: Import, review, and integrate
 
 ```text
-1. Describe one bounded task to Claude Code or Codex.
-2. The provider creates a temporary delegation JSON request.
-3. Agent Task Bridge exports one Task Capsule Markdown file.
-4. Upload that single .md file to a fresh ChatGPT conversation and paste kickoff.md as the message.
-5. ChatGPT returns a Result Capsule .zip built by pack_result.py, or a text reply you save as reply.md.
-6. Give the ZIP or reply.md to the provider's import skill.
-7. Review the isolated staging report and diff before integrating anything. The bridge stores an immutable receipt containing the Task Capsule hash, Result Capsule hash, baseline, import ID, and local validation evidence.
+/task-bridge:import-chatgpt <path-to-result.zip-or-reply.md>
+```
+*(Or `/import-chatgpt` in Gemini, or ask Codex to import the file.)*
+
+What happens during import:
+1. **Active worktree stays untouched** (`activeWorktreeModifiedByImport: false`).
+2. **Drift & elision checks:** Unchanged baseline files (`CLEAN_UNCHANGED`), expected new files (`NEW_EXPECTED`), and non-overlapping local edits (`MERGED_CLEAN` via 3-way merge) are staged into an isolated external Git worktree. Abbreviated files (`// ... rest unchanged` or large unexplained shrink) are withheld as `SUSPECT_ELISION`.
+3. **Authoritative local validation:** Runs discovered or configured tests in the staging worktree with a scrubbed environment, timeouts, and linked dependencies (`node_modules`, `vendor`, `.venv`, `venv`).
+4. **Compact review (`--brief`):** Compares worker claims (`REPORT.md`) against local validation evidence and acceptance criteria (`verified`, `deferred_to_host`, or unresolved).
+
+When satisfied, commit the staged files to a branch or follow up on unresolved criteria:
+
+```bash
+# Commit staged changes onto a new branch
+node bin/agent-task-bridge.mjs integrate <import-id> --repo . --mode branch --branch feat/csv-export --confirm
+
+# Or generate a follow-up Task Capsule for unresolved worker-owned criteria
+node bin/agent-task-bridge.mjs follow-up <import-id> --repo .
 ```
 
-The provider skills create the delegation JSON for you. If you use the CLI directly, the minimum shape looks like this:
+<details>
+<summary><strong>More examples (Research tasks, Security reviews, Direct CLI JSON)</strong></summary>
+
+#### Brainstorming or architecture research (`work_type: "research"`)
+Set `editable_scope: []` and include reference files. ChatGPT returns a report-only Result Capsule (`status: "research-only"`) with findings and trade-offs in `REPORT.md` and zero staged files.
+
+#### Security or documentation review (`work_type: "documentation"` or `"research"`)
+Scope `editable_scope` strictly to documentation paths (e.g. `["docs/security.md"]`) while passing implementation files under `reference` and specs under `contract`.
+
+#### Direct CLI delegation JSON shape
+Provider skills generate this JSON automatically, or you can pass `--delegation delegation.json` to the CLI directly:
 
 ```json
 {
@@ -299,296 +254,92 @@ The provider skills create the delegation JSON for you. If you use the CLI direc
 }
 ```
 
-Export the request from the repository root:
+See [`examples/delegation.example.json`](examples/delegation.example.json).
 
-```bash
-node bin/agent-task-bridge.mjs export \
-  --delegation delegation.json \
-  --repo . \
-  --source-agent codex \
-  --max-tokens 50000 \
-  --out .agent-task-bridge/exports/retry-backoff.task.md
-```
+</details>
 
-Inspect the capsule before uploading it:
+<details>
+<summary><strong>Experimental: Browser automation in Claude Code (<code>/task-bridge:delegate-chatgpt-browser</code>)</strong></summary>
 
-```bash
-node bin/agent-task-bridge.mjs inspect-task \
-  .agent-task-bridge/exports/retry-backoff.task.md
-```
+> [!CAUTION]
+> **Experimental and risky (Claude Code only).** `/task-bridge:delegate-chatgpt-browser` drives your logged-in Chrome via the Claude in Chrome extension to upload `task.md`, send `kickoff.md`, copy the reply, and run `import`. OpenAI's Terms of Use restrict automatically or programmatically extracting data or Output from its services, so this may violate them and risk account warnings or restrictions. It is off by default, runs only when explicitly invoked by command, requires an explicit `yes` on every run, never touches credentials, and stops immediately on login screens, CAPTCHAs, or usage limits. The supported path for all providers is the manual 5-step flow above.
 
-In ChatGPT, upload only the generated `.task.md` file. Paste the generated `kickoff.md` from `.agent-task-bridge/tasks/<task-id>/` as the message. It asks ChatGPT to follow the capsule's Integration Contract. It also tells ChatGPT to return the result through the embedded `pack_result.py` (a ZIP) or through the text-reply framing when it cannot run code.
+When manually saving a copied reply from the Windows clipboard in PowerShell, write UTF-8 explicitly (`[IO.File]::WriteAllText(...)`); redirecting with `>` can corrupt non-ASCII characters.
 
-When the ZIP or saved reply is back, import it without manually extracting it:
+</details>
 
-```bash
-node bin/agent-task-bridge.mjs inspect-result result.zip
-node bin/agent-task-bridge.mjs import result.zip --repo . --brief   # or: import reply.md
-
-# inspect the persisted review and integrate only after explicit confirmation
-node bin/agent-task-bridge.mjs review <import-id> --repo . --brief
-node bin/agent-task-bridge.mjs integrate <import-id> --repo . --mode branch --branch bridge/retry-backoff --confirm
-```
-
-Check the task ID, source baseline, drift status, withheld files, validation results, staging path, and `activeWorktreeModifiedByImport` before reviewing the staged diff.
-
-### 1. Brainstorm a feature or compare implementation options
-
-Use `work_type: "research"` when you want ChatGPT to investigate, compare approaches, or produce a design report without changing repository files.
-
-Provider prompt:
-
-```text
-Claude Code: /task-bridge:export-chatgpt
-Argument: Compare SQLite, JSON, and in-memory storage for task history.
-Return a recommendation with trade-offs and a migration outline. Do not edit files.
-```
-
-Equivalent Codex request:
-
-```text
-Use the task-bridge export skill to delegate this bounded research task to ChatGPT:
-compare SQLite, JSON, and in-memory storage for task history. Return a report only;
-do not change repository files.
-```
-
-Use a report-only delegation scope:
-
-```json
-{
-  "work_type": "research",
-  "title": "Compare task-history storage options",
-  "work_unit": "Compare SQLite, JSON, and in-memory storage and recommend one.",
-  "editable_scope": [],
-  "deliverables": ["Recommendation", "Trade-off table", "Migration outline"],
-  "non_goals": ["Do not edit source files or configuration"],
-  "files": {
-    "editable": [],
-    "reference": ["src/storage.mjs", "docs/architecture.md"],
-    "contract": [],
-    "validation": [],
-    "configuration": ["package.json"]
-  }
-}
-```
-
-Ask ChatGPT to return a report-only Result Capsule:
-
-```text
-Analyze the attached Task Capsule and return a report-only Result Capsule v1 ZIP.
-Do not include changed repository files. Put the recommendation and trade-offs in REPORT.md.
-```
-
-Import and review the report:
-
-```bash
-node bin/agent-task-bridge.mjs import storage-research.zip --repo . --json
-```
-
-Expected result: a report is available for review, no source files are staged, and the active worktree remains unchanged.
-
-### 2. Implement a bounded coding unit
-
-Use `work_type: "code"` when ChatGPT should edit specific files and return complete replacements.
-
-Provider prompt:
-
-```text
-Claude Code: /task-bridge:export-chatgpt
-Argument: Add retry handling in src/retry.mjs and tests in test/retry.test.mjs.
-Retry only HTTP 429 and 503 responses, use bounded exponential backoff,
-and do not change the public CLI or add dependencies.
-```
-
-Equivalent Codex request:
-
-```text
-Use the task-bridge export skill for this bounded coding task:
-implement retry handling in src/retry.mjs and test/retry.test.mjs.
-Only retry HTTP 429 and 503, add deterministic tests, and do not touch other files.
-```
-
-In ChatGPT:
-
-```text
-Execute the attached coding Task Capsule v1.
-Implement only the requested files, run the declared validation commands,
-and return a Result Capsule v1 ZIP with complete files, manifest.json, and REPORT.md.
-```
-
-Back in the provider, inspect and import the staged result:
-
-```bash
-node bin/agent-task-bridge.mjs inspect-result retry-backoff-result.zip
-node bin/agent-task-bridge.mjs import retry-backoff-result.zip --repo . --json
-node bin/agent-task-bridge.mjs status --repo .
-```
-
-Expected result: clean files are staged in an isolated worktree, validation evidence is shown, conflicts are withheld, and the active worktree is not modified. Review the staged diff and explicitly integrate it only after it meets the acceptance criteria.
-
-### 3. Review security or update documentation
-
-Use `work_type: "documentation"` or `work_type: "research"` for a focused review that returns findings or narrowly scoped documentation edits.
-
-Security review prompt:
-
-```text
-Use the task-bridge export skill to ask ChatGPT to review src/importer.mjs
-for archive-path, symlink, and drift-handling risks. Return a prioritized report
-with file/line references and suggested tests. Do not edit implementation files.
-```
-
-For documentation changes, make the editable scope explicit:
-
-```json
-{
-  "objective": "Document the verified Result Capsule import trust boundary",
-  "work_type": "documentation",
-  "title": "Clarify Result Capsule import safety",
-  "work_unit": "Update docs/security.md with the verified import trust boundary.",
-  "current_work_state": "Import validation and staging behavior are implemented; the documentation needs a concise user-facing explanation.",
-  "editable_scope": ["docs/security.md"],
-  "deliverables": ["Updated documentation", "Validation report"],
-  "acceptance_criteria": ["Describe only implemented behavior", "Keep examples copy-pasteable"],
-  "non_goals": ["Do not change source code or protocol behavior"],
-  "architecture_context": "Returned ZIP files are untrusted and are validated before acceptable files are staged in an isolated Git worktree.",
-  "files": {
-    "editable": ["docs/security.md"],
-    "reference": ["src/importer.mjs", "src/path-safety.mjs"],
-    "contract": ["protocol/RESULT-CAPSULE-v1.md"],
-    "validation": [],
-    "configuration": []
-  }
-}
-```
-
-Ask ChatGPT to distinguish findings from edits:
-
-```text
-Review the attached Task Capsule v1.
-If the task is report-only, return REPORT.md without files.
-If documentation is in scope, return the complete updated documentation file,
-manifest.json, and REPORT.md. Do not modify implementation code.
-```
-
-Import the result the same way:
-
-```bash
-node bin/agent-task-bridge.mjs import review-or-docs-result.zip --repo . --json
-```
-
-Expected result: report-only findings stay out of the worktree; documentation candidates are staged only when they match the declared scope and baseline.
+---
 
 ## What it protects
 
-- **Bounded context:** export only the files and intent selected by the host agent.
-- **Repository truth:** record the Git baseline and SHA-256 hashes for embedded files.
-- **Safe imports:** reject dangerous archive paths, symlinks, duplicate entries, encryption, unsupported compression, CRC corruption, and undeclared payloads.
-- **Drift awareness:** withhold locally changed, deleted, conflicting, or out-of-scope files instead of silently overwriting them.
-- **Validation trust boundary:** capture validation commands before applying returned files and block validation when package-manager configuration changes in staging.
-- **Privacy boundary:** scan the complete rendered Task Capsule, including metadata and validation context, with block, confirmation, allow, and metadata-only redact policies. Returned files and `REPORT.md` are scanned before staging.
-- **Protocol integrity:** schema 1.1 Result Capsules declare SHA-256 and byte length for every returned file; the importer verifies the raw ZIP entries before decoding.
-- **Evidence boundary:** worker-reported tests, models, token usage, and acceptance claims remain untrusted claims beside local validation and acceptance evidence.
-- **Explicit integration:** imports never modify the active working tree directly.
+| Boundary | How Agent Task Bridge enforces it |
+| --- | --- |
+| **Bounded context & token budget** | Exports only host-selected files. `--max-tokens <n>` enforces a full-capsule token estimate (including wrapper bytes and safety margin; estimate, not billing data). |
+| **Privacy & secret scanning** | Scans selected files, delegation metadata, validation commands, and the rendered Task Capsule (`block`, `confirmation` warning, `allow`, or metadata-only `redact`). Scans returned files and `REPORT.md` before staging. |
+| **Archive & path safety** | Rejects path traversal, reserved Git/bridge paths, symlinks, duplicate entries, encryption, unsupported compression, CRC corruption, and oversize payloads. |
+| **Schema 1.1 payload integrity** | Verifies raw ZIP entry `sha256` and `size_bytes` before decoding any returned file. |
+| **Drift & elision protection** | Three-way merges clean local edits (`MERGED_CLEAN`), quarantines out-of-scope files (`OUT_OF_SCOPE`), and withholds abbreviated files (`SUSPECT_ELISION`). |
+| **Validation trust boundary** | Captures validation commands *before* staging returned files and blocks validation if returned files modify package-manager configuration. Runs in an external staging worktree (with same-volume fallback on Windows). |
+| **Evidence separation & receipts** | Separates untrusted worker claims (tests, model, tokens, status) from deterministic local validation evidence, and writes an immutable receipt per import. |
+| **Explicit integration** | `import` never modifies your active worktree. Changes land only when you run `integrate <import-id> --confirm`. |
 
-## CLI
+*Note: Automated API/browser transport and OS-level validation sandboxing remain outside the default runtime boundary.*
 
-Run directly from a checkout:
+---
+
+## CLI & configuration
+
+Run directly from a checkout (or run `npm link` to expose `agent-task-bridge` on your `PATH`):
 
 ```bash
 node bin/agent-task-bridge.mjs help
-node bin/agent-task-bridge.mjs export --delegation examples/delegation.example.json --repo /path/to/repo --source-agent codex
+node bin/agent-task-bridge.mjs export --delegation delegation.json --repo . --source-agent gemini --max-tokens 50000
 node bin/agent-task-bridge.mjs inspect-task <task.md>
 node bin/agent-task-bridge.mjs inspect-result <result.zip>
-node bin/agent-task-bridge.mjs import <result.zip|reply.md> --repo /path/to/repo [--brief]
-node bin/agent-task-bridge.mjs review <import-id> --repo /path/to/repo --brief
-node bin/agent-task-bridge.mjs integrate <import-id> --repo /path/to/repo --mode branch --branch <name> --confirm
+node bin/agent-task-bridge.mjs import <result.zip|reply.md> --repo . --brief
+node bin/agent-task-bridge.mjs review <import-id> --repo . --brief
+node bin/agent-task-bridge.mjs follow-up <import-id> --repo .
+node bin/agent-task-bridge.mjs integrate <import-id> --repo . --mode branch --branch <name> --confirm
 node bin/agent-task-bridge.mjs validate --dir <staging-or-project-dir>
-node bin/agent-task-bridge.mjs status --repo /path/to/repo
+node bin/agent-task-bridge.mjs status --repo .
 ```
 
-To expose the CLI on your `PATH` while developing locally:
+### Repo-local defaults (`.agent-task-bridge/config.json`)
 
-```bash
-npm link
-agent-task-bridge help
-```
+You can configure optional repo-local defaults in `.agent-task-bridge/config.json` (automatically git-excluded). CLI flags always override this file, and security/privacy limits cannot be weakened. See [`examples/project-config.example.json`](examples/project-config.example.json).
 
-## Protocol capsules
+- `maxTokens`: Default token ceiling when `--max-tokens` is omitted.
+- `validationPolicy`: `"safe"` (default), `"prompt"`, or `"skip"`.
+- `extraHostOwnedSteps`: Appended when the delegation omits `host_owned_steps`.
+- `validationCommands`: `[{ "name", "command", "args" }]`. Replaces auto-discovery (which covers Node npm/pnpm/yarn/bun, Rust `cargo test`, Go `go test ./...`, .NET `dotnet test`, CMake + CTest, Python `pytest`, and PHP Composer/PHPUnit).
+- `validationTimeoutMs`: Per-command timeout in ms (default `120000`).
 
-### Task Capsule v1
-
-A human-readable Markdown file containing protocol metadata, the Git baseline, a project fingerprint, the validation contract, structured delegation, and exact embedded source files with SHA-256 hashes. Source contents are length-framed so Markdown-like text cannot break parsing.
-
-→ [`protocol/TASK-CAPSULE-v1.md`](protocol/TASK-CAPSULE-v1.md)
-
-### Result Capsule v1
-
-A ZIP containing `manifest.json`, an optional `REPORT.md`, and complete created or modified text files under `files/`. The importer validates the archive structure and does not blindly extract it.
-
-→ [`protocol/RESULT-CAPSULE-v1.md`](protocol/RESULT-CAPSULE-v1.md)
-
-## Requirements
-
-- Node.js 22 or newer
-- Git
-- A Git repository for export/import
-
-There are zero third-party runtime npm dependencies. The bridge does not require an OpenAI API key or an Anthropic API key.
-
-## Security model
-
-Export scans selected files, delegation and project metadata, validation commands, and the complete rendered capsule. High-confidence secrets block export; warning findings such as URLs, absolute paths, and entropy candidates require explicit confirmation. Use `--privacy allow` only when the decision is intentional, and `--max-tokens <n>` to enforce a hard full-capsule estimate (estimates include wrapper bytes, per-file contributions, and safety margin and are not billing data).
-
-Import rejects dangerous archive paths, reserved bridge/Git paths, symlinks, duplicate entries, encryption, unsupported compression, CRC corruption, and bounded-size violations. Returned files outside the original editable scope or through staging symlink ancestors are quarantined rather than staged.
-
-The external worker's code, model, status, tests, token usage, and prose remain untrusted claims. Schema 1.1 result files carry SHA-256 and byte-length declarations that are checked against raw ZIP payloads before decoding. Import reports separate worker claims from deterministic local evidence and acceptance-criteria status; local tests, builds, and validation evidence are authoritative. The active worktree is not modified by import.
-
-## Current MVP boundary
-
-Version 1 targets Git repositories. Fingerprinting is Node.js-oriented; validation discovery covers Node, Rust, Go, .NET, CMake, Python (pytest), and PHP when their tools are installed. It supports text-based code and non-code delegation.
-
-The host agent remains responsible for semantic context selection. The MVP does not automatically expand dependency graphs or index the whole repository, provide automated ChatGPT transport, call OpenAI or Anthropic APIs, support binary payloads, offer hosted telemetry or cloud storage, or automatically apply changes to the active branch.
-
-A git-excluded `.agent-task-bridge/config.json` can set local defaults for `maxTokens`, `validationPolicy` (`safe`, `prompt`, or `skip`), `extraHostOwnedSteps`, `validationCommands` (`[{ "name", "command", "args" }]`, replaces discovery; use it for C++ presets, custom test runners, or monorepo filters), and `validationTimeoutMs` (default 120000 per command; raise it for C++ and .NET builds). See [`examples/project-config.example.json`](examples/project-config.example.json). Missing file keeps the shipped defaults. CLI flags override the file. An explicit delegation `host_owned_steps` value, including `[]`, overrides the extra steps. The file cannot change privacy blocking, the 512 KB report limit, archive checks, or the embedded-byte ceiling. Safe import requires Git worktree support.
+---
 
 ## Documentation
 
-| Document | Purpose |
+| Resource | Description |
 | --- | --- |
-| [`docs/architecture.md`](docs/architecture.md) | Architecture and component boundaries |
-| [`examples/delegation.example.json`](examples/delegation.example.json) | Example delegation input |
-| [`plugins/claude-code/README.md`](plugins/claude-code/README.md) | Claude Code plugin details |
-| [`plugins/codex/README.md`](plugins/codex/README.md) | Codex plugin and local marketplace details |
-| [`plugins/gemini/README.md`](plugins/gemini/README.md) | Gemini CLI and Antigravity plugin details |
-| [`docs/releases/v0.2.0.md`](docs/releases/v0.2.0.md) | v0.2 reliability release notes |
-| [`docs/releases/v0.2.1.md`](docs/releases/v0.2.1.md) | v0.2.1 visibility and execution-boundary notes |
-| [`docs/releases/v0.2.2.md`](docs/releases/v0.2.2.md) | v0.2.2 local project configuration |
-| [`docs/releases/v0.3.0.md`](docs/releases/v0.3.0.md) | v0.3.0 approved specifications |
-| [`docs/releases/v0.3.1.md`](docs/releases/v0.3.1.md) | v0.3.1 fixes |
-| [`docs/releases/v0.3.2.md`](docs/releases/v0.3.2.md) | v0.3.2 changes |
-| [`docs/releases/v0.3.3.md`](docs/releases/v0.3.3.md) | v0.3.3 reply import fix and experimental browser delegation |
-| [`docs/releases/v0.3.4.md`](docs/releases/v0.3.4.md) | v0.3.4 Gemini support and cross-provider `plan-chatgpt` skill |
-| [`protocol/`](protocol/) | Task and Result Capsule specifications |
-| [`src/`](src/) | Canonical bridge runtime |
-| [`AGENTS.md`](AGENTS.md) | Repository structure and contribution conventions |
+| [`docs/architecture.md`](docs/architecture.md) | System architecture, lifecycle state machine, and component boundaries |
+| [`protocol/TASK-CAPSULE-v1.md`](protocol/TASK-CAPSULE-v1.md) | Task Capsule v1 (schema 1.1) specification |
+| [`protocol/RESULT-CAPSULE-v1.md`](protocol/RESULT-CAPSULE-v1.md) | Result Capsule v1 (schema 1.1) specification |
+| [`plugins/claude-code/README.md`](plugins/claude-code/README.md) | Claude Code plugin setup and skills |
+| [`plugins/codex/README.md`](plugins/codex/README.md) | OpenAI Codex plugin and local marketplace setup |
+| [`plugins/gemini/README.md`](plugins/gemini/README.md) | Gemini CLI extension and Antigravity plugin setup |
+| [`examples/`](examples/) | Example `delegation.example.json` and `project-config.example.json` |
+| [`docs/releases/`](docs/releases/) | Release notes ([`v0.2.0`](docs/releases/v0.2.0.md) to [`v0.3.4`](docs/releases/v0.3.4.md)) |
+| [`AGENTS.md`](AGENTS.md) | Repository structure and contributor guidelines |
 
-## Development and verification
+## Requirements & development
 
-Node.js 22 or newer is required:
+Requires **Node.js >= 22** and **Git**:
 
 ```bash
-npm test
-npm run bundle:plugins
-npm run smoke
-npm pack --dry-run
+npm test                 # Run the node:test suite
+npm run bundle:plugins   # Sync self-contained Claude, Codex, and Gemini runtime bundles
+npm run smoke            # Run cross-provider end-to-end smoke tests
+npm pack --dry-run       # Verify package contents
 ```
-
-`npm run bundle:plugins` regenerates the self-contained Claude, Codex, and Gemini runtime copies (and syncs root `skills/` for Gemini CLI). Keep those generated copies synchronized with `src/` and `bin/` when changing the implementation.
-
-## Contributing
-
-Read [`AGENTS.md`](AGENTS.md) before making changes. Keep pull requests focused, include validation commands and results, and review protocol or plugin changes for accidental data leakage.
 
 ## License
 
