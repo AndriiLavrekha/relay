@@ -302,6 +302,8 @@ node bin/agent-task-bridge.mjs follow-up <import-id> --repo .
 node bin/agent-task-bridge.mjs integrate <import-id> --repo . --mode branch --branch <name> --confirm
 node bin/agent-task-bridge.mjs validate --dir <staging-or-project-dir>
 node bin/agent-task-bridge.mjs status --repo .
+node bin/agent-task-bridge.mjs metrics --repo .
+node bin/agent-task-bridge.mjs metrics note <task-id> --claude-estimate <usd>
 ```
 
 ### Repo-local defaults (`.agent-task-bridge/config.json`)
@@ -313,6 +315,13 @@ You can configure optional repo-local defaults in `.agent-task-bridge/config.jso
 - `extraHostOwnedSteps`: Appended when the delegation omits `host_owned_steps`.
 - `validationCommands`: `[{ "name", "command", "args" }]`. Replaces auto-discovery (which covers Node npm/pnpm/yarn/bun, Rust `cargo test`, Go `go test ./...`, .NET `dotnet test`, CMake + CTest, Python `pytest`, and PHP Composer/PHPUnit).
 - `validationTimeoutMs`: Per-command timeout in ms (default `120000`).
+- `metricsRates`: `{ "<model>": { "input", "output", "cacheWrite5m", "cacheWrite1h", "cacheRead" } }` in USD per million tokens, for `metrics` cost on models other than the built-in Sonnet 5.5 price.
+
+### Usage metrics (what delegating actually cost Claude)
+
+`metrics` reports, per delegated task, the Claude tokens and list-price cost spent in three phases: `prep` (the export skill reading the repo and bounding the task, until the exporter runs), `export` (the exporter run and hand-off) and `import` (import, review, follow-up and integrate), plus capsule size, validation result and your ChatGPT wait time. It reads Claude Code session transcripts, joins them to tasks by task id, and keeps an append-only ledger at `.agent-task-bridge/metrics.jsonl` so numbers survive transcript pruning. The Claude Code plugin's Stop hook updates the ledger after every turn; `metrics` also rescans the project's transcripts when you run it. Only ids, timestamps and token counts are stored, nothing leaves your machine, and the command makes no model calls.
+
+The tool cannot know what Claude would have spent doing the task itself. Record your own estimate with `metrics note <task-id> --claude-estimate <usd>` to get a saving percentage per task. ChatGPT time and cost are not included. Only Claude Code transcripts are read; Codex and Gemini sessions are not measured.
 
 ---
 

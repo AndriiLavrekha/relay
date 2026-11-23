@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/runtime/bin/agent-task-bridge.mjs\" metrics --from-hook",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}
