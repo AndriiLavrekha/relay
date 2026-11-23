@@ -6,9 +6,9 @@
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)](#license)
 [![Node.js](https://img.shields.io/badge/node.js-%3E%3D22-339933?style=for-the-badge&logo=node.js&logoColor=white)](#requirements)
-[![Plugins](https://img.shields.io/badge/plugins-Claude%20Code%20%C2%B7%20Codex-8A2BE2?style=for-the-badge)](#quick-start)
+[![Plugins](https://img.shields.io/badge/plugins-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Gemini-8A2BE2?style=for-the-badge)](#quick-start)
 
-Local-first delegation for Claude Code and OpenAI Codex. The bridge exports a small Task Capsule, treats the returned Result Capsule as untrusted input, detects repository drift, stages clean changes in an isolated worktree, and runs validation locally before anything reaches your active branch.
+Local-first delegation for Claude Code, OpenAI Codex, and Gemini (Gemini CLI & Antigravity). The bridge exports a small Task Capsule, treats the returned Result Capsule as untrusted input, detects repository drift, stages clean changes in an isolated worktree, and runs validation locally before anything reaches your active branch.
 
 [Quick start](#quick-start) · [Install](#quick-start) · [Upgrade](#upgrade) · [How it works](#how-it-works) · [Security](#security-model)
 
@@ -39,11 +39,12 @@ Choose the path that matches your agent:
 
 | I use… | Install | Then… |
 | --- | --- | --- |
-| Claude Code | [`task-bridge` Claude plugin](#install-the-claude-code-plugin) | Invoke `/task-bridge:export-chatgpt` |
-| Codex | [`task-bridge` Codex plugin](#install-the-codex-plugin) | Ask Codex to export a bounded task |
+| Claude Code | [`task-bridge` Claude plugin](#install-the-claude-code-plugin) | Invoke `/task-bridge:plan-chatgpt` or `/task-bridge:export-chatgpt` |
+| Codex | [`task-bridge` Codex plugin](#install-the-codex-plugin) | Ask Codex to plan or export a bounded task |
+| Gemini CLI / Antigravity | [`task-bridge` Gemini plugin](#install-the-gemini-plugin) | Invoke `/plan-chatgpt` or `/export-chatgpt` |
 | Any local checkout | Clone or open this repository | Run `node bin/agent-task-bridge.mjs help` |
 
-The `AndriiLavrekha/relay` repository is private. Claude Code and Codex clone the marketplace with your own Git credentials. Run `gh auth login` or configure a Git credential helper before adding it.
+The `AndriiLavrekha/relay` repository is private. Claude Code, Codex, and Gemini clone the repository or marketplace with your own Git credentials. Run `gh auth login` or configure a Git credential helper before adding it.
 
 ### Install the Claude Code plugin
 
@@ -63,6 +64,7 @@ claude plugin install task-bridge@awesome-task-bridge
 
 After installation, start a new session or run `/reload-plugins` if Claude asks. The plugin provides namespaced skills:
 
+- `/task-bridge:plan-chatgpt` decomposes a feature along clean module seams into local host-owned wiring and bounded exportable units.
 - `/task-bridge:export-chatgpt` creates a Task Capsule.
 - `/task-bridge:import-chatgpt` validates and stages a returned Result Capsule.
 
@@ -83,6 +85,26 @@ codex plugin add task-bridge@awesome-task-bridge
 ```
 
 Start a new Codex session after installation so the plugin and skills reload. See [`plugins/codex/README.md`](plugins/codex/README.md) for workspace-local marketplace details. Release notes: [`v0.3.3`](https://github.com/AndriiLavrekha/relay/releases/tag/v0.3.3).
+
+### Install the Gemini plugin
+
+For **Gemini CLI**, install the extension directly from the repository URL (or link a local checkout):
+
+```bash
+gemini extensions install https://github.com/AndriiLavrekha/relay
+# or from a local checkout:
+gemini extensions link /absolute/path/to/relay
+```
+
+For **Antigravity CLI / IDE (`agy`)**, install the `plugins/gemini` bundle:
+
+```bash
+agy plugin install https://github.com/AndriiLavrekha/relay/tree/v0.3.3/plugins/gemini
+# or from a local checkout:
+agy plugin install /absolute/path/to/relay/plugins/gemini
+```
+
+When opening a checkout of this repository directly in Antigravity, `.agents/plugins.json` automatically discovers `plugins/gemini`. The plugin provides `/plan-chatgpt`, `/export-chatgpt`, and `/import-chatgpt` skills and commands. See [`plugins/gemini/README.md`](plugins/gemini/README.md) for details.
 
 ## Upgrade
 
@@ -122,6 +144,22 @@ session after the update. If prompted, review and trust the updated plugin hooks
 
 </details>
 
+<details>
+<summary><strong>Gemini (Gemini CLI & Antigravity)</strong></summary>
+
+```bash
+# Gemini CLI
+gemini extensions update task-bridge
+
+# Antigravity CLI
+agy plugin uninstall task-bridge
+agy plugin install https://github.com/AndriiLavrekha/relay/tree/v0.3.3/plugins/gemini
+```
+
+Restart your Gemini or Antigravity session after updating.
+
+</details>
+
 ## How it works
 
 1. Work normally in Claude Code or Codex.
@@ -135,19 +173,20 @@ session after the update. If prompted, review and trust the updated plugin hooks
 9. The coding agent reviews the diff, lifecycle, receipt, drift, validation, privacy, persisted worker report, and acceptance evidence before choosing whether to integrate it. Criteria marked deferred to the host are local gates. They are not sent back to the external worker.
 10. Use `review <import-id>` for the persisted review, `follow-up <import-id>` for unresolved worker-owned work, and `integrate <import-id> --confirm` for the separate integration boundary.
 
-The same protocol supports Claude Code → ChatGPT → Codex and Codex → ChatGPT → Claude Code because essential state lives in the Task Capsule and local task history, not in a provider's conversation database. A result status (`complete`, `partial`, `blocked`, or `research-only`) is orthogonal to lifecycle staging: safe in-scope files from partial results may still be staged and reviewed, while follow-up work records the unresolved criteria.
+The same protocol supports Claude Code, Codex, and Gemini interchangeably (for example Gemini → ChatGPT → Claude Code or Claude Code → ChatGPT → Gemini) because essential state lives in the Task Capsule and local task history, not in a provider's conversation database. A result status (`complete`, `partial`, `blocked`, or `research-only`) is orthogonal to lifecycle staging: safe in-scope files from partial results may still be staged and reviewed, while follow-up work records the unresolved criteria.
 
 ## Delegating a feature
 
-The plugin packages and checks the handoff. Your local agent (Claude Code or Codex) does the thinking: it plans the work, reads the codebase, and decides which files ChatGPT sees. The bridge does not build a dependency graph, and ChatGPT sees only the files embedded in the capsule. Steer the agent carefully.
+The plugin packages and checks the handoff. Your local agent (Claude Code, Codex, or Gemini) does the thinking: it plans the work, reads the codebase, and decides which files ChatGPT sees. The bridge does not build a dependency graph, and ChatGPT sees only the files embedded in the capsule. Steer the agent carefully.
 
 ### 1. Plan locally and split along the seams
 
-The plugin has no built-in brainstorming step. Plan with your agent before exporting anything:
+Use the `plan-chatgpt` skill (`/task-bridge:plan-chatgpt` in Claude Code, `/plan-chatgpt` in Gemini CLI & Antigravity, or ask Codex/Gemini to use `plan-chatgpt`) before exporting anything:
 
 ```text
-I want to build <feature>. Plan it and split it into units. For each unit, tell me
-whether to delegate it to ChatGPT or keep it local, and why. Don't export anything yet.
+/plan-chatgpt I want to build <feature>. Plan it and split it into units along clean seams.
+For each unit, tell me whether to delegate it to ChatGPT or keep it local, draft the delegation
+scope and files, and propose the seam commit first. Don't export anything yet.
 ```
 
 Good units to delegate are self-contained: a module behind an interface, a parser or algorithm, a test suite, or a migration of isolated files. Keep cross-cutting wiring local: registration, dependency injection, routing, configuration, and edits spread across many files.
@@ -514,6 +553,7 @@ A git-excluded `.agent-task-bridge/config.json` can set local defaults for `maxT
 | [`examples/delegation.example.json`](examples/delegation.example.json) | Example delegation input |
 | [`plugins/claude-code/README.md`](plugins/claude-code/README.md) | Claude Code plugin details |
 | [`plugins/codex/README.md`](plugins/codex/README.md) | Codex plugin and local marketplace details |
+| [`plugins/gemini/README.md`](plugins/gemini/README.md) | Gemini CLI and Antigravity plugin details |
 | [`docs/releases/v0.2.0.md`](docs/releases/v0.2.0.md) | v0.2 reliability release notes |
 | [`docs/releases/v0.2.1.md`](docs/releases/v0.2.1.md) | v0.2.1 visibility and execution-boundary notes |
 | [`docs/releases/v0.2.2.md`](docs/releases/v0.2.2.md) | v0.2.2 local project configuration |
@@ -536,7 +576,7 @@ npm run smoke
 npm pack --dry-run
 ```
 
-`npm run bundle:plugins` regenerates the self-contained Claude and Codex runtime copies. Keep those generated copies synchronized with `src/` and `bin/` when changing the implementation.
+`npm run bundle:plugins` regenerates the self-contained Claude, Codex, and Gemini runtime copies (and syncs root `skills/` for Gemini CLI). Keep those generated copies synchronized with `src/` and `bin/` when changing the implementation.
 
 ## Contributing
 

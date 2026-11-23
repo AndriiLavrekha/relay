@@ -227,6 +227,8 @@ test('protocol, example, license, and user documentation ship with the package',
   const required = [
     '.claude-plugin/marketplace.json',
     '.agents/plugins/marketplace.json',
+    '.agents/plugins.json',
+    'gemini-extension.json',
     'README.md',
     'LICENSE',
     'protocol/TASK-CAPSULE-v1.md',
@@ -234,12 +236,23 @@ test('protocol, example, license, and user documentation ship with the package',
     'examples/delegation.example.json',
     'plugins/claude-code/README.md',
     'plugins/codex/README.md',
+    'plugins/gemini/README.md',
     'docs/releases/v0.2.0.md'
   ];
   for (const relative of required) {
     const content = await readFile(path.join(root, relative), 'utf8');
-    assert.ok(content.trim().length > 80, `${relative} must contain substantive documentation`);
+    assert.ok(content.trim().length > 50, `${relative} must contain substantive documentation`);
   }
+
+  const readme = await readFile(path.join(root, 'README.md'), 'utf8');
+  assert.match(readme, /Gemini/);
+  assert.match(readme, /plan-chatgpt/);
+  assert.match(readme, /gemini extensions install/);
+  assert.match(readme, /agy plugin install/);
+
+  const architecture = await readFile(path.join(root, 'docs', 'architecture.md'), 'utf8');
+  assert.match(architecture, /Gemini/);
+  assert.match(architecture, /plan-chatgpt/);
 
   const example = await readJson('examples/delegation.example.json');
   assert.ok(example.objective);

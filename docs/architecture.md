@@ -4,14 +4,14 @@
 **Status:** Proposed architecture / implementation-ready design  
 **Date:** 2026-08-23  
 **Primary MVP transport:** ChatGPT manual file handoff  
-**Host coding agents:** Claude Code and OpenAI Codex  
+**Host coding agents:** Claude Code, OpenAI Codex, and Gemini (Gemini CLI & Antigravity)  
 **Working product name:** **Agent Task Bridge**  
 
 ---
 
 ## 1. Executive Summary
 
-Agent Task Bridge is an installable developer-tool plugin for **Claude Code** and **OpenAI Codex** that allows a developer to delegate a bounded unit of work from a local coding-agent session to **ChatGPT**, then safely import the returned work into the repository.
+Agent Task Bridge is an installable developer-tool plugin for **Claude Code**, **OpenAI Codex**, and **Gemini** (Gemini CLI and Antigravity CLI/IDE) that allows a developer to delegate a bounded unit of work from a local coding-agent session to **ChatGPT**, then safely import the returned work into the repository.
 
 The product is not primarily a chat-export tool. Its core abstraction is a **portable, versioned work-unit protocol**:
 
@@ -163,8 +163,9 @@ Instead:
 Agent Task Bridge Core
 ├── Protocol v1
 ├── Shared deterministic runtime
-├── Claude Code plugin adapter
-└── Codex plugin adapter
+├── Claude Code plugin adapter (plan-chatgpt, export-chatgpt, import-chatgpt)
+├── Codex plugin adapter (plan-chatgpt, export-chatgpt, import-chatgpt)
+└── Gemini plugin adapter (plan-chatgpt, export-chatgpt, import-chatgpt)
 ```
 
 The provider adapter may evolve independently without changing the delegation protocol.
