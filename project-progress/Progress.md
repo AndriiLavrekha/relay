@@ -1,11 +1,11 @@
 ---
-provider_last_used: claude-code
-session_id: c445b617-7a99-47ef-9003-9e74a6263c89
-checkpoint_at: 2026-11-22T01:24:25Z
+provider_last_used: gemini
+session_id: 5e62db67-5c54-415c-8054-6d5118304af4
+checkpoint_at: 2026-11-23T12:12:09Z
 worktree_dirty: true
 base_branch: main
-base_commit: 2caa69ad579809e58f35c88b77801105e71f2a14
-handoff: clean
+base_commit: 80c47a0847965d041dc14d0db238429fa590cca6
+handoff: interrupted
 gate_deploy: done
 gate_review: done
 gate_tests: done
@@ -13,10 +13,12 @@ gate_implementation: done
 project: agent-task-bridge
 progress_schema_version: 1
 status: deployed
-path: D:/depot/agent-task-bridge
-agent_last_used: unknown
-updated: 2026-11-22
-last_milestone: v0.3.0 released: round-trip integration fixes
+path: C:/depot/relay
+agent_last_used: Antigravity
+model_last_used: gemini-4-argon
+effort_last_used: medium
+updated: 2026-11-23
+last_milestone: Added Gemini host-agent support and cross-provider plan-chatgpt skill
 deployed: true
 deployment_url: https://github.com/AndriiLavrekha/relay
 sensitivity: normal
@@ -27,26 +29,25 @@ commit_progress: true
 
 ## Resume Snapshot
 
-v0.3.3 released: import now accepts ChatGPT's Markdown-escaped Copy-button replies (unescapes only `<<<ATB_` marker lines), and adds the experimental Claude Code skill `delegate-chatgpt-browser` (user-invoked only, caution gate every run, drives the developer's logged-in Chrome; OpenAI ToS risk documented in README and skill). Protocol 1.0 and schema 1.1 unchanged; bridge_version 0.3.3. Install docs pin AndriiLavrekha/relay@v0.3.3. Prototype findings: browser route worked end to end on a fixture capsule; `codex exec` could not be tested because the ChatGPT account hit its Codex usage limit (reset Nov 25 2026). npm test: 168 pass, 0 fail, 7 skipped. The repository is private.
+Added first-class Gemini host-agent support (`plugins/gemini/`, root `gemini-extension.json`, `commands/*.toml`, bundle-synced root `skills/`, and `.agents/plugins.json` scoped with `include_only: ["gemini"]`) for both Gemini CLI (`gemini extensions`) and Antigravity CLI/IDE (`agy plugin`), plus a new `plan-chatgpt` task-breakdown and seam-planning skill across Gemini, Claude Code, and Codex. Verified with `npm test` (177 pass, 0 fail, 7 skipped), `npm run smoke` (PASS across `claude-code`, `codex`, and `gemini`), `npm pack --dry-run`, `agy plugin validate --strict plugins/gemini` (0 errors, 0 warnings), and `gemini extensions validate` on `.` and `plugins/gemini`.
 
 ## Current State
 
-Package version is `0.3.0`. Marketplace catalogs and plugin manifests declare `0.3.0`.
+Package version is `0.3.3`. Marketplace catalogs, plugin manifests, and `gemini-extension.json` declare `0.3.3`.
 
 Verification:
-- `npm test`: 171 tests, 164 passed, 7 skipped (Windows symlink/reparse fixtures), 0 failed.
-- `npm run smoke` passed.
-- `npm pack --dry-run`: `agent-task-bridge@0.3.0`, 137 files, package size 119.3 kB, shasum `f5320c6622beb8b767ab8bbdc4232a3a9f79d6af`.
-- `claude plugin validate .` passed.
-- A real xUnit solution passed `dotnet test` in staging.
+- `npm test`: 184 tests, 177 passed, 7 skipped (Windows symlink/reparse fixtures), 0 failed.
+- `npm run smoke` passed across `claude-code`, `codex`, and `gemini`.
+- `npm pack --dry-run`: `agent-task-bridge@0.3.3`, 194 files.
+- `agy plugin validate --strict plugins/gemini`, `gemini extensions validate plugins/gemini`, and `gemini extensions validate .` all passed.
 
 ## Last Session
 
-Live ChatGPT round trip succeeded (Task 2 of agentic-wars-game clan hall; ZIP via pack_result.py, imported and pushed by another agent). Found and fixed: (1) process.mjs appendBounded counted the cap's remaining budget instead of kept bytes, so validation output after the first chunk was dropped and flagged truncated (build/test diagnostics lost in import reports); regression test added. (2) Timeout lines in the import report now hint at validationTimeoutMs / validationCommands. Earlier: kickoff.md uses `task.md` (committed 98bfb16). Runtimes rebuilt; npm test 165 pass, 0 fail, 7 skipped. Process/reporting fixes uncommitted.
+Designed, independently reviewed, planned, implemented, and verified Gemini host-agent support (`plugins/gemini`, root Gemini CLI extension files, `.agents/plugins.json`) and the `plan-chatgpt` task-breakdown skill across Gemini, Claude Code, and Codex (`docs/superpowers/specs/2026-11-23-gemini-support-design.md`, `docs/superpowers/plans/2026-11-23-gemini-support-plan.md`).
 
 ## Next Action
 
-User installs v0.3.3 and tries /task-bridge:delegate-chatgpt-browser end to end (the skill has not been run by a fresh agent yet). After the Codex limit resets (Nov 25 2026 2:36 PM), prototype `codex exec` on a capsule and consider `delegate --worker codex` tested against a stub codex binary. Also consider: making `integrate --mode in-place` refuse when staged validation failed; embedding type signatures automatically; cleaning leftover atb-integration worktrees in Temp.
+Try `/plan-chatgpt`, `/export-chatgpt`, and `/import-chatgpt` in Gemini CLI or Antigravity (or cut a `v0.3.4` release tag when ready to publish the Gemini plugin bundle).
 
 ## Remaining Work
 

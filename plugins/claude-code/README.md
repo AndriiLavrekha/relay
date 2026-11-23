@@ -1,6 +1,6 @@
 # Agent Task Bridge for Claude Code
 
-This directory is a self-contained Claude Code plugin. It contains the export/import skills and a generated copy of the deterministic Agent Task Bridge runtime, so Claude's plugin cache does not need files outside the installed plugin directory.
+This directory is a self-contained Claude Code plugin. It contains the planning/export/import skills (`plan-chatgpt`, `export-chatgpt`, `import-chatgpt`) and a generated copy of the deterministic Agent Task Bridge runtime, so Claude's plugin cache does not need files outside the installed plugin directory.
 
 ## Local installation from this repository
 
@@ -10,7 +10,7 @@ From Claude Code, add the `v0.3.3` release as a marketplace and install the plug
 2. `/plugin install task-bridge@awesome-task-bridge`
 3. Run `/reload-plugins` if Claude asks you to reload.
 
-The skills are namespaced by the plugin. Invoke `/task-bridge:export-chatgpt` to package a bounded unit and `/task-bridge:import-chatgpt` when a Result Capsule returns.
+The skills are namespaced by the plugin. Invoke `/task-bridge:plan-chatgpt` to decompose a feature along clean seams, `/task-bridge:export-chatgpt` to package a bounded unit, and `/task-bridge:import-chatgpt` when a Result Capsule returns.
 
 The plugin requires Node.js 22 or newer and Git. It requires no OpenAI API key and no Anthropic API key.
 

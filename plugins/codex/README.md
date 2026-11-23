@@ -1,6 +1,6 @@
 # Agent Task Bridge for Codex
 
-This directory is a self-contained Codex plugin bundle with `.codex-plugin/plugin.json`, export/import skills, and a generated copy of the deterministic bridge runtime.
+This directory is a self-contained Codex plugin bundle with `.codex-plugin/plugin.json`, planning/export/import skills (`plan-chatgpt`, `export-chatgpt`, `import-chatgpt`), and a generated copy of the deterministic bridge runtime.
 
 ## Install the v0.3.3 release
 
@@ -44,7 +44,7 @@ The marketplace file is `.agents/plugins/marketplace.json` and points to `./plug
 
 For another workspace, symlink or copy this directory to `<workspace>/plugins/codex` (or adjust the source path), then add the Agent Task Bridge entry to `<workspace>/.agents/plugins/marketplace.json`. For a user-wide local marketplace, place/symlink the plugin under `~/plugins/` and add an equivalent entry to `~/.agents/plugins/marketplace.json`.
 
-Once installed, use the Agent Task Bridge plugin/skills with prompts such as “Export this bounded task to ChatGPT” or “Import this ChatGPT Result Capsule and review it.”
+Once installed, use the Agent Task Bridge plugin/skills with prompts such as “Use plan-chatgpt to split this feature into exportable units,” “Export this bounded task to ChatGPT,” or “Import this ChatGPT Result Capsule and review it.”
 
 The plugin requires Node.js 22 or newer and Git. It requires no OpenAI API key and no Anthropic API key.
 

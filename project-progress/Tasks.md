@@ -24,3 +24,4 @@ updated: 2026-09-29
 - [x] Update Codex upgrade guidance to replace a pinned marketplace ref when moving releases.
 - [x] Approve the five 2026-09-29 specifications.
 - [x] Publish annotated tag and GitHub release `v0.2.3`. The five specifications are not implemented in that tag.
+- [x] Add Gemini host-agent support (`plugins/gemini/`, root Gemini CLI extension files, `.agents/plugins.json`) and cross-provider `plan-chatgpt` task-breakdown skill.
