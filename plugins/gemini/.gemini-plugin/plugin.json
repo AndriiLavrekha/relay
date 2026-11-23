@@ -1,7 +1,7 @@
 {
   "name": "task-bridge",
   "displayName": "Agent Task Bridge",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Plan, export, and safely import bounded repository work delegated to ChatGPT.",
   "author": {
     "name": "Agent Task Bridge contributors"

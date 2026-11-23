@@ -48,17 +48,17 @@ The `AndriiLavrekha/relay` repository is private. Claude Code, Codex, and Gemini
 
 ### Install the Claude Code plugin
 
-From Claude Code, add the `v0.3.3` marketplace release and install the plugin:
+From Claude Code, add the `v0.3.4` marketplace release and install the plugin:
 
 ```text
-/plugin marketplace add AndriiLavrekha/relay@v0.3.3
+/plugin marketplace add AndriiLavrekha/relay@v0.3.4
 /plugin install task-bridge@awesome-task-bridge
 ```
 
 Or use the CLI:
 
 ```bash
-claude plugin marketplace add AndriiLavrekha/relay@v0.3.3
+claude plugin marketplace add AndriiLavrekha/relay@v0.3.4
 claude plugin install task-bridge@awesome-task-bridge
 ```
 
@@ -77,34 +77,40 @@ codex plugin marketplace add /absolute/path/to/agent-task-bridge
 codex plugin add task-bridge@awesome-task-bridge
 ```
 
-For the GitHub marketplace, pin the v0.3.3 release with `--ref v0.3.3`:
+For the GitHub marketplace, pin the v0.3.4 release with `--ref v0.3.4`:
 
 ```bash
-codex plugin marketplace add AndriiLavrekha/relay --ref v0.3.3
+codex plugin marketplace add AndriiLavrekha/relay --ref v0.3.4
 codex plugin add task-bridge@awesome-task-bridge
 ```
 
-Start a new Codex session after installation so the plugin and skills reload. See [`plugins/codex/README.md`](plugins/codex/README.md) for workspace-local marketplace details. Release notes: [`v0.3.3`](https://github.com/AndriiLavrekha/relay/releases/tag/v0.3.3).
+Start a new Codex session after installation so the plugin and skills reload. See [`plugins/codex/README.md`](plugins/codex/README.md) for workspace-local marketplace details. Release notes: [`v0.3.4`](https://github.com/AndriiLavrekha/relay/releases/tag/v0.3.4).
 
 ### Install the Gemini plugin
 
-For **Gemini CLI**, install the extension directly from the repository URL (or link a local checkout):
+For **Gemini CLI**, install the extension from the repository URL (or link a local checkout):
 
 ```bash
-gemini extensions install https://github.com/AndriiLavrekha/relay
+gemini extensions install https://github.com/AndriiLavrekha/relay --ref v0.3.4
 # or from a local checkout:
 gemini extensions link /absolute/path/to/relay
 ```
 
-For **Antigravity CLI / IDE (`agy`)**, install the `plugins/gemini` bundle:
+For **Antigravity CLI / IDE (`agy`)**, install the `plugins/gemini` bundle from the `v0.3.4` release tag (or from a local checkout):
 
 ```bash
-agy plugin install https://github.com/AndriiLavrekha/relay/tree/v0.3.3/plugins/gemini
+agy plugin install https://github.com/AndriiLavrekha/relay/tree/v0.3.4/plugins/gemini
 # or from a local checkout:
 agy plugin install /absolute/path/to/relay/plugins/gemini
 ```
 
-When opening a checkout of this repository directly in Antigravity, `.agents/plugins.json` automatically discovers `plugins/gemini`. The plugin provides `/plan-chatgpt`, `/export-chatgpt`, and `/import-chatgpt` skills and commands. See [`plugins/gemini/README.md`](plugins/gemini/README.md) for details.
+When opening a checkout of this repository directly in Antigravity, `.agents/plugins.json` automatically discovers `plugins/gemini`. Start a new Gemini or Antigravity session after installation. The plugin provides:
+
+- `/plan-chatgpt` (`plan-chatgpt` skill) decomposes a feature along clean module seams into local host-owned wiring and bounded exportable units.
+- `/export-chatgpt` (`export-chatgpt` skill) creates a Task Capsule (`--source-agent gemini`).
+- `/import-chatgpt` (`import-chatgpt` skill) validates and stages a returned Result Capsule.
+
+See [`plugins/gemini/README.md`](plugins/gemini/README.md) for details.
 
 ## Upgrade
 
@@ -114,7 +120,8 @@ Use the command path that matches your installation:
 <summary><strong>Claude Code</strong></summary>
 
 ```bash
-claude plugin marketplace update awesome-task-bridge
+claude plugin marketplace remove awesome-task-bridge
+claude plugin marketplace add AndriiLavrekha/relay@v0.3.4
 claude plugin update task-bridge@awesome-task-bridge
 claude plugin list
 ```
@@ -129,15 +136,15 @@ Restart Claude Code or reload plugins after the update.
 ```bash
 codex plugin remove task-bridge@awesome-task-bridge
 codex plugin marketplace remove awesome-task-bridge
-codex plugin marketplace add AndriiLavrekha/relay --ref v0.3.3
+codex plugin marketplace add AndriiLavrekha/relay --ref v0.3.4
 codex plugin add task-bridge@awesome-task-bridge
 codex plugin list
 ```
 
 The [latest stable release](https://github.com/AndriiLavrekha/relay/releases/latest) is
-`v0.3.3`. `codex plugin marketplace upgrade` only refreshes the currently configured Git ref; it
-does not move an existing marketplace from an older pinned tag to `v0.3.3`. Re-add the marketplace
-with `--ref v0.3.3` when moving off an older pin.
+`v0.3.4`. `codex plugin marketplace upgrade` only refreshes the currently configured Git ref; it
+does not move an existing marketplace from an older pinned tag to `v0.3.4`. Re-add the marketplace
+with `--ref v0.3.4` when moving off an older pin.
 
 For unreleased development code, use `--ref main` instead of a release tag. Start a new Codex
 session after the update. If prompted, review and trust the updated plugin hooks.
@@ -153,7 +160,7 @@ gemini extensions update task-bridge
 
 # Antigravity CLI
 agy plugin uninstall task-bridge
-agy plugin install https://github.com/AndriiLavrekha/relay/tree/v0.3.3/plugins/gemini
+agy plugin install https://github.com/AndriiLavrekha/relay/tree/v0.3.4/plugins/gemini
 ```
 
 Restart your Gemini or Antigravity session after updating.
@@ -561,6 +568,7 @@ A git-excluded `.agent-task-bridge/config.json` can set local defaults for `maxT
 | [`docs/releases/v0.3.1.md`](docs/releases/v0.3.1.md) | v0.3.1 fixes |
 | [`docs/releases/v0.3.2.md`](docs/releases/v0.3.2.md) | v0.3.2 changes |
 | [`docs/releases/v0.3.3.md`](docs/releases/v0.3.3.md) | v0.3.3 reply import fix and experimental browser delegation |
+| [`docs/releases/v0.3.4.md`](docs/releases/v0.3.4.md) | v0.3.4 Gemini support and cross-provider `plan-chatgpt` skill |
 | [`protocol/`](protocol/) | Task and Result Capsule specifications |
 | [`src/`](src/) | Canonical bridge runtime |
 | [`AGENTS.md`](AGENTS.md) | Repository structure and contribution conventions |

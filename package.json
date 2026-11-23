@@ -1,6 +1,6 @@
 {
   "name": "agent-task-bridge",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Portable task delegation bridge between coding agents and external workers such as ChatGPT",
   "type": "module",
   "engines": {
@@ -31,6 +31,7 @@
     "docs/releases/v0.3.1.md",
     "docs/releases/v0.3.2.md",
     "docs/releases/v0.3.3.md",
+    "docs/releases/v0.3.4.md",
     "docs/superpowers/specs/2026-09-29-live-codex-chatgpt-round-trip-design.md",
     "docs/superpowers/specs/2026-09-29-related-file-suggestions-design.md",
     "docs/superpowers/specs/2026-09-29-validation-os-sandbox-design.md",

@@ -1,5 +1,5 @@
 {
   "name": "task-bridge",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Plan, export, and safely import bounded repository work delegated to ChatGPT."
 }

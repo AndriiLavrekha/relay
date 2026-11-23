@@ -7,7 +7,7 @@ This directory is a self-contained Gemini plugin and extension bundle with `.gem
 Install directly from the `plugins/gemini` subdirectory of a release or checkout:
 
 ```bash
-agy plugin install https://github.com/AndriiLavrekha/relay/tree/v0.3.3/plugins/gemini
+agy plugin install https://github.com/AndriiLavrekha/relay/tree/v0.3.4/plugins/gemini
 ```
 
 Or from a local checkout:

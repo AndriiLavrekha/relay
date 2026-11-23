@@ -18,7 +18,7 @@ agent_last_used: Antigravity
 model_last_used: gemini-4-argon
 effort_last_used: medium
 updated: 2026-11-23
-last_milestone: Added Gemini host-agent support and cross-provider plan-chatgpt skill
+last_milestone: v0.3.4 released: Gemini host-agent support and cross-provider plan-chatgpt skill
 deployed: true
 deployment_url: https://github.com/AndriiLavrekha/relay
 sensitivity: normal
@@ -29,25 +29,25 @@ commit_progress: true
 
 ## Resume Snapshot
 
-Added first-class Gemini host-agent support (`plugins/gemini/`, root `gemini-extension.json`, `commands/*.toml`, bundle-synced root `skills/`, and `.agents/plugins.json` scoped with `include_only: ["gemini"]`) for both Gemini CLI (`gemini extensions`) and Antigravity CLI/IDE (`agy plugin`), plus a new `plan-chatgpt` task-breakdown and seam-planning skill across Gemini, Claude Code, and Codex. Verified with `npm test` (177 pass, 0 fail, 7 skipped), `npm run smoke` (PASS across `claude-code`, `codex`, and `gemini`), `npm pack --dry-run`, `agy plugin validate --strict plugins/gemini` (0 errors, 0 warnings), and `gemini extensions validate` on `.` and `plugins/gemini`.
+v0.3.4 released: added first-class Gemini host-agent support (`plugins/gemini/`, root `gemini-extension.json`, `commands/*.toml`, bundle-synced root `skills/`, and `.agents/plugins.json` scoped with `include_only: ["gemini"]`) for both Gemini CLI (`gemini extensions`) and Antigravity CLI/IDE (`agy plugin`), plus the `plan-chatgpt` task-breakdown and seam-planning skill across Gemini, Claude Code, and Codex. Protocol 1.0 and schema 1.1 unchanged; `bridge_version` and `exporter_version` are `0.3.4`. Install docs and marketplaces pin `v0.3.4`. Verified with `npm test` (177 pass, 0 fail, 7 skipped), `npm run smoke` (PASS across `claude-code`, `codex`, and `gemini`), `npm pack --dry-run`, `agy plugin validate --strict plugins/gemini` (0 errors, 0 warnings), and `gemini extensions validate` on `.` and `plugins/gemini`.
 
 ## Current State
 
-Package version is `0.3.3`. Marketplace catalogs, plugin manifests, and `gemini-extension.json` declare `0.3.3`.
+Package version is `0.3.4`. Marketplace catalogs, plugin manifests, and `gemini-extension.json` declare `0.3.4`.
 
 Verification:
 - `npm test`: 184 tests, 177 passed, 7 skipped (Windows symlink/reparse fixtures), 0 failed.
 - `npm run smoke` passed across `claude-code`, `codex`, and `gemini`.
-- `npm pack --dry-run`: `agent-task-bridge@0.3.3`, 194 files.
+- `npm pack --dry-run`: `agent-task-bridge@0.3.4`, 195 files.
 - `agy plugin validate --strict plugins/gemini`, `gemini extensions validate plugins/gemini`, and `gemini extensions validate .` all passed.
 
 ## Last Session
 
-Designed, independently reviewed, planned, implemented, and verified Gemini host-agent support (`plugins/gemini`, root Gemini CLI extension files, `.agents/plugins.json`) and the `plan-chatgpt` task-breakdown skill across Gemini, Claude Code, and Codex (`docs/superpowers/specs/2026-11-23-gemini-support-design.md`, `docs/superpowers/plans/2026-11-23-gemini-support-plan.md`).
+Designed, independently reviewed, planned, implemented, verified, and released v0.3.4 with Gemini host-agent support (`plugins/gemini`, root Gemini CLI extension files, `.agents/plugins.json`) and the `plan-chatgpt` task-breakdown skill across Gemini, Claude Code, and Codex (`docs/releases/v0.3.4.md`).
 
 ## Next Action
 
-Try `/plan-chatgpt`, `/export-chatgpt`, and `/import-chatgpt` in Gemini CLI or Antigravity (or cut a `v0.3.4` release tag when ready to publish the Gemini plugin bundle).
+Install v0.3.4 in Gemini CLI (`gemini extensions install https://github.com/AndriiLavrekha/relay --ref v0.3.4`), Antigravity (`agy plugin install https://github.com/AndriiLavrekha/relay/tree/v0.3.4/plugins/gemini`), Claude Code, or Codex, and use `/plan-chatgpt`, `/export-chatgpt`, and `/import-chatgpt`.
 
 ## Remaining Work
 
@@ -82,10 +82,12 @@ No technical blockers. Seven Windows symlink/reparse-point tests are skipped on 
 
 ## Deployment
 
-Published release: https://github.com/AndriiLavrekha/relay/releases/tag/v0.3.0 (annotated tag `v0.3.0` on `main`). The repository is renamed from `task-bridge` to `relay` and is private, so installs need the user's Git credentials.
+Published release: https://github.com/AndriiLavrekha/relay/releases/tag/v0.3.4 (annotated tag `v0.3.4` on `main`). The repository is private, so installs need the user's Git credentials.
 
-- Claude Code: `/plugin marketplace add AndriiLavrekha/relay@v0.3.0`, then `/plugin install task-bridge@awesome-task-bridge`.
-- Codex: `codex plugin marketplace add AndriiLavrekha/relay --ref v0.3.0`, then `codex plugin add task-bridge@awesome-task-bridge`.
+- Claude Code: `/plugin marketplace add AndriiLavrekha/relay@v0.3.4`, then `/plugin install task-bridge@awesome-task-bridge`.
+- Codex: `codex plugin marketplace add AndriiLavrekha/relay --ref v0.3.4`, then `codex plugin add task-bridge@awesome-task-bridge`.
+- Gemini CLI: `gemini extensions install https://github.com/AndriiLavrekha/relay --ref v0.3.4`.
+- Antigravity CLI/IDE: `agy plugin install https://github.com/AndriiLavrekha/relay/tree/v0.3.4/plugins/gemini`.
 
 ## Completion Criteria
 
