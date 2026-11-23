@@ -1,11 +1,11 @@
 ---
 provider_last_used: gemini
 session_id: 939ef4e6-bba0-475d-82af-f4d1a95521a3
-checkpoint_at: 2026-11-23T17:33:41Z
+checkpoint_at: 2026-11-23T22:25:14Z
 worktree_dirty: true
-base_branch: main
-base_commit: 8ccb83a88784c7570a6fcb886c2e3aa93498d4ba
-handoff: interrupted
+base_branch: feat/metrics
+base_commit: 42e89decf3ea93c34baa70c6601ed12ec16155ba
+handoff: clean
 gate_deploy: done
 gate_review: done
 gate_tests: done
@@ -29,7 +29,7 @@ commit_progress: true
 
 ## Resume Snapshot
 
-v0.3.4 released: added first-class Gemini host-agent support (`plugins/gemini/`, root `gemini-extension.json`, `commands/*.toml`, bundle-synced root `skills/`, and `.agents/plugins.json` scoped with `include_only: ["gemini"]`) for both Gemini CLI (`gemini extensions`) and Antigravity CLI/IDE (`agy plugin`), plus the `plan-chatgpt` task-breakdown and seam-planning skill across Gemini, Claude Code, and Codex. Protocol 1.0 and schema 1.1 unchanged; `bridge_version` and `exporter_version` are `0.3.4`. Install docs and marketplaces pin `v0.3.4`. Verified with `npm test` (177 pass, 0 fail, 7 skipped), `npm run smoke` (PASS across `claude-code`, `codex`, and `gemini`), `npm pack --dry-run`, `agy plugin validate --strict plugins/gemini` (0 errors, 0 warnings), and `gemini extensions validate` on `.` and `plugins/gemini`.
+Branch feat/metrics (uncommitted, nothing committed): added `agent-task-bridge metrics` (src/metrics.mjs) plus a Claude Code Stop hook (plugins/claude-code/hooks/hooks.json). It reads Claude Code transcripts, attributes tokens and list-price cost to prep/export/import/plan per task id, keeps an append-only ledger at .agent-task-bridge/metrics.jsonl (ids, timestamps, counts only), and supports `metrics note <task-id> --claude-estimate <usd>` for a saving %. Verified: cost matches true session cost exactly on 19 real headless runs (18 bench + 1 live hook session); Sonnet 5.5 rates fitted exactly from 100 runs (input 2 and 5m cache write 2.5 are assumptions). npm test now `node --test "test/**/*.test.mjs"` (bench/ fixtures fail by design and were being picked up): 182 tests, 175 pass, 7 skipped, 0 fail; smoke PASS; plugin bundles regenerated. Also uncommitted: bench/ harness (arms, relay, chatgpt) and its README results. Finding from the live run: the export prep phase is about 80% of orchestration cost.
 
 ## Current State
 
@@ -47,7 +47,7 @@ Designed, independently reviewed, planned, implemented, verified, and released v
 
 ## Next Action
 
-Install v0.3.4 in Gemini CLI (`gemini extensions install https://github.com/AndriiLavrekha/relay --ref v0.3.4`), Antigravity (`agy plugin install https://github.com/AndriiLavrekha/relay/tree/v0.3.4/plugins/gemini`), Claude Code, or Codex, and use `/plan-chatgpt`, `/export-chatgpt`, and `/import-chatgpt`.
+Review and commit on feat/metrics (metrics feature, bench harness, package.json test glob). Install the branch plugin (/plugin marketplace add with the local path), use the plugin for a while, then run `metrics --repo .` and record `metrics note <task-id> --claude-estimate <usd>` per task to get real saving percentages. Consider a release note and version bump if merged.
 
 ## Remaining Work
 
