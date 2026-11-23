@@ -1,0 +1,56 @@
+{
+  "id": "small-duration",
+  "size": "small project / small task",
+  "source": {
+    "type": "dir",
+    "path": "fixture"
+  },
+  "hidden": {
+    "type": "dir",
+    "path": "hidden"
+  },
+  "solution": {
+    "type": "dir",
+    "path": "solution"
+  },
+  "accept": "node --test test/duration.hidden.test.mjs",
+  "regression": "npm test",
+  "budgetUsd": 2,
+  "prompt": "Implement `parseDuration(input)` in src/duration.mjs; it is currently a stub. It is the inverse of `formatDuration` in src/format.mjs.\n\nBehavior:\n- Input is a string like `1d2h30m15s`. Units are d, h, m, s (case-insensitive). Each unit may appear at most once and units must be in descending order (d, h, m, s).\n- Whitespace is allowed around and between parts (`' 1h 30m '` is valid).\n- Return the total number of seconds as an integer. Parts are whole numbers only.\n- A non-string argument throws TypeError.\n- Empty or blank strings, a bare number with no unit (`'90'`), unknown units, decimals or signs, duplicate units, and out-of-order units all throw RangeError.\n- `parseDuration(formatDuration(n))` must equal `n` for every non-negative integer n.\n\nAdd tests for the edge cases to the existing test file, and run `npm test` until it passes.",
+  "delegation": {
+    "title": "parseDuration",
+    "workUnit": "Implement parseDuration in src/duration.mjs and add edge-case tests to test/duration.test.mjs.",
+    "deliverables": [
+      "parseDuration implementation",
+      "Edge-case tests in the existing test file"
+    ],
+    "editable_scope": [
+      "src/duration.mjs",
+      "test/duration.test.mjs"
+    ],
+    "acceptance_criteria": [
+      "Parses d/h/m/s parts (case-insensitive, whitespace allowed) into integer seconds",
+      "Non-string input throws TypeError",
+      "Empty/blank, bare number, unknown unit, decimal/sign, duplicate and out-of-order units throw RangeError",
+      "parseDuration(formatDuration(n)) === n for every non-negative integer n",
+      "Edge cases are covered by tests and npm test passes"
+    ],
+    "non_goals": [
+      "Changing formatDuration or src/format.mjs"
+    ],
+    "files": {
+      "editable": [
+        "src/duration.mjs",
+        "test/duration.test.mjs"
+      ],
+      "reference": [
+        "src/format.mjs"
+      ],
+      "contract": [],
+      "validation": [
+        "package.json"
+      ],
+      "configuration": []
+    }
+  }
+}

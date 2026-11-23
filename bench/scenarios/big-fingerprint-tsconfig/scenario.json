@@ -1,0 +1,67 @@
+{
+  "id": "big-fingerprint-tsconfig",
+  "size": "big project / medium task",
+  "source": {
+    "type": "git",
+    "commit": "1121c59~1"
+  },
+  "hidden": {
+    "type": "git",
+    "commit": "1121c59",
+    "files": [
+      "test/context.test.mjs",
+      "test/host-boundaries.test.mjs"
+    ]
+  },
+  "solution": {
+    "type": "git",
+    "commit": "1121c59"
+  },
+  "accept": "node --test test/context.test.mjs test/host-boundaries.test.mjs",
+  "regression": "npm test",
+  "budgetUsd": 6,
+  "prompt": "This repo is a Node.js ESM project; read AGENTS.md first and follow it.\n\nTwo related changes.\n\n1. `fingerprintProject` (src/fingerprint.mjs) must report TypeScript strictness and declared tooling.\n   - When a `tsconfig.json` exists, add `typescript_options`: an object holding only those of these compilerOptions keys that are set, with their values: strict, strictNullChecks, noImplicitAny, noUncheckedIndexedAccess, exactOptionalPropertyTypes, noImplicitOverride, noImplicitReturns, noUnusedLocals, noUnusedParameters, verbatimModuleSyntax, target, module, moduleResolution.\n   - tsconfig files are JSONC: they can contain comments and trailing commas, and a `//` inside a string is not a comment. They can have a relative `extends` (with or without the `.json` suffix). Follow the extends chain up to 5 levels deep; the child's options override the parent's. A tsconfig that cannot be read or parsed contributes nothing.\n   - Add `tooling`: an object with the declared version string (from dependencies or devDependencies) for each of these packages that is present: typescript, vitest, jest, eslint, prettier.\n   - `typescript` stays a boolean.\n\n2. In the Task Capsule worker rules (src/task-capsule.mjs), add a new rule 7 titled `**Review statically before returning.**` and renumber the existing 'Map evidence' rule to 8. The new rule tells the worker to apply the fingerprint's `typescript_options` and `tooling`, narrow optional values before use (it must name `noUncheckedIndexedAccess`), match the declared contract types exactly, and trace its own tests through the code. Write the whole rule on a single line.\n\nAdd tests for both changes. The plugin runtimes under plugins/ are generated from src/, so run `npm run bundle:plugins` after editing src/. Finish with a passing `npm test`.",
+  "delegation": {
+    "title": "TypeScript strictness in fingerprint and static-review rule",
+    "workUnit": "Extend fingerprintProject with typescript_options and tooling, and add the static-review worker rule to the Task Capsule template, with tests.",
+    "deliverables": [
+      "fingerprintProject changes in src/fingerprint.mjs",
+      "Rule 7 and renumbered rule 8 in src/task-capsule.mjs",
+      "Tests in test/context.test.mjs and test/host-boundaries.test.mjs"
+    ],
+    "editable_scope": [
+      "src/fingerprint.mjs",
+      "src/task-capsule.mjs",
+      "test/context.test.mjs",
+      "test/host-boundaries.test.mjs"
+    ],
+    "acceptance_criteria": [
+      "typescript_options reports only the listed compilerOptions keys that are set",
+      "tsconfig JSONC (comments, trailing commas, // inside strings) and relative extends chains up to 5 levels (child overrides parent) are handled; unreadable configs contribute nothing",
+      "tooling reports declared versions of typescript, vitest, jest, eslint, prettier only",
+      "typescript stays a boolean",
+      "The Task Capsule worker rules contain, on a single line, rule 7 titled **Review statically before returning.** naming noUncheckedIndexedAccess, and Map evidence is renumbered to 8",
+      "Tests cover both changes and npm test passes"
+    ],
+    "non_goals": [
+      "Editing generated files under plugins/",
+      "Changing other capsule rules"
+    ],
+    "files": {
+      "editable": [
+        "src/fingerprint.mjs",
+        "src/task-capsule.mjs",
+        "test/context.test.mjs",
+        "test/host-boundaries.test.mjs"
+      ],
+      "reference": [],
+      "contract": [],
+      "validation": [],
+      "configuration": []
+    },
+    "postApply": "npm run bundle:plugins",
+    "hostSteps": [
+      "Regenerating the plugin runtimes under plugins/ with npm run bundle:plugins"
+    ]
+  }
+}

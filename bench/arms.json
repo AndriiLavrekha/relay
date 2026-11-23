@@ -1,0 +1,19 @@
+{
+  "_comment": "Each arm re-enables one slice of YOUR ~/.claude/settings.json on top of a stripped baseline. hooks: keep hooks whose command contains any of these strings. plugins: enabledPlugins ids. env: settings env keys to copy. expect/forbid: substrings that must / must not appear in the run's system events (hook names and hook output); a violation marks the run invalid so an arm that never fired cannot pass for a result. RTK has no session-start output, so it is checked softly: the report shows PreToolUse:Bash hook hits next to Bash vs PowerShell calls.",
+  "baseline": { "forbid": ["hook_started", "PONYTAIL MODE", "Build simplest complete system"] },
+  "rtk": { "hooks": ["rtk hook"], "forbid": ["PONYTAIL MODE", "Build simplest complete system"] },
+  "caveman": {
+    "hooks": ["caveman"],
+    "env": ["ANTHROPIC_BASE_URL", "_CLAUDE_CODE_ASSUME_FIRST_PARTY_BASE_URL"],
+    "expect": ["Build simplest complete system"],
+    "forbid": ["PONYTAIL MODE"]
+  },
+  "ponytail": { "plugins": ["ponytail@ponytail"], "expect": ["PONYTAIL MODE"], "forbid": ["Build simplest complete system"] },
+  "relay": { "plugins": ["task-bridge@awesome-task-bridge"], "forbid": ["PONYTAIL MODE", "Build simplest complete system"] },
+  "all": {
+    "hooks": ["rtk hook", "caveman"],
+    "env": ["ANTHROPIC_BASE_URL", "_CLAUDE_CODE_ASSUME_FIRST_PARTY_BASE_URL"],
+    "plugins": ["ponytail@ponytail"],
+    "expect": ["PONYTAIL MODE", "Build simplest complete system"]
+  }
+}

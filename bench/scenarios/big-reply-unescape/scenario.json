@@ -1,0 +1,62 @@
+{
+  "id": "big-reply-unescape",
+  "size": "big project / small task",
+  "source": {
+    "type": "git",
+    "commit": "cb36fe9~1"
+  },
+  "hidden": {
+    "type": "git",
+    "commit": "cb36fe9",
+    "files": [
+      "test/round-trip.test.mjs"
+    ]
+  },
+  "solution": {
+    "type": "git",
+    "commit": "cb36fe9"
+  },
+  "accept": "node --test test/round-trip.test.mjs",
+  "regression": "npm test",
+  "budgetUsd": 5,
+  "prompt": "This repo is a Node.js ESM project; read AGENTS.md first and follow it.\n\nBug: `parseResultReply` in src/reply.mjs rejects replies that were copied with ChatGPT's Copy button, because that button re-serialises the reply as Markdown. In the copied text, the marker lines are backslash-escaped, for example `<<\\<ATB_RESULT:ATB_atb_demo_0123456789abcdef>>>\\` and `<<\\<ATB_FILE:...>>> src/a.mjs` and `<<\\<ATB_END:...>>>`. Escaping can hit `<`, `>` and `_` inside a marker, and hard-break lines end in a trailing backslash. The `status:` and `summary:` lines can also end in a trailing backslash.\n\nMake `parseResultReply` accept this escaped form and return the same result as for the unescaped reply. Only marker lines (lines that start with the `<<<ATB_` marker, in escaped or plain form) and the `status:` / `summary:` values may be unescaped. File content inside code fences must never be altered, so a literal backslash in a file stays a backslash.\n\nAdd a regression test to test/round-trip.test.mjs. The plugin runtimes under plugins/ are generated from src/, so run `npm run bundle:plugins` after editing src/. Finish with a passing `npm test`.",
+  "delegation": {
+    "title": "Accept Markdown-escaped replies",
+    "workUnit": "Fix parseResultReply in src/reply.mjs for Markdown-escaped marker lines and add a regression test to test/round-trip.test.mjs.",
+    "deliverables": [
+      "Fix in src/reply.mjs",
+      "Regression test in test/round-trip.test.mjs"
+    ],
+    "editable_scope": [
+      "src/reply.mjs",
+      "test/round-trip.test.mjs"
+    ],
+    "acceptance_criteria": [
+      "An escaped reply (marker lines with backslash-escaped brackets and a trailing backslash, and a trailing backslash on status/summary values) parses to the same result as the plain reply",
+      "Only marker lines and status/summary values are unescaped",
+      "File content inside code fences is never altered; a literal backslash in a file stays a backslash",
+      "A regression test covers the escaped form and npm test passes"
+    ],
+    "non_goals": [
+      "Editing generated files under plugins/",
+      "Changing the reply format or markers"
+    ],
+    "files": {
+      "editable": [
+        "src/reply.mjs",
+        "test/round-trip.test.mjs"
+      ],
+      "reference": [
+        "src/path-safety.mjs",
+        "src/errors.mjs"
+      ],
+      "contract": [],
+      "validation": [],
+      "configuration": []
+    },
+    "postApply": "npm run bundle:plugins",
+    "hostSteps": [
+      "Regenerating the plugin runtimes under plugins/ with npm run bundle:plugins"
+    ]
+  }
+}
