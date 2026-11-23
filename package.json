@@ -36,8 +36,12 @@
     "docs/superpowers/specs/2026-09-29-validation-os-sandbox-design.md",
     "docs/superpowers/specs/2026-09-29-windows-symlink-ci-design.md",
     "docs/superpowers/specs/2026-09-29-handoff-command-design.md",
+    "docs/superpowers/specs/2026-11-23-gemini-support-design.md",
     "README.md",
     "LICENSE",
+    "gemini-extension.json",
+    "commands",
+    "skills",
     ".claude-plugin",
     ".agents"
   ]

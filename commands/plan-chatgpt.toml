@@ -1,0 +1,2 @@
+description = "Plan and split a feature or multi-part task along clean module seams into local host-owned wiring and bounded units to export to ChatGPT"
+prompt = "Use the plan-chatgpt skill to analyze and split this work for ChatGPT delegation: {{args}}. Inspect the repository, split the work along clean seams into local host-owned work versus bounded ChatGPT units, propose the seam commit first, draft the delegation contract fields (editable_scope, files, acceptance_criteria, host_owned_steps), and wait for my confirmation before exporting."

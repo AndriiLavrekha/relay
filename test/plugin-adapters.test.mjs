@@ -15,7 +15,7 @@ async function canonicalRuntimeFiles() {
   return ['bin/agent-task-bridge.mjs', ...src.map((name) => `src/${name}`)];
 }
 
-for (const provider of ['claude-code', 'codex']) {
+for (const provider of ['claude-code', 'codex', 'gemini']) {
   test(`${provider} bundle contains an exact runnable copy of the shared runtime`, async () => {
     const files = await canonicalRuntimeFiles();
     for (const relative of files) {
@@ -160,6 +160,30 @@ test('Gemini plugin declares Antigravity and Gemini CLI manifests, shared skills
   const readme = await readFile(path.join(root, 'plugins', 'gemini', 'README.md'), 'utf8');
   assert.match(readme, /gemini extensions/);
   assert.match(readme, /agy plugin/);
+
+  const rootExt = await readJson('gemini-extension.json');
+  assert.deepEqual(rootExt, ext);
+
+  const pluginsConfig = await readJson('.agents/plugins.json');
+  assert.deepEqual(pluginsConfig, {
+    entries: [
+      {
+        path: 'plugins',
+        include_only: ['gemini']
+      }
+    ]
+  });
+
+  for (const name of ['plan-chatgpt', 'export-chatgpt', 'import-chatgpt']) {
+    const cmd = await readFile(path.join(root, 'commands', `${name}.toml`), 'utf8');
+    assert.match(cmd, /description\s*=/);
+    assert.match(cmd, /prompt\s*=/);
+    assert.match(cmd, /\{\{args\}\}/);
+
+    const pluginSkill = await readFile(path.join(root, 'plugins', 'gemini', 'skills', name, 'SKILL.md'));
+    const rootSkill = await readFile(path.join(root, 'skills', name, 'SKILL.md'));
+    assert.deepEqual(rootSkill, pluginSkill, `root skills/${name}/SKILL.md is stale`);
+  }
 });
 
 test('Codex documentation provides an explicit local marketplace install flow', async () => {
@@ -180,6 +204,10 @@ test('release package includes verification scripts and architecture documentati
   assert.ok(pkg.files.includes('docs/releases/v0.3.1.md'));
   assert.ok(pkg.files.includes('docs/releases/v0.3.2.md'));
   assert.ok(pkg.files.includes('docs/releases/v0.3.3.md'));
+  assert.ok(pkg.files.includes('gemini-extension.json'));
+  assert.ok(pkg.files.includes('commands'));
+  assert.ok(pkg.files.includes('skills'));
+  assert.ok(pkg.files.includes('docs/superpowers/specs/2026-11-23-gemini-support-design.md'));
 });
 
 test('repository ships local marketplace catalogs for both providers', async () => {

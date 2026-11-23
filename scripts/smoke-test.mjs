@@ -121,9 +121,10 @@ try {
   const flows = [];
   flows.push(await runCrossProviderFlow({ exportProvider: 'claude-code', importProvider: 'codex', targetValue: 2 }));
   flows.push(await runCrossProviderFlow({ exportProvider: 'codex', importProvider: 'claude-code', targetValue: 3 }));
+  flows.push(await runCrossProviderFlow({ exportProvider: 'gemini', importProvider: 'claude-code', targetValue: 4 }));
 
   const version = JSON.parse(await readFile(path.join(projectRoot, 'package.json'), 'utf8')).version;
-  for (const provider of ['claude-code', 'codex']) {
+  for (const provider of ['claude-code', 'codex', 'gemini']) {
     const providerRun = await runProcess(process.execPath, [providerCli(provider), 'version']);
     assert.equal(providerRun.stdout.trim(), version);
   }
@@ -132,7 +133,7 @@ try {
     smoke: 'PASS',
     flows,
     activeRepositorySource: await readFile(path.join(fixture, 'src', 'value.js'), 'utf8'),
-    providerRuntimes: ['claude-code', 'codex']
+    providerRuntimes: ['claude-code', 'codex', 'gemini']
   }, null, 2));
 } finally {
   await rm(fixture, { recursive: true, force: true });
