@@ -1,6 +1,6 @@
 {
   "name": "agent-task-bridge",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "description": "Portable task delegation bridge between coding agents and external workers such as ChatGPT",
   "type": "module",
   "engines": {

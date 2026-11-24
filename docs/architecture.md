@@ -623,9 +623,9 @@ capsule_type: task
 task_id: "atb_01JXYZ..."
 created_at: "2026-08-23T17:30:00+02:00"
   schema_version: "1.1"
-  bridge_version: "0.3.4"
+  bridge_version: "0.3.5"
   hash_algorithm: "sha256"
-  exporter_version: "0.3.4"
+  exporter_version: "0.3.5"
   host_owned_steps:
     - "Authoritative monorepo/workspace test & build gates"
     - "Live services, databases, and network credentials"

@@ -17,8 +17,8 @@ path: C:/depot/relay
 agent_last_used: Antigravity
 model_last_used: gemini-4-argon
 effort_last_used: medium
-updated: 2026-11-23
-last_milestone: v0.3.4 released: Gemini host-agent support and cross-provider plan-chatgpt skill
+updated: 2026-11-24
+last_milestone: v0.3.5 released: delegation cost metrics, Claude Code Stop hook, and benchmark harness
 deployed: true
 deployment_url: https://github.com/AndriiLavrekha/relay
 sensitivity: normal
@@ -29,25 +29,25 @@ commit_progress: true
 
 ## Resume Snapshot
 
-Branch feat/metrics (uncommitted, nothing committed): added `agent-task-bridge metrics` (src/metrics.mjs) plus a Claude Code Stop hook (plugins/claude-code/hooks/hooks.json). It reads Claude Code transcripts, attributes tokens and list-price cost to prep/export/import/plan per task id, keeps an append-only ledger at .agent-task-bridge/metrics.jsonl (ids, timestamps, counts only), and supports `metrics note <task-id> --claude-estimate <usd>` for a saving %. Verified: cost matches true session cost exactly on 19 real headless runs (18 bench + 1 live hook session); Sonnet 5.5 rates fitted exactly from 100 runs (input 2 and 5m cache write 2.5 are assumptions). npm test now `node --test "test/**/*.test.mjs"` (bench/ fixtures fail by design and were being picked up): 182 tests, 175 pass, 7 skipped, 0 fail; smoke PASS; plugin bundles regenerated. Also uncommitted: bench/ harness (arms, relay, chatgpt) and its README results. Finding from the live run: the export prep phase is about 80% of orchestration cost.
+v0.3.5 released: added local-only delegation cost and token usage tracking (`agent-task-bridge metrics` in `src/metrics.mjs` plus a Claude Code `Stop` hook in `plugins/claude-code/hooks/hooks.json`), a repository benchmark harness (`bench/`, excluded from the npm package), and a modernized `README.md`. Protocol `1.0` and schema `1.1` are unchanged; `bridge_version` and `exporter_version` are `0.3.5`. Install docs and marketplaces pin `v0.3.5`. Verified with `npm test` (182 tests: 175 passed, 7 skipped, 0 failed), `npm run smoke` (PASS across `claude-code`, `codex`, and `gemini`), `npm pack --dry-run` (`agent-task-bridge@0.3.5`, 201 files, `bench/` excluded), `agy plugin validate --strict plugins/gemini`, `gemini extensions validate plugins/gemini`, and `gemini extensions validate .`.
 
 ## Current State
 
-Package version is `0.3.4`. Marketplace catalogs, plugin manifests, and `gemini-extension.json` declare `0.3.4`.
+Package version is `0.3.5`. Marketplace catalogs, plugin manifests, and `gemini-extension.json` declare `0.3.5`.
 
 Verification:
-- `npm test`: 184 tests, 177 passed, 7 skipped (Windows symlink/reparse fixtures), 0 failed.
+- `npm test`: 182 tests, 175 passed, 7 skipped (Windows symlink/reparse fixtures), 0 failed.
 - `npm run smoke` passed across `claude-code`, `codex`, and `gemini`.
-- `npm pack --dry-run`: `agent-task-bridge@0.3.4`, 195 files.
+- `npm pack --dry-run`: `agent-task-bridge@0.3.5`, 201 files.
 - `agy plugin validate --strict plugins/gemini`, `gemini extensions validate plugins/gemini`, and `gemini extensions validate .` all passed.
 
 ## Last Session
 
-Designed, independently reviewed, planned, implemented, verified, and released v0.3.4 with Gemini host-agent support (`plugins/gemini`, root Gemini CLI extension files, `.agents/plugins.json`) and the `plan-chatgpt` task-breakdown skill across Gemini, Claude Code, and Codex (`docs/releases/v0.3.4.md`).
+Prepared, verified, and released `v0.3.5` (`docs/releases/v0.3.5.md`) on `main` with the `metrics` CLI command, Claude Code `Stop` hook, `bench/` harness, and updated `README.md`.
 
 ## Next Action
 
-Review and commit on feat/metrics (metrics feature, bench harness, package.json test glob). Install the branch plugin (/plugin marketplace add with the local path), use the plugin for a while, then run `metrics --repo .` and record `metrics note <task-id> --claude-estimate <usd>` per task to get real saving percentages. Consider a release note and version bump if merged.
+Install or upgrade to `v0.3.5` in Claude Code (to activate the `Stop` hook and `metrics` command), Codex, Gemini CLI, or Antigravity, then run `metrics --repo .` and record `metrics note <task-id> --claude-estimate <usd>` on real tasks to track saving percentages.
 
 ## Remaining Work
 
@@ -56,6 +56,8 @@ trip, related-file warnings, OS validation sandbox, Windows symlink CI, handoff 
 
 ## Done
 
+- [x] Published annotated tag `v0.3.5` and the GitHub release (`docs/releases/v0.3.5.md`).
+- [x] Published annotated tag `v0.3.4` and the GitHub release (`docs/releases/v0.3.4.md`).
 - [x] Published annotated tag `v0.2.3` and the GitHub release. The five specifications are not implemented in that tag.
 - [x] Approved the five 2026-09-29 specifications.
 - [x] Published annotated tag `v0.2.2` and the GitHub release.
@@ -82,12 +84,12 @@ No technical blockers. Seven Windows symlink/reparse-point tests are skipped on 
 
 ## Deployment
 
-Published release: https://github.com/AndriiLavrekha/relay/releases/tag/v0.3.4 (annotated tag `v0.3.4` on `main`). The repository is private, so installs need the user's Git credentials.
+Published release: https://github.com/AndriiLavrekha/relay/releases/tag/v0.3.5 (annotated tag `v0.3.5` on `main`). The repository is private, so installs need the user's Git credentials.
 
-- Claude Code: `/plugin marketplace add AndriiLavrekha/relay@v0.3.4`, then `/plugin install task-bridge@awesome-task-bridge`.
-- Codex: `codex plugin marketplace add AndriiLavrekha/relay --ref v0.3.4`, then `codex plugin add task-bridge@awesome-task-bridge`.
-- Gemini CLI: `gemini extensions install https://github.com/AndriiLavrekha/relay --ref v0.3.4`.
-- Antigravity CLI/IDE: `agy plugin install https://github.com/AndriiLavrekha/relay/tree/v0.3.4/plugins/gemini`.
+- Claude Code: `/plugin marketplace add AndriiLavrekha/relay@v0.3.5`, then `/plugin install task-bridge@awesome-task-bridge`.
+- Codex: `codex plugin marketplace add AndriiLavrekha/relay --ref v0.3.5`, then `codex plugin add task-bridge@awesome-task-bridge`.
+- Gemini CLI: `gemini extensions install https://github.com/AndriiLavrekha/relay --ref v0.3.5`.
+- Antigravity CLI/IDE: `agy plugin install https://github.com/AndriiLavrekha/relay/tree/v0.3.5/plugins/gemini`.
 
 ## Completion Criteria
 

@@ -205,6 +205,7 @@ test('release package includes verification scripts and architecture documentati
   assert.ok(pkg.files.includes('docs/releases/v0.3.2.md'));
   assert.ok(pkg.files.includes('docs/releases/v0.3.3.md'));
   assert.ok(pkg.files.includes('docs/releases/v0.3.4.md'));
+  assert.ok(pkg.files.includes('docs/releases/v0.3.5.md'));
   assert.ok(pkg.files.includes('gemini-extension.json'));
   assert.ok(pkg.files.includes('commands'));
   assert.ok(pkg.files.includes('skills'));

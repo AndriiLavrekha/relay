@@ -57,14 +57,14 @@ Because task state lives in the capsule and local `.agent-task-bridge/` history,
 In Claude Code:
 
 ```text
-/plugin marketplace add AndriiLavrekha/relay@v0.3.4
+/plugin marketplace add AndriiLavrekha/relay@v0.3.5
 /plugin install task-bridge@awesome-task-bridge
 ```
 
 Or from your terminal:
 
 ```bash
-claude plugin marketplace add AndriiLavrekha/relay@v0.3.4
+claude plugin marketplace add AndriiLavrekha/relay@v0.3.5
 claude plugin install task-bridge@awesome-task-bridge
 ```
 
@@ -72,10 +72,10 @@ Start a new session or run `/reload-plugins`. See [`plugins/claude-code/README.m
 
 ### 2. OpenAI Codex
 
-Pin the `v0.3.4` release from GitHub:
+Pin the `v0.3.5` release from GitHub:
 
 ```bash
-codex plugin marketplace add AndriiLavrekha/relay --ref v0.3.4
+codex plugin marketplace add AndriiLavrekha/relay --ref v0.3.5
 codex plugin add task-bridge@awesome-task-bridge
 ```
 
@@ -93,7 +93,7 @@ Start a new Codex session after installation. See [`plugins/codex/README.md`](pl
 **Gemini CLI:**
 
 ```bash
-gemini extensions install https://github.com/AndriiLavrekha/relay --ref v0.3.4
+gemini extensions install https://github.com/AndriiLavrekha/relay --ref v0.3.5
 # Or link a local checkout:
 gemini extensions link /absolute/path/to/relay
 ```
@@ -101,7 +101,7 @@ gemini extensions link /absolute/path/to/relay
 **Antigravity CLI / IDE (`agy`):**
 
 ```bash
-agy plugin install https://github.com/AndriiLavrekha/relay/tree/v0.3.4/plugins/gemini
+agy plugin install https://github.com/AndriiLavrekha/relay/tree/v0.3.5/plugins/gemini
 # Or install from a local checkout:
 agy plugin install /absolute/path/to/relay/plugins/gemini
 ```
@@ -109,12 +109,12 @@ agy plugin install /absolute/path/to/relay/plugins/gemini
 *(Opening a checkout of this repo in Antigravity also auto-discovers `plugins/gemini` via `.agents/plugins.json`.)* Start a new session after installing. See [`plugins/gemini/README.md`](plugins/gemini/README.md).
 
 <details>
-<summary><strong>Upgrading to v0.3.4</strong></summary>
+<summary><strong>Upgrading to v0.3.5</strong></summary>
 
 **Claude Code**
 ```bash
 claude plugin marketplace remove awesome-task-bridge
-claude plugin marketplace add AndriiLavrekha/relay@v0.3.4
+claude plugin marketplace add AndriiLavrekha/relay@v0.3.5
 claude plugin update task-bridge@awesome-task-bridge
 claude plugin list
 ```
@@ -123,7 +123,7 @@ claude plugin list
 ```bash
 codex plugin remove task-bridge@awesome-task-bridge
 codex plugin marketplace remove awesome-task-bridge
-codex plugin marketplace add AndriiLavrekha/relay --ref v0.3.4
+codex plugin marketplace add AndriiLavrekha/relay --ref v0.3.5
 codex plugin add task-bridge@awesome-task-bridge
 codex plugin list
 ```
@@ -135,10 +135,10 @@ gemini extensions update task-bridge
 
 # Antigravity CLI
 agy plugin uninstall task-bridge
-agy plugin install https://github.com/AndriiLavrekha/relay/tree/v0.3.4/plugins/gemini
+agy plugin install https://github.com/AndriiLavrekha/relay/tree/v0.3.5/plugins/gemini
 ```
 
-Restart your agent session after upgrading. Latest release notes: [`v0.3.4`](docs/releases/v0.3.4.md).
+Restart your agent session after upgrading. Latest release notes: [`v0.3.5`](docs/releases/v0.3.5.md).
 
 </details>
 
@@ -336,7 +336,7 @@ The tool cannot know what Claude would have spent doing the task itself. Record 
 | [`plugins/codex/README.md`](plugins/codex/README.md) | OpenAI Codex plugin and local marketplace setup |
 | [`plugins/gemini/README.md`](plugins/gemini/README.md) | Gemini CLI extension and Antigravity plugin setup |
 | [`examples/`](examples/) | Example `delegation.example.json` and `project-config.example.json` |
-| [`docs/releases/`](docs/releases/) | Release notes ([`v0.2.0`](docs/releases/v0.2.0.md) to [`v0.3.4`](docs/releases/v0.3.4.md)) |
+| [`docs/releases/`](docs/releases/) | Release notes ([`v0.2.0`](docs/releases/v0.2.0.md) to [`v0.3.5`](docs/releases/v0.3.5.md)) |
 | [`AGENTS.md`](AGENTS.md) | Repository structure and contributor guidelines |
 
 ## Requirements & development
