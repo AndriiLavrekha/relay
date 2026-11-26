@@ -10,8 +10,8 @@ Use this skill when the developer wants to analyze a feature or multi-part chang
 ## Locate the deterministic bridge
 
 Resolve `<root>` as the directory two levels above this `SKILL.md` (`<root>/skills/plan-chatgpt/SKILL.md`, which contains `.gemini-plugin/plugin.json` or `gemini-extension.json`). When the plan is approved and ready to export, `export-chatgpt` resolves the CLI entrypoint in order:
-1. `<root>/runtime/bin/agent-task-bridge.mjs` (when loaded from `plugins/gemini` or an installed Antigravity plugin)
-2. `<root>/bin/agent-task-bridge.mjs` (when installed or linked from the repository root via `gemini extensions`).
+1. `<root>/runtime/bin/relay.mjs` (when loaded from `plugins/gemini` or an installed Antigravity plugin)
+2. `<root>/bin/relay.mjs` (when installed or linked from the repository root via `gemini extensions`).
 
 ## Workflow
 
@@ -19,7 +19,7 @@ Resolve `<root>` as the directory two levels above this `SKILL.md` (`<root>/skil
 2. Split the work along clean seams into a structured breakdown:
    - **Delegate to ChatGPT:** self-contained modules behind an interface, parsers or algorithms, isolated test suites, or migrations of isolated files.
    - **Keep local (Host-owned):** cross-cutting registration, dependency injection, routing, configuration, live services, and edits spread across many files.
-3. For each exportable unit, draft the exact delegation contract fields that `export-chatgpt` will pass to `agent-task-bridge.mjs export`:
+3. For each exportable unit, draft the exact delegation contract fields that `export-chatgpt` will pass to `relay.mjs export`:
    - `title`, `objective`, `work_unit`, `work_type`, `current_work_state`, `deliverables`, `non_goals`, and `architecture_context`.
    - `editable_scope`: repository-relative paths or globs ChatGPT may change.
    - `files`: grouped into `editable`, `contract` (interfaces, types, state shapes), `reference` (one neighbouring source file and one existing test whose conventions ChatGPT should copy), `validation`, and `configuration`.

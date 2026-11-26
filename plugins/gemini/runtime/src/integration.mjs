@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { AtbError } from './errors.mjs';
-import { findImportArtifacts, atbRoot } from './storage.mjs';
+import { assertSafeStorageRoot, findImportArtifacts, atbRoot } from './storage.mjs';
 import { fingerprintActiveTree } from './staging.mjs';
 import { getGitState } from './repository.mjs';
 import { runProcess } from './process.mjs';
@@ -69,7 +69,7 @@ export async function integrateImport({ repoRoot, importId, mode = 'branch', bra
     const existing = await runProcess('git', ['show-ref', '--verify', '--quiet', `refs/heads/${createdBranch}`], { cwd: repoRoot, allowFailure: true });
     if (existing.code === 0) throw new AtbError('INTEGRATION_BRANCH_EXISTS', `Integration branch already exists: ${createdBranch}`);
     const parent = report.stagingRoot ? path.dirname(report.stagingRoot) : os.tmpdir();
-    integrationRoot = await mkdtemp(path.join(parent, 'atb-integration-'));
+    integrationRoot = await mkdtemp(path.join(parent, 'relay-integration-'));
     await rm(integrationRoot, { force: true, recursive: true });
     await runProcess('git', ['worktree', 'add', '-b', createdBranch, integrationRoot, 'HEAD'], { cwd: repoRoot });
   }
@@ -84,14 +84,17 @@ export async function integrateImport({ repoRoot, importId, mode = 'branch', bra
         integrationRoot = null;
       }
     }
-    const lifecycle = artifacts.lifecycle ?? await loadLifecycle(repoRoot, artifacts.taskId, importId);
+    const lifecycle = await loadLifecycle(repoRoot, artifacts.taskId, importId) ?? artifacts.lifecycle;
     let nextLifecycle = lifecycle;
     if (nextLifecycle?.state === 'reviewed') {
       nextLifecycle = transitionLifecycle(nextLifecycle, 'integrated', { mode, branchName: createdBranch, integrationRoot, commit: commit?.sha ?? null });
       await writeLifecycle(repoRoot, nextLifecycle);
     }
     const integration = { mode, integrationRoot, branchName: createdBranch, commit: commit?.sha ?? null, commitError: commit?.error ?? null, files: report.stagedFiles ?? [], lifecycle: nextLifecycle };
-    await writeFile(path.join(artifacts.directory, 'integration.json'), JSON.stringify(integration, null, 2), 'utf8');
+    await assertSafeStorageRoot(repoRoot);
+    const integrationDir = path.join(atbRoot(repoRoot), 'tasks', artifacts.taskId, 'imports', importId);
+    await mkdir(integrationDir, { recursive: true });
+    await writeFile(path.join(integrationDir, 'integration.json'), JSON.stringify(integration, null, 2), 'utf8');
     return integration;
   } catch (error) {
     if (mode === 'branch' && integrationRoot) await runProcess('git', ['worktree', 'remove', '--force', integrationRoot], { cwd: repoRoot, allowFailure: true });
@@ -103,7 +106,7 @@ async function commitIntegrationBranch(root, report) {
   const paths = report.stagedFiles ?? [];
   if (paths.length === 0) return { sha: null, error: 'No staged files to commit' };
   await runProcess('git', ['add', '-A', '--', ...paths], { cwd: root });
-  const message = `atb: integrate ${report.taskId ?? 'task'} (${report.importId ?? 'import'})`;
+  const message = `relay: integrate ${report.taskId ?? 'task'} (${report.importId ?? 'import'})`;
   const committed = await runProcess('git', ['commit', '-m', message], { cwd: root, allowFailure: true });
   if (committed.code !== 0) return { sha: null, error: (committed.stderr || committed.stdout).trim().slice(-2000) };
   return { sha: (await runProcess('git', ['rev-parse', 'HEAD'], { cwd: root })).stdout.trim(), error: null };

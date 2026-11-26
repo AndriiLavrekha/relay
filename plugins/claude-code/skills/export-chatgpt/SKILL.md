@@ -29,9 +29,9 @@ Use this when the developer wants to delegate a well-bounded part of the current
 5. Never include secrets or credentials to make an export succeed. If the bridge blocks a file as sensitive, choose a non-secret contract/example or tell the user what context cannot be exported.
 6. Run the bundled deterministic exporter from the repository root:
 
-   `node "${CLAUDE_PLUGIN_ROOT}/runtime/bin/agent-task-bridge.mjs" export --delegation "<temporary-json-path>" --repo . --source-agent claude-code --max-tokens <budget>`
+   `node "${CLAUDE_PLUGIN_ROOT}/runtime/bin/relay.mjs" export --delegation "<temporary-json-path>" --repo . --source-agent claude-code --max-tokens <budget>`
 
-   Omit `--max-tokens` when `.agent-task-bridge/config.json` should supply `maxTokens`. Extra host steps in that file apply only when the delegation omits `host_owned_steps`.
+   Omit `--max-tokens` when `.relay/config.json` should supply `maxTokens`. Extra host steps in that file apply only when the delegation omits `host_owned_steps`.
 
 7. Delete the temporary delegation JSON after a successful export if it was created outside the bridge's own local storage.
 8. Report the generated `task.md` and `kickoff.md` paths, delegated scope, file count, and estimated context size. Inspect export warnings for `CONTEXT_COVERAGE_GAP` and `EDITABLE_OUTSIDE_SCOPE`. Tell the user which matching files were omitted from the capsule and which `files.editable` entries sit outside `editable_scope`, then let the user decide whether to export the bounded slice anyway. Tell the user to upload the Task Capsule and use the generated kickoff prompt in a fresh ChatGPT conversation. ChatGPT returns either a ZIP built by the capsule's `pack_result.py` (preferred) or a text reply the user saves as a `.md` file; `import` accepts both.

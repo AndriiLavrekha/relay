@@ -1,14 +1,24 @@
 {
-  "name": "task-bridge",
-  "displayName": "Agent Task Bridge",
-  "version": "0.3.5",
+  "name": "relay",
+  "displayName": "Relay",
+  "version": "1.0.0",
   "description": "Plan, export, and safely import bounded repository work delegated to ChatGPT.",
+  "logo": "assets/logo.svg",
   "author": {
-    "name": "Agent Task Bridge contributors"
+    "name": "Andrii Lavrekha",
+    "url": "https://github.com/AndriiLavrekha"
   },
   "repository": "https://github.com/AndriiLavrekha/relay",
   "homepage": "https://github.com/AndriiLavrekha/relay",
   "license": "MIT",
   "category": "Developer Tools",
-  "keywords": ["chatgpt", "delegation", "handoff", "gemini", "antigravity", "developer-tools"]
+  "keywords": [
+    "relay",
+    "chatgpt",
+    "delegation",
+    "handoff",
+    "gemini",
+    "antigravity",
+    "developer-tools"
+  ]
 }

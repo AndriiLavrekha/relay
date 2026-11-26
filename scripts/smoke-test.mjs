@@ -7,11 +7,13 @@ import { fileURLToPath } from 'node:url';
 import { runProcess } from '../src/process.mjs';
 import { createZip } from '../src/zip.mjs';
 import { parseTaskCapsule } from '../src/task-capsule.mjs';
+import { cleanupIsolatedStaging } from '../src/staging.mjs';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const canonicalCli = path.join(projectRoot, 'bin', 'agent-task-bridge.mjs');
-const providerCli = (provider) => path.join(projectRoot, 'plugins', provider, 'runtime', 'bin', 'agent-task-bridge.mjs');
+const canonicalCli = path.join(projectRoot, 'bin', 'relay.mjs');
+const providerCli = (provider) => path.join(projectRoot, 'plugins', provider, 'runtime', 'bin', 'relay.mjs');
 const fixture = await mkdtemp(path.join(tmpdir(), 'atb smoke '));
+const stagingRoots = [];
 
 async function writeDelegation(targetValue, exportProvider) {
   const delegationPath = path.join(fixture, `delegation-${exportProvider}-${targetValue}.json`);
@@ -57,7 +59,7 @@ async function runCrossProviderFlow({ exportProvider, importProvider, targetValu
     summary: `Change value to ${targetValue} and update its test.`,
     assumptions: [],
     unresolved: [],
-    validation: { executed: [], not_executed: ['Authoritative checks run locally by Agent Task Bridge'] },
+    validation: { executed: [], not_executed: ['Authoritative checks run locally by Relay'] },
     files: [
       { path: 'src/value.js', operation: 'modify' },
       { path: 'test/value.test.js', operation: 'modify' }
@@ -78,6 +80,7 @@ async function runCrossProviderFlow({ exportProvider, importProvider, targetValu
 
   const importRun = await runProcess(process.execPath, [providerCli(importProvider), 'import', resultPath, '--repo', fixture, '--json'], { cwd: fixture });
   const report = JSON.parse(importRun.stdout);
+  if (report.stagingRoot) stagingRoots.push(report.stagingRoot);
   assert.equal(report.activeWorktreeModifiedByImport, false);
   assert.deepEqual(report.files.map((file) => file.status), ['CLEAN_UNCHANGED', 'CLEAN_UNCHANGED']);
   assert.equal(report.conflicts.length, 0);
@@ -136,5 +139,8 @@ try {
     providerRuntimes: ['claude-code', 'codex', 'gemini']
   }, null, 2));
 } finally {
+  for (const stagingRoot of stagingRoots) {
+    await cleanupIsolatedStaging({ repoRoot: fixture, stagingRoot }).catch(() => {});
+  }
   await rm(fixture, { recursive: true, force: true });
 }

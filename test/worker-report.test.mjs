@@ -171,7 +171,7 @@ test('REPORT.md survives failed, rejected, and interrupted imports', async () =>
 });
 
 async function assertReportPersisted(root, taskId, lifecycle) {
-  const importsRoot = path.join(root, '.agent-task-bridge', 'tasks', taskId, 'imports');
+  const importsRoot = path.join(root, '.relay', 'tasks', taskId, 'imports');
   const [importId] = await readdir(importsRoot);
   const report = JSON.parse(await readFile(path.join(importsRoot, importId, 'report.json'), 'utf8'));
   assert.equal(report.lifecycle, lifecycle);

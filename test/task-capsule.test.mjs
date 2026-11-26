@@ -48,7 +48,7 @@ test('JSON-compatible YAML subset round trips protocol metadata exactly', () => 
 test('normalizeRepoPath produces POSIX relative paths and rejects traversal/absolute paths', () => {
   assert.equal(normalizeRepoPath('src\\auth\\service.ts'), 'src/auth/service.ts');
   assert.equal(normalizeRepoPath('./src/a.ts'), 'src/a.ts');
-  for (const candidate of ['../secret', 'src/../../secret', '/etc/passwd', 'C:\\Windows\\x', '\\\\server\\share\\x', '.GIT/config', 'src/.Agent-Task-Bridge/state', '']) {
+  for (const candidate of ['../secret', 'src/../../secret', '/etc/passwd', 'C:\\Windows\\x', '\\\\server\\share\\x', '.GIT/config', 'src/.Relay/state', 'src/.Agent-Task-Bridge/state', '']) {
     assert.throws(() => normalizeRepoPath(candidate), /path/i);
   }
 });

@@ -14,6 +14,8 @@ import { scanText } from './privacy.mjs';
 import { writeLifecycle } from './lifecycle.mjs';
 import { createHandoffBundle } from './handoff.mjs';
 
+const PACKAGE_VERSION = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')).version;
+
 function makeTaskId() {
   return `atb_${Date.now().toString(36)}_${crypto.randomBytes(5).toString('hex')}`;
 }
@@ -104,11 +106,11 @@ export async function exportTask({
     atb_protocol: '1.0',
     capsule_type: 'task',
     schema_version: '1.1',
-    bridge_version: '0.3.5',
+    bridge_version: PACKAGE_VERSION,
     hash_algorithm: 'sha256',
     task_id: taskId,
     created_at: new Date().toISOString(),
-    exporter_version: '0.3.5',
+    exporter_version: PACKAGE_VERSION,
     host_owned_steps: delegation.host_owned_steps,
     source_agent: sourceAgent,
     ...(continuationOf ? { continuation_of: continuationOf } : {}),

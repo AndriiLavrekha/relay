@@ -1,21 +1,39 @@
 {
-  "name": "task-bridge",
-  "version": "0.3.5",
+  "name": "relay",
+  "version": "1.0.0",
   "description": "Export bounded repository work to ChatGPT and safely stage returned results for local validation and review.",
   "author": {
-    "name": "Agent Task Bridge contributors"
+    "name": "Andrii Lavrekha"
   },
+  "homepage": "https://github.com/AndriiLavrekha/relay",
+  "repository": "https://github.com/AndriiLavrekha/relay",
   "license": "MIT",
-  "keywords": ["chatgpt", "delegation", "handoff", "claude-code", "developer-tools"],
+  "keywords": [
+    "relay",
+    "chatgpt",
+    "delegation",
+    "handoff",
+    "codex",
+    "developer-tools"
+  ],
   "skills": "./skills/",
   "interface": {
-    "displayName": "Agent Task Bridge",
-    "shortDescription": "Delegate bounded coding work to ChatGPT and safely re-import it",
-    "longDescription": "Package the exact repository context for a bounded work unit into one Task Capsule, then inspect, drift-check, stage, and locally validate a Result Capsule returned from ChatGPT without directly mutating the active worktree.",
-    "developerName": "Agent Task Bridge contributors",
+    "displayName": "Relay",
+    "shortDescription": "Safe ChatGPT task delegation",
+    "longDescription": "Package the exact repository context for a bounded work unit into one self-contained Task Capsule, then inspect, drift-check, stage, and locally validate a Result Capsule returned from ChatGPT in an isolated Git worktree without modifying your active branch.",
+    "developerName": "Andrii Lavrekha",
     "category": "Developer Tools",
-    "capabilities": ["Read", "Write", "Interactive"],
+    "capabilities": [
+      "Read",
+      "Write",
+      "Interactive"
+    ],
+    "websiteURL": "https://github.com/AndriiLavrekha/relay",
+    "brandColor": "#4F46E5",
+    "composerIcon": "./assets/logo.svg",
+    "logo": "./assets/logo.svg",
     "defaultPrompt": [
+      "Use plan-chatgpt to split this feature into exportable units",
       "Export this bounded task to ChatGPT",
       "Import this ChatGPT Result Capsule and review it"
     ],

@@ -10,7 +10,7 @@ import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSyn
 import path from 'node:path';
 import { REPO, RESULTS, applyHidden, buildWorkdir, git, loadScenarios, materialize, sh } from './lib.mjs';
 
-const CLI = path.join(REPO, 'bin', 'agent-task-bridge.mjs');
+const CLI = path.join(REPO, 'bin', 'relay.mjs');
 const OUT = path.join(RESULTS, 'chatgpt');
 const [command = 'help', ...rest] = process.argv.slice(2);
 const positional = rest.filter((a, i) => !a.startsWith('--') && !rest[i - 1]?.startsWith('--'));
@@ -100,7 +100,7 @@ function prepare() {
     const r = bridge(`export --delegation "${path.join(dir, 'delegation.json')}" --repo "${path.join(dir, 'repo')}" --source-agent bench --json`);
     if (r.code !== 0) throw new Error(`export failed for ${id}:\n${r.out}`);
     writeFileSync(path.join(dir, 'export-output.json'), r.out);
-    const tasks = path.join(dir, 'repo', '.agent-task-bridge', 'tasks');
+    const tasks = path.join(dir, 'repo', '.relay', 'tasks');
     const taskId = readdirSync(tasks)[0];
     for (const f of ['task.md', 'kickoff.md']) cpSync(path.join(tasks, taskId, f), path.join(dir, f));
     const bytes = statSync(path.join(dir, 'task.md')).size;
@@ -183,7 +183,7 @@ function grade() {
     const integ = bridge(`integrate ${parsed.importId} --mode branch --branch ${branch} --confirm --repo "${repo}"`);
     if (integ.code !== 0) result = fail(`integrate failed: ${integ.out}`);
     else {
-      // Grade a clean clone of the result branch: the repo's .agent-task-bridge/ holds candidate copies of test files that node --test would pick up.
+      // Grade a clean clone of the result branch: the repo's .relay/ holds candidate copies of test files that node --test would pick up.
       const work = path.join(dir, 'graded');
       rmSync(work, { recursive: true, force: true, maxRetries: 3 });
       git(['clone', '-q', '--branch', branch, '--single-branch', repo, work]);

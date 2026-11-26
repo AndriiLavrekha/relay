@@ -72,19 +72,27 @@ test('export rejects repository metadata and bridge-internal paths even if expli
   });
   await assert.rejects(() => exportTask({ repoRoot: root, delegationPath: gitDelegation }), (error) => error?.code === 'UNSAFE_PATH');
 
-  await mkdir(path.join(root, '.agent-task-bridge'), { recursive: true });
-  await writeFile(path.join(root, '.agent-task-bridge', 'private.txt'), 'internal state\n');
+  await mkdir(path.join(root, '.relay'), { recursive: true });
+  await writeFile(path.join(root, '.relay', 'private.txt'), 'internal state\n');
   const internalDelegation = await writeDelegation(root, {
+    editable_scope: ['**'],
+    files: { editable: ['src/a.js'], reference: ['.relay/private.txt'], contract: [], validation: [], configuration: [] },
+  });
+  await assert.rejects(() => exportTask({ repoRoot: root, delegationPath: internalDelegation }), (error) => error?.code === 'UNSAFE_PATH');
+
+  await mkdir(path.join(root, '.agent-task-bridge'), { recursive: true });
+  await writeFile(path.join(root, '.agent-task-bridge', 'private.txt'), 'legacy internal state\n');
+  const legacyDelegation = await writeDelegation(root, {
     editable_scope: ['**'],
     files: { editable: ['src/a.js'], reference: ['.agent-task-bridge/private.txt'], contract: [], validation: [], configuration: [] },
   });
-  await assert.rejects(() => exportTask({ repoRoot: root, delegationPath: internalDelegation }), (error) => error?.code === 'UNSAFE_PATH');
+  await assert.rejects(() => exportTask({ repoRoot: root, delegationPath: legacyDelegation }), (error) => error?.code === 'UNSAFE_PATH');
 });
 
 test('export refuses a symlinked internal storage root', { skip: process.platform === 'win32' }, async () => {
   const root = await initRepo();
   const outside = await mkdtemp(path.join(tmpdir(), 'atb-outside-storage-'));
-  await symlink(outside, path.join(root, '.agent-task-bridge'));
+  await symlink(outside, path.join(root, '.relay'));
   const delegation = await writeDelegation(root);
   await assert.rejects(() => exportTask({ repoRoot: root, delegationPath: delegation }), (error) => error?.code === 'UNSAFE_STORAGE_ROOT');
   assert.equal(await exists(path.join(outside, 'exports')), false);

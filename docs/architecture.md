@@ -1,17 +1,17 @@
-# Agent Task Bridge
+# Relay (formerly Agent Task Bridge)
 ## Architecture & Design Specification — v1.0
 
-**Status:** Proposed architecture / implementation-ready design  
-**Date:** 2026-08-23  
-**Primary MVP transport:** ChatGPT manual file handoff  
+**Status:** Implemented & released (`v1.0.0`)  
+**Date:** 2026-08-23 (updated 2026-11-26)  
+**Primary transport:** ChatGPT manual file handoff  
 **Host coding agents:** Claude Code, OpenAI Codex, and Gemini (Gemini CLI & Antigravity)  
-**Working product name:** **Agent Task Bridge**  
+**Product name:** **Relay**  
 
 ---
 
 ## 1. Executive Summary
 
-Agent Task Bridge is an installable developer-tool plugin for **Claude Code**, **OpenAI Codex**, and **Gemini** (Gemini CLI and Antigravity CLI/IDE) that allows a developer to delegate a bounded unit of work from a local coding-agent session to **ChatGPT**, then safely import the returned work into the repository.
+Relay is an installable developer-tool plugin for **Claude Code**, **OpenAI Codex**, and **Gemini** (Gemini CLI and Antigravity CLI/IDE) that allows a developer to delegate a bounded unit of work from a local coding-agent session to **ChatGPT**, then safely import the returned work into the repository.
 
 The product is not primarily a chat-export tool. Its core abstraction is a **portable, versioned work-unit protocol**:
 
@@ -20,7 +20,7 @@ Local Coding Agent
       │
       │  understands intent + current work state
       ▼
-Agent Task Bridge Export
+Relay Export
       │
       ▼
 Task Capsule
@@ -35,7 +35,7 @@ Result Capsule
       │
       │  manual download
       ▼
-Agent Task Bridge Import
+Relay Import
       │
       ├─ baseline/drift checks
       ├─ isolated staging
@@ -91,7 +91,7 @@ New task manifests record `host_owned_steps`. The default list reserves authorit
 
 ### Local project configuration
 
-`.agent-task-bridge/config.json` is an optional host file. The bridge creates that directory as git-excluded local storage, so the file stays on the machine that wrote it and is not part of the capsule protocol. Recognized keys are `maxTokens`, `validationPolicy`, `extraHostOwnedSteps`, `validationCommands`, and `validationTimeoutMs`. Unknown keys, a symlink, and malformed JSON fail the command. Export uses `maxTokens` only when `--max-tokens` is omitted, and appends `extraHostOwnedSteps` only when the delegation omits `host_owned_steps`. Import uses `validationPolicy` only when `--validation-policy` is omitted. `validationCommands` replaces discovered validation commands for both the capsule's validation contract and staged validation. Privacy policy and the hard safety ceilings stay in code.
+`.relay/config.json` (with read fallback to legacy `.agent-task-bridge/config.json`) is an optional host file. Relay creates `.relay/` as git-excluded local storage, so the file stays on the machine that wrote it and is not part of the capsule protocol. Recognized keys are `maxTokens`, `validationPolicy`, `extraHostOwnedSteps`, `validationCommands`, `validationTimeoutMs`, and `metricsRates`. Unknown keys, a symlink, and malformed JSON fail the command. Export uses `maxTokens` only when `--max-tokens` is omitted, and appends `extraHostOwnedSteps` only when the delegation omits `host_owned_steps`. Import uses `validationPolicy` only when `--validation-policy` is omitted. `validationCommands` replaces discovered validation commands for both the capsule's validation contract and staged validation. Privacy policy and the hard safety ceilings stay in code.
 
 ### Round-trip integration boundary
 
@@ -112,7 +112,7 @@ These additions keep protocol `1.0` and schema `1.1`.
 
 ### 2.1 What the product is
 
-Agent Task Bridge is an **agent-to-agent delegation protocol and integration tool**.
+Relay is an **agent-to-agent delegation protocol and integration tool**.
 
 ChatGPT is the first supported external worker, but the protocol should not unnecessarily encode ChatGPT-specific assumptions.
 
@@ -160,7 +160,7 @@ That is undesirable because export/import semantics, security, capsule versions,
 Instead:
 
 ```text
-Agent Task Bridge Core
+Relay Core
 ├── Protocol v1
 ├── Shared deterministic runtime
 ├── Claude Code plugin adapter (plan-chatgpt, export-chatgpt, import-chatgpt)
@@ -203,14 +203,14 @@ Examples:
 
 ```text
 Claude Code:
-/chatgpt-bridge:export
-/chatgpt-bridge:import
+/relay:export-chatgpt
+/relay:import-chatgpt
 ```
 
 Possible Codex interaction:
 
 ```text
-Use the Agent Task Bridge plugin to export this task to ChatGPT.
+Use the Relay plugin to export this task to ChatGPT.
 ```
 
 or a provider-specific action/skill command if supported.
@@ -225,7 +225,7 @@ The MVP must allow a developer to:
 
 1. Work normally in Claude Code or Codex.
 2. Identify a bounded unit of outstanding/planned work.
-3. Invoke the installed Agent Task Bridge workflow.
+3. Invoke the installed Relay workflow.
 4. Have the host agent understand what should be delegated.
 5. Automatically gather minimal sufficient repository context.
 6. Produce **one self-contained Task Capsule file**.
@@ -355,7 +355,7 @@ Markdown with a strict machine-readable manifest is preferred over an opaque bin
               └───────────────┬─────────────────┘
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Agent Task Bridge Core                       │
+│                    Relay Core                                   │
 │                                                                 │
 │  Repository Analyzer                                            │
 │  Context Builder                                                │
@@ -412,21 +412,22 @@ The exact UX may differ, but semantic behavior must remain compatible.
 
 ### 8.3 Shared CLI / Runtime
 
-Conceptual executable:
+Executable:
 
 ```text
-agent-task-bridge
+relay
 ```
 
-Potential commands:
+Commands:
 
 ```text
-agent-task-bridge export
-agent-task-bridge import
-agent-task-bridge inspect-task
-agent-task-bridge inspect-result
-agent-task-bridge validate
-agent-task-bridge status
+relay export
+relay import
+relay inspect-task
+relay inspect-result
+relay validate
+relay status
+relay metrics
 ```
 
 The CLI should expose deterministic operations that can also be consumed programmatically.
@@ -584,7 +585,7 @@ The agent may add/remove files based on semantic knowledge.
 The exporter writes one file:
 
 ```text
-.agent-task-bridge/exports/
+.relay/exports/
   task-atb_01J...md
 ```
 
@@ -623,9 +624,9 @@ capsule_type: task
 task_id: "atb_01JXYZ..."
 created_at: "2026-08-23T17:30:00+02:00"
   schema_version: "1.1"
-  bridge_version: "0.3.5"
+  bridge_version: "1.0.0"
   hash_algorithm: "sha256"
-  exporter_version: "0.3.5"
+  exporter_version: "1.0.0"
   host_owned_steps:
     - "Authoritative monorepo/workspace test & build gates"
     - "Live services, databases, and network credentials"
@@ -999,7 +1000,7 @@ Commands are captured from trusted repository configuration before returned file
 Example:
 
 ```text
-Agent Task Bridge Import
+Relay Import
 Task: API-key storage/service
 Task ID: atb_01JXYZ...
 
@@ -1131,7 +1132,7 @@ Keeping local: HTTP-client wiring and integration tests.
 
 Context: 8 files, ~18k tokens.
 Task capsule created:
-.agent-task-bridge/exports/task-atb_01JXYZ.md
+.relay/exports/task-atb_01JXYZ.md
 ```
 
 ### Desired import interaction
@@ -1164,7 +1165,7 @@ The user should not need to understand the capsule schema during normal use.
 Optional project configuration:
 
 ```text
-.agent-task-bridge/config.yaml
+.relay/config.json
 ```
 
 Potential fields:
@@ -1223,7 +1224,7 @@ Do **not** delay MVP to optimize packaging before validating the protocol.
 ## 22. Suggested Repository Structure
 
 ```text
-agent-task-bridge/
+relay/
 ├── packages/
 │   ├── protocol/
 │   │   ├── task-schema
@@ -1698,8 +1699,8 @@ Unless implementation evidence suggests otherwise:
 | Decision | Default |
 |---|---|
 | Import behavior | Review/stage first; never immediate overwrite |
-| Export storage | `.agent-task-bridge/exports/` and ignored by Git by default |
-| Import history | `.agent-task-bridge/tasks/<task-id>/` local metadata |
+| Export storage | `.relay/exports/` and ignored by Git by default |
+| Import history | `.relay/tasks/<task-id>/` local metadata |
 | Team config | Optional committed config |
 | User-local overrides | Separate ignored config |
 | Task format | Markdown + YAML manifest |
@@ -1767,7 +1768,7 @@ The project should **not** be implemented as a pair of prompts that copy code be
 It should be implemented as a small interoperability layer for coding agents:
 
 ```text
-                  AGENT TASK BRIDGE
+                       RELAY
 
      Host agent                         Host agent
        Claude                             Codex

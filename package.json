@@ -1,13 +1,38 @@
 {
-  "name": "agent-task-bridge",
-  "version": "0.3.5",
-  "description": "Portable task delegation bridge between coding agents and external workers such as ChatGPT",
+  "name": "@andriilavrekha/relay",
+  "version": "1.0.0",
+  "description": "Relay — portable, local-first task delegation bridge between coding agents (Claude Code, Codex, Gemini) and external workers such as ChatGPT",
+  "license": "MIT",
+  "author": "Andrii Lavrekha",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AndriiLavrekha/relay.git"
+  },
+  "homepage": "https://github.com/AndriiLavrekha/relay#readme",
+  "bugs": {
+    "url": "https://github.com/AndriiLavrekha/relay/issues"
+  },
+  "keywords": [
+    "relay",
+    "chatgpt",
+    "claude-code",
+    "codex",
+    "gemini",
+    "antigravity",
+    "agent",
+    "delegation",
+    "capsule",
+    "developer-tools"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "engines": {
     "node": ">=22"
   },
   "bin": {
-    "agent-task-bridge": "./bin/agent-task-bridge.mjs"
+    "relay": "./bin/relay.mjs"
   },
   "scripts": {
     "test": "node --test \"test/**/*.test.mjs\"",
@@ -16,6 +41,7 @@
     "prepack": "node scripts/bundle-plugins.mjs"
   },
   "files": [
+    "assets",
     "bin",
     "src",
     "scripts",
@@ -23,6 +49,8 @@
     "protocol",
     "examples",
     "docs/architecture.md",
+    "docs/user-guide.md",
+    "docs/marketplace-publishing.md",
     "docs/releases/v0.2.0.md",
     "docs/releases/v0.2.1.md",
     "docs/releases/v0.2.2.md",
@@ -33,6 +61,7 @@
     "docs/releases/v0.3.3.md",
     "docs/releases/v0.3.4.md",
     "docs/releases/v0.3.5.md",
+    "docs/releases/v1.0.0.md",
     "docs/superpowers/specs/2026-09-29-live-codex-chatgpt-round-trip-design.md",
     "docs/superpowers/specs/2026-09-29-related-file-suggestions-design.md",
     "docs/superpowers/specs/2026-09-29-validation-os-sandbox-design.md",
@@ -40,6 +69,9 @@
     "docs/superpowers/specs/2026-09-29-handoff-command-design.md",
     "docs/superpowers/specs/2026-11-23-gemini-support-design.md",
     "README.md",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
     "LICENSE",
     "gemini-extension.json",
     "commands",

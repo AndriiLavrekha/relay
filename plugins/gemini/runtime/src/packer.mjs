@@ -3,7 +3,7 @@
 export function renderPackerScript({ taskId, baseCommit, files = [] }) {
   const baseline = Object.fromEntries(files.map((file) => [file.path, file.sha256]));
   return `#!/usr/bin/env python3
-"""Agent Task Bridge result packer for task ${taskId}.
+"""Relay result packer for task ${taskId}.
 
 1. Write every complete changed or new file to atb_out/files/<repository-relative-path>.
 2. Write atb_out/REPORT.md (required unless status is complete).
@@ -21,7 +21,7 @@ BARE = re.compile(r"^\\s*(//|#|/\\*|<!--|--)\\s*(\\.\\.\\.|\\u2026)\\s*(\\*/|-->
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Build an Agent Task Bridge Result Capsule ZIP")
+    parser = argparse.ArgumentParser(description="Build a Relay Result Capsule ZIP")
     parser.add_argument("--status", required=True, choices=["complete", "partial", "blocked", "research-only"])
     parser.add_argument("--summary", default="")
     parser.add_argument("--delete", action="append", default=[], help="repository path of an embedded file to delete")

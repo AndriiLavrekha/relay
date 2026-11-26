@@ -1,5 +1,5 @@
 {
-  "name": "task-bridge",
-  "version": "0.3.5",
-  "description": "Plan, export, and safely import bounded repository work delegated to ChatGPT."
+  "name": "relay",
+  "version": "1.0.0",
+  "description": "Relay — plan, export, and safely import bounded repository work delegated to ChatGPT."
 }

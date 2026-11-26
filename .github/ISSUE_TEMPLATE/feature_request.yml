@@ -1,0 +1,24 @@
+name: Feature Request
+description: Propose a new capability, ecosystem validator, or provider integration
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or workflow gap
+      description: What are you trying to delegate or verify that Relay does not handle cleanly today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: How should the CLI, protocol, or plugin skills behave?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds or configuration options you already tried.

@@ -28,3 +28,14 @@ test('lifecycle records persist under task import storage and load again', async
   assert.equal(loaded.state, 'exported');
   assert.equal(loaded.taskId, 'atb_test');
 });
+
+test('loadLifecycle refuses a symlinked .relay storage root', { skip: process.platform === 'win32' }, async () => {
+  const { symlink } = await import('node:fs/promises');
+  const root = await mkdtemp(path.join(tmpdir(), 'atb-lifecycle-symlink-'));
+  const outside = await mkdtemp(path.join(tmpdir(), 'atb-lifecycle-outside-'));
+  await symlink(outside, path.join(root, '.relay'));
+  await assert.rejects(
+    () => loadLifecycle(root, 'atb_test', 'import_test'),
+    (error) => error?.code === 'UNSAFE_STORAGE_ROOT',
+  );
+});

@@ -162,7 +162,7 @@ test('E2E removes staging and keeps a failed report when validation cannot start
     (error) => error.code === 'VALIDATION_PROCESS_FAILED'
   );
 
-  const importsRoot = path.join(root, '.agent-task-bridge', 'tasks', task.taskId, 'imports');
+  const importsRoot = path.join(root, '.relay', 'tasks', task.taskId, 'imports');
   const [importId] = await readdir(importsRoot);
   const report = JSON.parse(await readFile(path.join(importsRoot, importId, 'report.json'), 'utf8'));
   assert.equal(report.lifecycle, 'failed');
@@ -209,7 +209,7 @@ test('E2E interrupts validation, cleans staging, and persists active-tree observ
 
   await assert.rejects(importPromise, (error) => error === abortReason);
 
-  const importsRoot = path.join(root, '.agent-task-bridge', 'tasks', task.taskId, 'imports');
+  const importsRoot = path.join(root, '.relay', 'tasks', task.taskId, 'imports');
   const [importId] = await readdir(importsRoot);
   const report = JSON.parse(await readFile(path.join(importsRoot, importId, 'report.json'), 'utf8'));
   assert.equal(report.lifecycle, 'interrupted');

@@ -35,8 +35,14 @@ function parseArgs(args) {
   return parsed;
 }
 
+function stringOpt(args, name) {
+  const value = args[name];
+  if (value === true) throw new AtbError('MISSING_ARGUMENT', `--${name} requires a value`);
+  return value;
+}
+
 function help() {
-  console.log(`Agent Task Bridge ${pkg.version}\n\nUsage:\n  agent-task-bridge export --delegation <file> [--repo <dir>] [--out <file>] [--source-agent <name>] [--max-tokens <n>] [--privacy <mode>] [--confirm-privacy]\n  agent-task-bridge import <result.zip|reply.md> [--repo <dir>] [--json|--brief] [--validation-policy <safe|prompt|skip>] [--confirm-validation] [--allow-elision]\n  agent-task-bridge task show <task-id> [--repo <dir>] [--json]\n  agent-task-bridge review <import-id> [--repo <dir>] [--json|--brief]\n  agent-task-bridge follow-up <import-id> [--repo <dir>] [--json] [--confirm-privacy]\n  agent-task-bridge integrate <import-id> --mode branch --branch <name> --confirm   (commits on the new branch)\n  agent-task-bridge inspect-task <task.md>\n  agent-task-bridge inspect-result <result.zip>\n  agent-task-bridge validate [--dir <dir>]\n  agent-task-bridge status [--repo <dir>]\n  agent-task-bridge metrics [--json] [--no-scan] [--repo <dir>]   (Claude token cost per delegated task, from Claude Code transcripts)\n  agent-task-bridge metrics note <task-id> --claude-estimate <usd>\n  agent-task-bridge metrics collect [--transcript <file>]\n  agent-task-bridge version\n\nOptional repo-local defaults live in .agent-task-bridge/config.json: maxTokens, validationPolicy (safe, prompt, or skip), extraHostOwnedSteps, validationCommands ([{ name, command, args }], replaces auto-discovery), and validationTimeoutMs. That directory is git-excluded. A CLI flag overrides the file. An explicit delegation host_owned_steps field, including [], overrides extraHostOwnedSteps. Privacy blocking and archive safety limits are not configurable.`);
+  console.log(`Relay ${pkg.version}\n\nUsage:\n  relay export --delegation <file> [--repo <dir>] [--out <file>] [--source-agent <name>] [--max-tokens <n>] [--privacy <mode>] [--confirm-privacy]\n  relay import <result.zip|reply.md> [--repo <dir>] [--json|--brief] [--validation-policy <safe|prompt|skip>] [--confirm-validation] [--allow-elision]\n  relay task show <task-id> [--repo <dir>] [--json]\n  relay review <import-id> [--repo <dir>] [--json|--brief]\n  relay follow-up <import-id> [--repo <dir>] [--json] [--confirm-privacy]\n  relay integrate <import-id> [--mode branch --branch <name> | --mode in-place] [--repo <dir>] --confirm\n  relay inspect-task <task.md>\n  relay inspect-result <result.zip>\n  relay validate [--dir <dir>]\n  relay status [--repo <dir>]\n  relay metrics [--json] [--no-scan] [--repo <dir>]   (Claude token cost per delegated task, from Claude Code transcripts)\n  relay metrics note <task-id> --claude-estimate <usd> [--repo <dir>]\n  relay metrics collect [--transcript <file>] [--repo <dir>]\n  relay version\n\nOptional repo-local defaults live in .relay/config.json (with read fallback to .agent-task-bridge/config.json): maxTokens, validationPolicy (safe, prompt, or skip), extraHostOwnedSteps, validationCommands ([{ name, command, args }], replaces auto-discovery), validationTimeoutMs, and metricsRates. That directory is git-excluded. A CLI flag overrides the file. An explicit delegation host_owned_steps field, including [], overrides extraHostOwnedSteps. Privacy blocking and archive safety limits are not configurable.`);
 }
 
 async function main() {
@@ -45,14 +51,15 @@ async function main() {
   if (['version', '--version', '-v'].includes(command)) return console.log(pkg.version);
   const args = parseArgs(rest);
   if (command === 'export') {
-    if (!args.delegation) throw new AtbError('MISSING_ARGUMENT', '--delegation is required');
+    const delegation = stringOpt(args, 'delegation');
+    if (!delegation) throw new AtbError('MISSING_ARGUMENT', '--delegation is required');
     const result = await exportTask({
-      repoRoot: args.repo,
-      delegationPath: args.delegation,
-      outPath: args.out,
-      sourceAgent: args['source-agent'] ?? 'unknown',
+      repoRoot: stringOpt(args, 'repo'),
+      delegationPath: delegation,
+      outPath: stringOpt(args, 'out'),
+      sourceAgent: stringOpt(args, 'source-agent') ?? 'unknown',
       maxTokens: args['max-tokens'],
-      privacyPolicy: args.privacy ?? 'default',
+      privacyPolicy: stringOpt(args, 'privacy') ?? 'default',
       privacyConfirmed: args['confirm-privacy'] === true,
     });
     console.log(JSON.stringify(result, null, 2));
@@ -62,9 +69,9 @@ async function main() {
     const file = args._[0];
     if (!file) throw new AtbError('MISSING_ARGUMENT', 'import requires a Result Capsule ZIP path');
     const report = await importResult({
-      repoRoot: args.repo,
+      repoRoot: stringOpt(args, 'repo'),
       resultPath: file,
-      validationPolicy: args['validation-policy'],
+      validationPolicy: stringOpt(args, 'validation-policy'),
       validationConfirmed: args['confirm-validation'] === true,
       allowElision: args['allow-elision'] === true,
     });
@@ -91,20 +98,20 @@ async function main() {
     return;
   }
   if (command === 'validate') {
-    const dir = path.resolve(args.dir ?? process.cwd());
+    const dir = path.resolve(stringOpt(args, 'dir') ?? process.cwd());
     const commands = await discoverValidationCommands(dir);
     console.log(JSON.stringify(await runValidation(dir, commands), null, 2));
     return;
   }
   if (command === 'status') {
-    const root = await findGitRoot(args.repo ?? process.cwd());
+    const root = await findGitRoot(stringOpt(args, 'repo') ?? process.cwd());
     console.log(JSON.stringify(await listStoredTasks(root), null, 2));
     return;
   }
   if (command === 'task' && args._[0] === 'show') {
     const taskId = args._[1];
     if (!taskId) throw new AtbError('MISSING_ARGUMENT', 'task show requires a task ID');
-    const root = await findGitRoot(args.repo ?? process.cwd());
+    const root = await findGitRoot(stringOpt(args, 'repo') ?? process.cwd());
     const task = await loadStoredTask(root, taskId);
     const lifecycle = await loadLifecycle(root, taskId);
     const summary = formatTaskSummary({ manifest: task.manifest, delegation: task.delegation, lifecycle: lifecycle?.state ?? 'exported', contextSummary: task.manifest.context });
@@ -114,7 +121,7 @@ async function main() {
   if (command === 'review') {
     const importId = args._[0];
     if (!importId) throw new AtbError('MISSING_ARGUMENT', 'review requires an import ID');
-    const root = await findGitRoot(args.repo ?? process.cwd());
+    const root = await findGitRoot(stringOpt(args, 'repo') ?? process.cwd());
     const artifacts = await findImportArtifacts(root, importId);
     if (!artifacts?.review) throw new AtbError('IMPORT_NOT_FOUND', `Review not found for import: ${importId}`);
     if (args.brief) console.log(JSON.stringify(briefReview(artifacts.review, artifacts.report), null, 2));
@@ -124,7 +131,7 @@ async function main() {
   if (command === 'follow-up') {
     const importId = args._[0];
     if (!importId) throw new AtbError('MISSING_ARGUMENT', 'follow-up requires an import ID');
-    const root = await findGitRoot(args.repo ?? process.cwd());
+    const root = await findGitRoot(stringOpt(args, 'repo') ?? process.cwd());
     const artifacts = await findImportArtifacts(root, importId);
     if (!artifacts?.review) throw new AtbError('IMPORT_NOT_FOUND', `Review not found for import: ${importId}`);
     const result = await createFollowUpCapsule({ repoRoot: root, importId, review: artifacts.review, privacyConfirmed: args['confirm-privacy'] === true });
@@ -137,12 +144,12 @@ async function main() {
   if (command === 'integrate') {
     const importId = args._[0];
     if (!importId) throw new AtbError('MISSING_ARGUMENT', 'integrate requires an import ID');
-    const root = await findGitRoot(args.repo ?? process.cwd());
+    const root = await findGitRoot(stringOpt(args, 'repo') ?? process.cwd());
     const result = await integrateImport({
       repoRoot: root,
       importId,
-      mode: args.mode ?? 'branch',
-      branchName: args.branch,
+      mode: stringOpt(args, 'mode') ?? 'branch',
+      branchName: stringOpt(args, 'branch'),
       confirmed: args.confirm === true,
     });
     console.log(JSON.stringify(result, null, 2));
@@ -158,16 +165,19 @@ async function main() {
       } catch { /* metrics are best-effort */ }
       return;
     }
-    const root = await findGitRoot(args.repo ?? process.cwd());
+    const root = await findGitRoot(stringOpt(args, 'repo') ?? process.cwd());
     if (sub === 'collect') {
-      const files = args.transcript && args.transcript !== true ? [args.transcript] : await projectTranscripts(root);
+      const transcript = stringOpt(args, 'transcript');
+      const files = transcript ? [transcript] : await projectTranscripts(root);
       console.log(JSON.stringify(await collectMetrics(root, files), null, 2));
       return;
     }
     if (sub === 'note') {
       if (!args._[1]) throw new AtbError('MISSING_ARGUMENT', 'metrics note <task-id> --claude-estimate <usd>');
-      await recordNote(root, args._[1], Number(args['claude-estimate']));
-      console.log(JSON.stringify({ taskId: args._[1], claudeEstimateUsd: Number(args['claude-estimate']) }, null, 2));
+      const estimate = stringOpt(args, 'claude-estimate');
+      if (estimate === undefined) throw new AtbError('MISSING_ARGUMENT', '--claude-estimate <usd> is required');
+      await recordNote(root, args._[1], Number(estimate));
+      console.log(JSON.stringify({ taskId: args._[1], claudeEstimateUsd: Number(estimate) }, null, 2));
       return;
     }
     if (sub) throw new AtbError('UNKNOWN_COMMAND', `Unknown metrics command: ${sub}`);

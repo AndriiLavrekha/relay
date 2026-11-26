@@ -125,7 +125,7 @@ function bulletBlock(lines, title, items) {
 
 export function formatImportReport(report) {
   const lines = [
-    'Agent Task Bridge Import',
+    'Relay Import',
     `Task ID: ${report.taskId}`,
     `Lifecycle: ${report.lifecycle ?? 'unknown'}`,
     `Result status: ${report.resultStatus ?? 'unknown'}`,
@@ -157,7 +157,7 @@ export function formatImportReport(report) {
     for (const result of report.validation.results) lines.push(`  ${result.name}: ${result.status}${result.exitCode === null ? '' : ` (exit ${result.exitCode})`}`);
     for (const result of report.validation.results) {
       if (result.stdoutTruncated || result.stderrTruncated) lines.push(`  ${result.name}: output truncated`);
-      if (result.timedOut) lines.push(`  ${result.name}: timed out; tree termination ${result.killMethod ?? 'unknown'}. Raise validationTimeoutMs or set a targeted validationCommands entry in .agent-task-bridge/config.json.`);
+      if (result.timedOut) lines.push(`  ${result.name}: timed out; tree termination ${result.killMethod ?? 'unknown'}. Raise validationTimeoutMs or set a targeted validationCommands entry in .relay/config.json.`);
     }
     if (report.validation.partial) lines.push('  Note: validation is partial because one or more returned files were withheld for conflict/scope review.');
   }
@@ -179,7 +179,7 @@ export function formatImportReport(report) {
 
 export function formatReviewReport(review) {
   const lines = [
-    'Agent Task Bridge Review',
+    'Relay Review',
     `Task ID: ${review.task?.taskId ?? 'unknown'}`,
     `Lifecycle: ${review.lifecycle ?? 'unknown'}`,
     `Result status: ${review.result?.status ?? 'unknown'}`,

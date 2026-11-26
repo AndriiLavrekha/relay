@@ -2,6 +2,8 @@
 
 A Task Capsule is one UTF-8 Markdown file that carries a bounded unit of work from a local coding agent to an external worker such as ChatGPT. It is intentionally human-readable while retaining deterministic machine metadata.
 
+> **Wire Protocol Continuity:** Relay preserves `atb_protocol: "1.0"`, `<<<ATB_*>>>` framing markers, `atb_...` task IDs, and `atb_out/` packer paths so existing Task and Result Capsules remain fully compatible across versions.
+
 ## Transport
 
 - One `.md` file.

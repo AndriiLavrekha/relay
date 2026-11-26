@@ -11,7 +11,7 @@ node bench/run.mjs run --scenarios _calibrate,small-duration,big-reply-unescape,
 node bench/report.mjs --batch main               # writes bench/results/main/report.md
 ```
 
-Re-running with the same `--batch` skips runs that already finished (resume). Observed cost on this machine at list price: about $0.10 (small), $0.25 and $0.35 (big) per baseline run, so `--reps 5` over everything is roughly $15–25 and ~90 minutes.
+Re-running with the same `--batch` skips runs that already finished (resume). Observed cost on a reference host at list price: about $0.10 (small), $0.25 and $0.35 (big) per baseline run, so `--reps 5` over everything is roughly $15–25 and ~90 minutes.
 
 ## Scenarios
 
@@ -26,7 +26,7 @@ Workdirs come from `git archive` into an empty directory with a fresh `git init`
 
 ## Arms (`arms.json`)
 
-Every arm starts from `--setting-sources project` (no user hooks, plugins or env) plus the pinned model and effort, then re-enables a slice of your real `~/.claude/settings.json`: `rtk` (the `rtk hook` hook), `caveman` (its hooks plus the proxy `ANTHROPIC_BASE_URL`), `ponytail` (the plugin), `all`.
+Every arm starts from `--setting-sources project` (no user hooks, plugins or env) plus the pinned model and effort, then re-enables a slice of `~/.claude/settings.json`: `rtk` (the `rtk hook` hook), `caveman` (its hooks plus the proxy `ANTHROPIC_BASE_URL`), `ponytail` (the plugin), `all`.
 
 ## What makes the numbers trustworthy
 
@@ -40,12 +40,12 @@ Every arm starts from `--setting-sources project` (no user hooks, plugins or env
 
 ## Caveats
 
-- Your global `~/.claude/CLAUDE.md` and rules still load in every arm, including baseline (your RTK and Context7 text is in all of them). For a pristine baseline, point `CLAUDE_CONFIG_DIR` at a directory you have logged in to separately and install the plugins there. The harness never copies credentials.
+- Global `~/.claude/CLAUDE.md` and user rules still load in every arm, including baseline. For a pristine baseline, point `CLAUDE_CONFIG_DIR` at a directory logged in separately and install the plugins there. The harness never copies credentials.
 - The Caveman proxy must be running for the `caveman` arm.
 - `claude -p` is not identical to an interactive session; long sessions with compaction are not covered.
 - With fewer than ~5 reps, differences under roughly 20–30% are noise. Use the cost ranges in the report.
 
-## Measuring the relay (ChatGPT delegation)
+## Measuring Relay (ChatGPT delegation)
 
 The same three scenarios are exported as real Task Capsules, you run them in ChatGPT by hand, and the replies go through the real `import` and `integrate` path before being graded with the same hidden tests as the Claude arms.
 
@@ -57,7 +57,7 @@ node bench/chatgpt.mjs regrade --batch main     # token-free: re-grade the Claud
 node bench/chatgpt.mjs compare --batch main     # writes bench/results/main/compare.md
 ```
 
-`prepare` checks the repo out at the baseline commit, exports through `agent-task-bridge export` (so the capsule, privacy scan and kickoff prompt are exactly what a user would upload), and keeps each task's repo so `import` can verify the baseline. `grade` imports with validation policy `skip` (the bench runs its own tests), integrates into a branch, and grades a clean clone of it. A reply that cannot be imported is recorded as a failure with `import ok` = no, which is itself a result (protocol adherence). The pipeline was verified by round-tripping the reference solution of each scenario through export, reply, import, integrate and hidden tests (`node bench/chatgpt.mjs fake-reply <dir>` regenerates such a reply; never grade it under a real label).
+`prepare` checks the repo out at the baseline commit, exports through `relay export` (so the capsule, privacy scan and kickoff prompt are exactly what a user would upload), and keeps each task's repo so `import` can verify the baseline. `grade` imports with validation policy `skip` (the bench runs its own tests), integrates into a branch, and grades a clean clone of it. A reply that cannot be imported is recorded as a failure with `import ok` = no, which is itself a result (protocol adherence). The pipeline was verified by round-tripping the reference solution of each scenario through export, reply, import, integrate and hidden tests (`node bench/chatgpt.mjs fake-reply <dir>` regenerates such a reply; never grade it under a real label).
 
 Metrics, identical for ChatGPT replies and Claude patches:
 
@@ -86,7 +86,7 @@ Raw numbers: `results/main/report.md` (arms), `results/main/compare.md` (Claude 
 
 All 75 Claude runs passed the hidden tests and the full suite, so these arms differ in cost and diff size, not in correctness on these tasks. Differences under about 20% are noise at n=5.
 
-### Delegating to ChatGPT (task-bridge relay)
+### Delegating to ChatGPT (Relay)
 
 Claude's own work in a delegation is the export session plus the import/integrate session. ChatGPT's work is on the subscription and costs no Claude tokens.
 
@@ -113,7 +113,7 @@ Use delegation for medium and large, well-specified tasks with a test that can c
 
 - ChatGPT passed 7 of 9 replies. Both failures missed the same stated edge case (an `extends` path without `.json`). Claude's import review did not catch either one, because staged validation passed (2 of 2 integrated unflagged). Put every edge case in the acceptance criteria and keep an independent acceptance test.
 - Two policies were fixed in the prompts and apply to every number above: the export session confirms the exporter's low-confidence privacy warnings (the repo is public source), and the import session runs the host-owned `npm run bundle:plugins` step and integrates when staged validation passes, even if the worker lists known limitations. The first attempt without them stopped at the privacy gate on every big export and refused most imports.
-- The task-bridge skills used were the installed plugin (0.3.3), not this working tree.
+- Historical note: the benchmarked runs used the pre-rename `0.3.3` plugin (`task-bridge`), not the current working tree.
 - Small samples: 3 delegations per scenario, one Claude model, one ChatGPT mode (not recorded). Prices are API list prices. On a Claude subscription the saving is usage-limit headroom, not dollars.
 - Not measured: long interactive sessions with compaction, where the replaced Claude work is larger and the saving should be bigger.
 

@@ -199,7 +199,7 @@ test('the packer script embedded in the capsule produces an importable Result Ca
     : (await runProcess('python', ['--version'], { allowFailure: true }).catch(() => null))?.code === 0 ? 'python' : null;
   if (!python) return t.skip('Python is not available');
   const value = await fixture();
-  const capsule = await readFile(path.join(value.repo, '.agent-task-bridge', 'tasks', value.taskId, 'task.md'), 'utf8');
+  const capsule = await readFile(path.join(value.repo, '.relay', 'tasks', value.taskId, 'task.md'), 'utf8');
   const start = capsule.indexOf('```python\n') + '```python\n'.length;
   const script = capsule.slice(start, capsule.indexOf('```', start));
   const sandbox = await mkdtemp(path.join(tmpdir(), 'atb-packer-'));

@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { AtbError } from './errors.mjs';
 
-const RESERVED_SEGMENTS = new Set(['.git', '.agent-task-bridge']);
+const RESERVED_SEGMENTS = new Set(['.git', '.relay', '.agent-task-bridge']);
 
 export function normalizeRepoPath(input) {
   if (typeof input !== 'string' || input.length === 0 || input.includes('\0')) {

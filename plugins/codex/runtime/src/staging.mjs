@@ -31,7 +31,8 @@ function activeTreeEntryType(info) {
 }
 
 function isBridgeMetadataPath(repoPath) {
-  return repoPath === '.agent-task-bridge' || repoPath.startsWith('.agent-task-bridge/');
+  return repoPath === '.relay' || repoPath.startsWith('.relay/')
+    || repoPath === '.agent-task-bridge' || repoPath.startsWith('.agent-task-bridge/');
 }
 
 async function inspectActiveTreePath(repoRoot, repoPath) {
@@ -185,7 +186,7 @@ export async function resolveStagingParent(repoRoot, requestedDir = undefined) {
     if (await isSameFilesystem(stagingRepoRoot, parent)) return { parent, source: 'temp' };
   } catch {}
 
-  const fallback = path.join(path.dirname(stagingRepoRoot), '.agent-task-bridge-staging');
+  const fallback = path.join(path.dirname(stagingRepoRoot), '.relay-staging');
   try {
     const parent = await prepareStagingParent(stagingRepoRoot, fallback);
     if (await isSameFilesystem(stagingRepoRoot, parent)) return { parent, source: 'same-volume-fallback' };
@@ -262,7 +263,7 @@ export async function isSafeStagingPath(stagingRoot, repoPath) {
   return true;
 }
 
-const RESERVED_STAGING_TASK_IDS = new Set(['.git', '.agent-task-bridge']);
+const RESERVED_STAGING_TASK_IDS = new Set(['.git', '.relay', '.agent-task-bridge']);
 const WINDOWS_RESERVED_TASK_ID = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i;
 
 function validateStagingTaskId(taskId) {

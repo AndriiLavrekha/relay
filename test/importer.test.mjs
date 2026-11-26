@@ -111,7 +111,7 @@ test('importResult persists observed active-tree invariance when reconstruction 
   const zip = await resultZip(root, task, [
     { path: 'src/a.js', operation: 'modify', content: 'export const a = 2;\n' },
   ]);
-  const importsRoot = path.join(root, '.agent-task-bridge', 'tasks', task.taskId, 'imports');
+  const importsRoot = path.join(root, '.relay', 'tasks', task.taskId, 'imports');
 
   await assert.rejects(
     () => importResult({ repoRoot: root, resultPath: zip }),
@@ -162,7 +162,7 @@ test('importResult records a rejected lifecycle for an invalid result without co
     (error) => error.code === 'INVALID_RESULT_MANIFEST'
   );
 
-  const rejectedRoot = path.join(root, '.agent-task-bridge', 'imports');
+  const rejectedRoot = path.join(root, '.relay', 'imports');
   const [importId] = await readdir(rejectedRoot);
   const report = JSON.parse(await readFile(path.join(rejectedRoot, importId, 'report.json'), 'utf8'));
   assert.equal(report.lifecycle, 'rejected');
@@ -181,7 +181,7 @@ test('importResult records a failed staging-location lifecycle without creating 
     (error) => error.code === 'UNSAFE_STAGING_LOCATION'
   );
 
-  const importsRoot = path.join(root, '.agent-task-bridge', 'tasks', task.taskId, 'imports');
+  const importsRoot = path.join(root, '.relay', 'tasks', task.taskId, 'imports');
   const [importId] = await readdir(importsRoot);
   const report = JSON.parse(await readFile(path.join(importsRoot, importId, 'report.json'), 'utf8'));
   assert.equal(report.lifecycle, 'failed');
@@ -245,7 +245,7 @@ test('importResult persists an interrupted lifecycle for a pre-aborted signal', 
     (error) => error === abortError
   );
 
-  const importsRoot = path.join(root, '.agent-task-bridge', 'imports');
+  const importsRoot = path.join(root, '.relay', 'imports');
   const [importId] = await readdir(importsRoot);
   const report = JSON.parse(await readFile(path.join(importsRoot, importId, 'report.json'), 'utf8'));
   assert.equal(report.lifecycle, 'interrupted');
@@ -264,4 +264,19 @@ test('importResult normalizes a reasonless pre-abort to ABORT_ERR', async () => 
     () => importResult({ repoRoot: root, resultPath: zip, signal: controller.signal }),
     (error) => error.code === 'ABORT_ERR'
   );
+});
+
+
+test('importResult falls back to legacy .agent-task-bridge tasks exported on v0.3.x', async () => {
+  const { root, task } = await makeRepo();
+  const { rename } = await import('node:fs/promises');
+  await rename(path.join(root, '.relay'), path.join(root, '.agent-task-bridge'));
+  const { listStoredTasks, loadStoredTask } = await import('../src/storage.mjs');
+  assert.deepEqual((await listStoredTasks(root)).map((t) => t.taskId), [task.taskId]);
+  assert.equal((await loadStoredTask(root, task.taskId)).manifest.task_id, task.taskId);
+
+  const zip = await resultZip(root, task, [{ path: 'src/a.js', operation: 'modify', content: 'export const a = 42;\n' }]);
+  const report = await importResult({ repoRoot: root, resultPath: zip, validationPolicy: 'skip' });
+  assert.equal(report.taskId, task.taskId);
+  assert.deepEqual(report.stagedFiles, ['src/a.js']);
 });

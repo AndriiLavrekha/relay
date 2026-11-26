@@ -1,0 +1,51 @@
+name: Bug Report
+description: Report a bug in Relay (CLI, plugins, capsule export/import, or validation)
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: host_agent
+    attributes:
+      label: Host Agent / Surface
+      description: Which host coding agent or CLI were you using?
+      options:
+        - Claude Code
+        - OpenAI Codex
+        - Gemini CLI
+        - Antigravity (agy)
+        - Standalone CLI (relay)
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Relay Version
+      description: Output of `relay version` or the installed plugin version.
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: OS & Node.js Version
+      placeholder: "e.g., Windows 11 / macOS 15 / Ubuntu 24.04, Node v22.16.0"
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Clear description of the bug and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Commands, delegation JSON (redacted of any secrets), or capsule/import flags used.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error output / JSON report
+      description: Paste any error code/output here (redact any private repository details).
+      render: text

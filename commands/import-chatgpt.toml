@@ -1,2 +1,2 @@
-description = "Safely inspect, validate, and stage a returned ChatGPT Result Capsule (.zip or reply.md) without modifying the active working tree"
-prompt = "Use the import-chatgpt skill to safely inspect, drift-check, stage, and locally validate this ChatGPT Result Capsule: {{args}}. Do not modify the active working tree directly; present the staged diff, validation evidence, worker report, and integration recommendation."
+description = "Relay: safely inspect, validate, and stage a returned ChatGPT Result Capsule (.zip or reply.md) without modifying the active working tree"
+prompt = "Use Relay's import-chatgpt skill to safely inspect, drift-check, stage, and locally validate this ChatGPT Result Capsule: {{args}}. Do not modify the active working tree directly; present the staged diff, validation evidence, worker report, and integration recommendation."

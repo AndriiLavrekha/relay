@@ -12,7 +12,7 @@ async function readJson(relative) {
 
 async function canonicalRuntimeFiles() {
   const src = (await readdir(path.join(root, 'src'))).filter((name) => name.endsWith('.mjs')).sort();
-  return ['bin/agent-task-bridge.mjs', ...src.map((name) => `src/${name}`)];
+  return ['bin/relay.mjs', ...src.map((name) => `src/${name}`)];
 }
 
 for (const provider of ['claude-code', 'codex', 'gemini']) {
@@ -31,7 +31,7 @@ for (const provider of ['claude-code', 'codex', 'gemini']) {
     assert.deepEqual(bundledPackage.engines, rootPackage.engines);
 
     const result = await runProcess(process.execPath, [
-      path.join(root, 'plugins', provider, 'runtime', 'bin', 'agent-task-bridge.mjs'),
+      path.join(root, 'plugins', provider, 'runtime', 'bin', 'relay.mjs'),
       'version'
     ], { cwd: root });
     assert.equal(result.stdout.trim(), rootPackage.version);
@@ -40,15 +40,19 @@ for (const provider of ['claude-code', 'codex', 'gemini']) {
 
 test('Claude Code plugin uses the current plugin manifest and namespaced user skills', async () => {
   const manifest = await readJson('plugins/claude-code/.claude-plugin/plugin.json');
-  assert.equal(manifest.name, 'task-bridge');
+  assert.equal(manifest.name, 'relay');
   assert.equal(manifest.version, (await readJson('package.json')).version);
   assert.equal(manifest.skills, './skills/');
+
+  const canonicalPng = await readFile(path.join(root, 'assets', 'logo.png'));
+  const claudeIcon = await readFile(path.join(root, 'plugins', 'claude-code', '.claude-plugin', 'icon.png'));
+  assert.deepEqual(claudeIcon, canonicalPng, 'plugins/claude-code/.claude-plugin/icon.png is stale');
 
   for (const name of ['plan-chatgpt', 'export-chatgpt', 'import-chatgpt']) {
     const skill = await readFile(path.join(root, 'plugins', 'claude-code', 'skills', name, 'SKILL.md'), 'utf8');
     assert.match(skill, new RegExp(`name: ${name}`));
     assert.match(skill, /\$\{CLAUDE_PLUGIN_ROOT\}/);
-    assert.match(skill, /runtime\/bin\/agent-task-bridge\.mjs/);
+    assert.match(skill, /runtime\/bin\/relay\.mjs/);
   }
   const planSkill = await readFile(path.join(root, 'plugins', 'claude-code', 'skills', 'plan-chatgpt', 'SKILL.md'), 'utf8');
   assert.match(planSkill, /editable_scope/);
@@ -58,12 +62,12 @@ test('Claude Code plugin uses the current plugin manifest and namespaced user sk
   const exportSkill = await readFile(path.join(root, 'plugins', 'claude-code', 'skills', 'export-chatgpt', 'SKILL.md'), 'utf8');
   assert.match(exportSkill, /editable_scope/);
   assert.match(exportSkill, /acceptance_criteria/);
-  assert.match(exportSkill, /agent-task-bridge\.mjs" export/);
+  assert.match(exportSkill, /relay\.mjs" export/);
   assert.match(exportSkill, /kickoff\.md|--max-tokens/);
   assert.match(exportSkill, /host_owned_steps/);
   assert.match(exportSkill, /CONTEXT_COVERAGE_GAP/);
   const importSkill = await readFile(path.join(root, 'plugins', 'claude-code', 'skills', 'import-chatgpt', 'SKILL.md'), 'utf8');
-  assert.match(importSkill, /agent-task-bridge\.mjs" import/);
+  assert.match(importSkill, /relay\.mjs" import/);
   assert.match(importSkill, /never/i);
   assert.match(importSkill, /active working tree/i);
   assert.match(importSkill, /review/);
@@ -75,17 +79,22 @@ test('Claude Code plugin uses the current plugin manifest and namespaced user sk
 
 test('Codex plugin declares the shared skills and self-contained runtime contract', async () => {
   const manifest = await readJson('plugins/codex/.codex-plugin/plugin.json');
-  assert.equal(manifest.name, 'task-bridge');
+  assert.equal(manifest.name, 'relay');
   assert.equal(manifest.version, (await readJson('package.json')).version);
   assert.equal(manifest.skills, './skills/');
-  assert.equal(manifest.interface.displayName, 'Agent Task Bridge');
+  assert.equal(manifest.interface.displayName, 'Relay');
   assert.equal(manifest.interface.category, 'Developer Tools');
+  assert.ok(manifest.interface.shortDescription.length <= 30);
+
+  const canonicalLogo = await readFile(path.join(root, 'assets', 'logo.svg'));
+  const codexLogo = await readFile(path.join(root, 'plugins', 'codex', 'assets', 'logo.svg'));
+  assert.deepEqual(codexLogo, canonicalLogo, 'plugins/codex/assets/logo.svg is stale');
 
   for (const name of ['plan-chatgpt', 'export-chatgpt', 'import-chatgpt']) {
     const skill = await readFile(path.join(root, 'plugins', 'codex', 'skills', name, 'SKILL.md'), 'utf8');
     assert.match(skill, new RegExp(`name: ${name}`));
     assert.match(skill, /plugin root/i);
-    assert.match(skill, /runtime\/bin\/agent-task-bridge\.mjs/);
+    assert.match(skill, /runtime\/bin\/relay\.mjs/);
   }
   const planSkill = await readFile(path.join(root, 'plugins', 'codex', 'skills', 'plan-chatgpt', 'SKILL.md'), 'utf8');
   assert.match(planSkill, /editable_scope/);
@@ -112,9 +121,10 @@ test('Codex plugin declares the shared skills and self-contained runtime contrac
 test('Gemini plugin declares Antigravity and Gemini CLI manifests, shared skills, and install docs', async () => {
   const rootPackage = await readJson('package.json');
   const manifest = await readJson('plugins/gemini/.gemini-plugin/plugin.json');
-  assert.equal(manifest.name, 'task-bridge');
+  assert.equal(manifest.name, 'relay');
   assert.equal(manifest.version, rootPackage.version);
-  assert.equal(manifest.displayName, 'Agent Task Bridge');
+  assert.equal(manifest.displayName, 'Relay');
+  assert.equal(manifest.logo, 'assets/logo.svg');
   assert.equal(manifest.category, 'Developer Tools');
   assert.equal(manifest.license, 'MIT');
   assert.ok(manifest.description && manifest.description.length > 10);
@@ -124,16 +134,20 @@ test('Gemini plugin declares Antigravity and Gemini CLI manifests, shared skills
   assert.ok(Array.isArray(manifest.keywords) && manifest.keywords.includes('gemini'));
   await assert.rejects(readdir(path.join(root, 'plugins', 'gemini', 'commands')), { code: 'ENOENT' });
 
+  const canonicalLogo = await readFile(path.join(root, 'assets', 'logo.svg'));
+  const geminiLogo = await readFile(path.join(root, 'plugins', 'gemini', 'assets', 'logo.svg'));
+  assert.deepEqual(geminiLogo, canonicalLogo, 'plugins/gemini/assets/logo.svg is stale');
+
   const ext = await readJson('plugins/gemini/gemini-extension.json');
-  assert.equal(ext.name, 'task-bridge');
+  assert.equal(ext.name, 'relay');
   assert.equal(ext.version, rootPackage.version);
   assert.ok(ext.description && ext.description.length > 10);
 
   for (const name of ['plan-chatgpt', 'export-chatgpt', 'import-chatgpt']) {
     const skill = await readFile(path.join(root, 'plugins', 'gemini', 'skills', name, 'SKILL.md'), 'utf8');
     assert.match(skill, new RegExp(`name: ${name}`));
-    assert.match(skill, /runtime\/bin\/agent-task-bridge\.mjs/);
-    assert.match(skill, /bin\/agent-task-bridge\.mjs/);
+    assert.match(skill, /runtime\/bin\/relay\.mjs/);
+    assert.match(skill, /bin\/relay\.mjs/);
   }
   const planSkill = await readFile(path.join(root, 'plugins', 'gemini', 'skills', 'plan-chatgpt', 'SKILL.md'), 'utf8');
   assert.match(planSkill, /editable_scope/);
@@ -189,23 +203,22 @@ test('Gemini plugin declares Antigravity and Gemini CLI manifests, shared skills
 test('Codex documentation provides an explicit local marketplace install flow', async () => {
   const readme = await readFile(path.join(root, 'plugins', 'codex', 'README.md'), 'utf8');
   assert.match(readme, /codex plugin marketplace add/);
-  assert.match(readme, /codex plugin add task-bridge@awesome-task-bridge/);
+  assert.match(readme, /codex plugin add relay@relay/);
 });
 
 test('release package includes verification scripts and architecture documentation', async () => {
   const pkg = await readJson('package.json');
+  assert.ok(pkg.files.includes('assets'));
   assert.ok(pkg.files.includes('scripts'));
   assert.ok(pkg.files.includes('docs/architecture.md'));
+  assert.ok(pkg.files.includes('docs/user-guide.md'));
+  assert.ok(pkg.files.includes('docs/marketplace-publishing.md'));
   assert.ok(pkg.files.includes('docs/releases/v0.2.0.md'));
-  assert.ok(pkg.files.includes('docs/releases/v0.2.1.md'));
-  assert.ok(pkg.files.includes('docs/releases/v0.2.2.md'));
-  assert.ok(pkg.files.includes('docs/releases/v0.2.3.md'));
-  assert.ok(pkg.files.includes('docs/releases/v0.3.0.md'));
-  assert.ok(pkg.files.includes('docs/releases/v0.3.1.md'));
-  assert.ok(pkg.files.includes('docs/releases/v0.3.2.md'));
-  assert.ok(pkg.files.includes('docs/releases/v0.3.3.md'));
-  assert.ok(pkg.files.includes('docs/releases/v0.3.4.md'));
   assert.ok(pkg.files.includes('docs/releases/v0.3.5.md'));
+  assert.ok(pkg.files.includes('docs/releases/v1.0.0.md'));
+  assert.ok(pkg.files.includes('CHANGELOG.md'));
+  assert.ok(pkg.files.includes('CONTRIBUTING.md'));
+  assert.ok(pkg.files.includes('SECURITY.md'));
   assert.ok(pkg.files.includes('gemini-extension.json'));
   assert.ok(pkg.files.includes('commands'));
   assert.ok(pkg.files.includes('skills'));
@@ -214,13 +227,13 @@ test('release package includes verification scripts and architecture documentati
 
 test('repository ships local marketplace catalogs for both providers', async () => {
   const claudeMarket = await readJson('.claude-plugin/marketplace.json');
-  assert.equal(claudeMarket.name, 'awesome-task-bridge');
-  assert.equal(claudeMarket.plugins[0].name, 'task-bridge');
+  assert.equal(claudeMarket.name, 'relay');
+  assert.equal(claudeMarket.plugins[0].name, 'relay');
   assert.equal(claudeMarket.plugins[0].source, './plugins/claude-code');
 
   const codexMarket = await readJson('.agents/plugins/marketplace.json');
-  assert.equal(codexMarket.name, 'awesome-task-bridge');
-  assert.equal(codexMarket.plugins[0].name, 'task-bridge');
+  assert.equal(codexMarket.name, 'relay');
+  assert.equal(codexMarket.plugins[0].name, 'relay');
   assert.equal(codexMarket.plugins[0].source.source, 'local');
   assert.equal(codexMarket.plugins[0].source.path, './plugins/codex');
 });
@@ -231,8 +244,15 @@ test('protocol, example, license, and user documentation ship with the package',
     '.agents/plugins/marketplace.json',
     '.agents/plugins.json',
     'gemini-extension.json',
+    'assets/logo.svg',
     'README.md',
+    'CHANGELOG.md',
+    'CONTRIBUTING.md',
+    'SECURITY.md',
     'LICENSE',
+    'docs/user-guide.md',
+    'docs/marketplace-publishing.md',
+    'docs/releases/v1.0.0.md',
     'protocol/TASK-CAPSULE-v1.md',
     'protocol/RESULT-CAPSULE-v1.md',
     'examples/delegation.example.json',

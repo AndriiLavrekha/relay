@@ -98,11 +98,13 @@ test('fingerprintActiveTree deterministically records Git-visible regular files'
   const root = await makeRepo(t);
   await mkdir(path.join(root, 'src'));
   await mkdir(path.join(root, '.ignored'));
+  await mkdir(path.join(root, '.relay'));
   await mkdir(path.join(root, '.agent-task-bridge'));
   await writeFile(path.join(root, '.gitignore'), '.ignored/\n');
   await writeFile(path.join(root, 'src', 'untracked.txt'), 'visible\n');
   await writeFile(path.join(root, '.ignored', 'private.txt'), 'ignored\n');
-  await writeFile(path.join(root, '.agent-task-bridge', 'local.json'), '{}\n');
+  await writeFile(path.join(root, '.relay', 'local.json'), '{}\n');
+  await writeFile(path.join(root, '.agent-task-bridge', 'legacy.json'), '{}\n');
 
   const before = await staging.fingerprintActiveTree(root);
   const after = await staging.fingerprintActiveTree(root);
@@ -116,6 +118,7 @@ test('fingerprintActiveTree deterministically records Git-visible regular files'
     sha256: sha256Buffer(Buffer.from('visible\n')),
   });
   assert.equal(before.files.some((file) => file.path.startsWith('.ignored/')), false);
+  assert.equal(before.files.some((file) => file.path.startsWith('.relay/')), false);
   assert.equal(before.files.some((file) => file.path.startsWith('.agent-task-bridge/')), false);
   assert.equal(typeof before.durationMs, 'number');
 });
@@ -196,6 +199,7 @@ test('createIsolatedStaging rejects unsafe task IDs before creating a worktree',
     path.resolve(externalRoot, 'task-id-absolute'),
     'task-id\0nul',
     '.git',
+    '.relay',
     '.agent-task-bridge',
   ];
 
@@ -208,7 +212,7 @@ test('createIsolatedStaging rejects unsafe task IDs before creating a worktree',
     }
     assert.equal((await runProcess('git', ['worktree', 'list', '--porcelain'], { cwd: root })).stdout, worktreesBefore);
     assert.deepEqual(await readdir(externalRoot), externalEntriesBefore);
-    assert.equal(await exists(path.join(root, '.agent-task-bridge')), false);
+    assert.equal(await exists(path.join(root, '.relay')), false);
   } finally {
     const worktreesAfter = (await runProcess('git', ['worktree', 'list', '--porcelain'], { cwd: root })).stdout;
     const createdWorktrees = worktreesAfter
@@ -480,7 +484,7 @@ test('createIsolatedStaging uses targetHead for the detached worktree', async (t
 test('resolveStagingParent rejects an explicit staging directory inside the repository', async (t) => {
   const repo = await makeRepo(t);
   await assert.rejects(
-    () => resolveStagingParent(repo, path.join(repo, '.agent-task-bridge-staging')),
+    () => resolveStagingParent(repo, path.join(repo, '.relay-staging')),
     (error) => error.code === 'UNSAFE_STAGING_LOCATION'
   );
 });
@@ -542,7 +546,7 @@ test('resolveStagingParent uses the physical repository drive through a Windows 
   const result = await resolveStagingParent(fixture.alias);
   assert.equal(result.source, 'same-volume-fallback');
   assert.equal(path.parse(result.parent).root.toLowerCase(), fixture.physicalDrive.toLowerCase());
-  assert.equal(result.parent, path.join(fixture.physicalFixture, '.agent-task-bridge-staging'));
+  assert.equal(result.parent, path.join(fixture.physicalFixture, '.relay-staging'));
 });
 
 test('resolveStagingParent derives a canonical fallback root on the non-Windows branch', { skip: process.platform !== 'win32' }, async (t) => {
@@ -553,7 +557,7 @@ test('resolveStagingParent derives a canonical fallback root on the non-Windows 
   Object.defineProperty(process, 'platform', { ...descriptor, value: 'linux' });
   const result = await resolveStagingParent(fixture.alias);
   assert.equal(result.source, 'same-volume-fallback');
-  assert.equal(result.parent, path.join(fixture.physicalFixture, '.agent-task-bridge-staging'));
+  assert.equal(result.parent, path.join(fixture.physicalFixture, '.relay-staging'));
 });
 
 test('assertOutsideRepository rejects a symbolic-link staging parent', { skip: process.platform === 'win32' }, async (t) => {

@@ -1,11 +1,20 @@
 {
-  "name": "task-bridge",
-  "version": "0.3.5",
+  "name": "relay",
+  "version": "1.0.0",
   "description": "Export bounded repository work to ChatGPT and safely stage returned results for local validation and review.",
   "author": {
-    "name": "Agent Task Bridge contributors"
+    "name": "Andrii Lavrekha"
   },
+  "homepage": "https://github.com/AndriiLavrekha/relay",
+  "repository": "https://github.com/AndriiLavrekha/relay",
   "license": "MIT",
-  "keywords": ["chatgpt", "delegation", "handoff", "codex", "developer-tools"],
+  "keywords": [
+    "relay",
+    "chatgpt",
+    "delegation",
+    "handoff",
+    "claude-code",
+    "developer-tools"
+  ],
   "skills": "./skills/"
 }

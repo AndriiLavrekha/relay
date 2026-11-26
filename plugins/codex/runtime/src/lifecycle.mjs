@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { AtbError } from './errors.mjs';
-import { assertSafeStorageRoot, atbRoot } from './storage.mjs';
+import { assertSafeStorageRoot, atbRoot, LEGACY_STORAGE_DIR, STORAGE_DIR, safeExistingStorageDir } from './storage.mjs';
 
 export const LIFECYCLE_STATES = Object.freeze([
   'exported', 'result-received', 'inspected', 'staged', 'reviewed', 'integrated',
@@ -26,12 +26,16 @@ function validateId(value, name) {
   return value;
 }
 
-function lifecyclePath(repoRoot, taskId, importId) {
+function lifecyclePathInRoot(storageRoot, taskId, importId) {
   validateId(taskId, 'task ID');
   if (importId !== undefined && importId !== null) validateId(importId, 'import ID');
   return importId
-    ? path.join(atbRoot(repoRoot), 'tasks', taskId, 'imports', importId, 'lifecycle.json')
-    : path.join(atbRoot(repoRoot), 'tasks', taskId, 'lifecycle.json');
+    ? path.join(storageRoot, 'tasks', taskId, 'imports', importId, 'lifecycle.json')
+    : path.join(storageRoot, 'tasks', taskId, 'lifecycle.json');
+}
+
+function lifecyclePath(repoRoot, taskId, importId) {
+  return lifecyclePathInRoot(atbRoot(repoRoot), taskId, importId);
 }
 
 export function transitionLifecycle(record, nextState, details = {}) {
@@ -61,8 +65,15 @@ export async function writeLifecycle(repoRoot, record) {
 }
 
 export async function loadLifecycle(repoRoot, taskId, importId) {
+  await assertSafeStorageRoot(repoRoot, STORAGE_DIR);
   const target = lifecyclePath(repoRoot, taskId, importId);
   try { return JSON.parse(await readFile(target, 'utf8')); }
+  catch (error) {
+    if (error?.code !== 'ENOENT') throw new AtbError('INVALID_LIFECYCLE', `Lifecycle record is invalid: ${error.message}`);
+  }
+  const legacyDir = await safeExistingStorageDir(repoRoot, LEGACY_STORAGE_DIR);
+  if (!legacyDir) return null;
+  try { return JSON.parse(await readFile(lifecyclePathInRoot(legacyDir, taskId, importId), 'utf8')); }
   catch (error) {
     if (error?.code === 'ENOENT') return null;
     throw new AtbError('INVALID_LIFECYCLE', `Lifecycle record is invalid: ${error.message}`);

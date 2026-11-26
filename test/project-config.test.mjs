@@ -129,7 +129,7 @@ test('a symlinked project config is rejected', { skip: process.platform === 'win
   const root = await makeRepo();
   const outside = path.join(root, 'outside.json');
   await writeFile(outside, '{"validationPolicy":"skip"}');
-  await mkdir(path.join(root, '.agent-task-bridge'), { recursive: true });
+  await mkdir(path.join(root, '.relay'), { recursive: true });
   await symlink(outside, projectConfigPath(root));
   await assert.rejects(() => loadProjectConfig(root), (error) => error?.code === 'INVALID_PROJECT_CONFIG');
   const delegationPath = path.join(root, 'delegation.json');
@@ -145,4 +145,47 @@ test('delegation validation still owns an explicit host step list', () => {
     { extraHostOwnedSteps: ['Release checklist sign-off'] },
   );
   assert.deepEqual(applied.host_owned_steps, ['Git commit, branch creation, and repository push']);
+});
+
+
+test('project config accepts metricsRates and rejects malformed metricsRates', async () => {
+  const parsed = parseProjectConfig(JSON.stringify({
+    metricsRates: {
+      'claude-opus-4': { input: 15, output: 75, cacheWrite5m: 18.75, cacheWrite1h: 30, cacheRead: 1.5 },
+    },
+  }));
+  assert.equal(parsed.metricsRates['claude-opus-4'].input, 15);
+  assert.equal(parsed.metricsRates['claude-opus-4'].cacheRead, 1.5);
+  assert.throws(() => parseProjectConfig(JSON.stringify({ metricsRates: { bad: { input: -1, output: 1 } } })), /metricsRates/);
+  assert.throws(() => parseProjectConfig(JSON.stringify({ metricsRates: { bad: { input: 1 } } })), /metricsRates/);
+  assert.throws(() => parseProjectConfig(JSON.stringify({ metricsRates: { bad: { input: 1, output: 2, extra: 3 } } })), /metricsRates/);
+
+  const root = await makeRepo();
+  await writeConfig(root, { metricsRates: { 'claude-opus-4': { input: 15, output: 75 } } });
+  const delegationPath = path.join(root, 'delegation.json');
+  await writeFile(delegationPath, JSON.stringify(delegation));
+  const exported = await exportTask({ repoRoot: root, delegationPath, maxTokens: 1_000_000 });
+  assert.equal(exported.projectConfig.present, true);
+});
+
+test('loadProjectConfig falls back to legacy .agent-task-bridge/config.json and prefers .relay/config.json', async () => {
+  const root = await makeRepo();
+  await mkdir(path.join(root, '.agent-task-bridge'), { recursive: true });
+  await writeFile(path.join(root, '.agent-task-bridge', 'config.json'), JSON.stringify({ maxTokens: 42000 }));
+  const legacyLoaded = await loadProjectConfig(root);
+  assert.equal(legacyLoaded.present, true);
+  assert.equal(legacyLoaded.maxTokens, 42000);
+
+  await writeConfig(root, { maxTokens: 90000 });
+  const primaryLoaded = await loadProjectConfig(root);
+  assert.equal(primaryLoaded.maxTokens, 90000);
+});
+
+test('resolveMaxTokens rejects invalid explicit values and parseMetricsRates rejects prototype keys', () => {
+  assert.throws(() => resolveMaxTokens(true, {}), (error) => error?.code === 'INVALID_ARGUMENT');
+  assert.throws(() => resolveMaxTokens('abc', {}), (error) => error?.code === 'INVALID_ARGUMENT');
+  assert.throws(() => resolveMaxTokens(0, {}), (error) => error?.code === 'INVALID_ARGUMENT');
+  assert.throws(() => resolveMaxTokens('-5', {}), (error) => error?.code === 'INVALID_ARGUMENT');
+  assert.equal(resolveMaxTokens('4096', {}), 4096);
+  assert.throws(() => parseProjectConfig('{"metricsRates":{"__proto__":{"input":1,"output":2}}}'), /metricsRates/);
 });

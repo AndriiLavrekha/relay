@@ -9,7 +9,7 @@ Use this skill when the developer wants to analyze a feature or multi-part chang
 
 ## Locate the deterministic bridge
 
-The plugin is self-contained. Resolve the **plugin root** as the directory that contains `.codex-plugin/plugin.json`; this skill lives below `<plugin root>/skills/plan-chatgpt/`. When the plan is approved and ready to export, `export-chatgpt` invokes `<plugin root>/runtime/bin/agent-task-bridge.mjs`.
+The plugin is self-contained. Resolve the **plugin root** as the directory that contains `.codex-plugin/plugin.json`; this skill lives below `<plugin root>/skills/plan-chatgpt/`. When the plan is approved and ready to export, `export-chatgpt` invokes `<plugin root>/runtime/bin/relay.mjs`.
 
 ## Workflow
 
@@ -17,7 +17,7 @@ The plugin is self-contained. Resolve the **plugin root** as the directory that 
 2. Split the work along clean seams into a structured breakdown:
    - **Delegate to ChatGPT:** self-contained modules behind an interface, parsers or algorithms, isolated test suites, or migrations of isolated files.
    - **Keep local (Host-owned):** cross-cutting registration, dependency injection, routing, configuration, live services, and edits spread across many files.
-3. For each exportable unit, draft the exact delegation contract fields that `export-chatgpt` will pass to `node "<plugin root>/runtime/bin/agent-task-bridge.mjs" export`:
+3. For each exportable unit, draft the exact delegation contract fields that `export-chatgpt` will pass to `node "<plugin root>/runtime/bin/relay.mjs" export`:
    - `title`, `objective`, `work_unit`, `work_type`, `current_work_state`, `deliverables`, `non_goals`, and `architecture_context`.
    - `editable_scope`: repository-relative paths or globs ChatGPT may change.
    - `files`: grouped into `editable`, `contract` (interfaces, types, state shapes), `reference` (one neighbouring source file and one existing test whose conventions ChatGPT should copy), `validation`, and `configuration`.

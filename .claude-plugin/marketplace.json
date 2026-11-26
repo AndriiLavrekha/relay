@@ -1,15 +1,27 @@
 {
-  "name": "awesome-task-bridge",
+  "name": "relay",
   "owner": {
-    "name": "Agent Task Bridge contributors"
+    "name": "Andrii Lavrekha"
   },
-  "description": "Local marketplace for the Agent Task Bridge Claude Code plugin.",
+  "description": "Relay — delegate bounded repository tasks to ChatGPT and safely review returned results locally.",
   "plugins": [
     {
-      "name": "task-bridge",
+      "name": "relay",
       "source": "./plugins/claude-code",
-      "description": "Delegate bounded repository work to ChatGPT and safely review returned results.",
-      "version": "0.3.5"
+      "description": "Delegate bounded repository work to ChatGPT and safely stage, validate, and review returned results.",
+      "version": "1.0.0",
+      "category": "developer-tools",
+      "homepage": "https://github.com/AndriiLavrekha/relay",
+      "repository": "https://github.com/AndriiLavrekha/relay",
+      "license": "MIT",
+      "keywords": [
+        "relay",
+        "chatgpt",
+        "delegation",
+        "handoff",
+        "capsule",
+        "developer-tools"
+      ]
     }
   ]
 }

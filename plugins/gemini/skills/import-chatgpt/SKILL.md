@@ -8,8 +8,8 @@ description: Safely inspect and stage a ChatGPT Result Capsule, detect repositor
 ## Locate the deterministic bridge
 
 Resolve `<root>` as the directory two levels above this `SKILL.md` (`<root>/skills/import-chatgpt/SKILL.md`, which contains `.gemini-plugin/plugin.json` or `gemini-extension.json`). Resolve the CLI entrypoint in order:
-1. `<root>/runtime/bin/agent-task-bridge.mjs` (when loaded from `plugins/gemini`, `agy plugin install`, or `.agents/plugins.json`)
-2. `<root>/bin/agent-task-bridge.mjs` (when installed or linked from the repository root via `gemini extensions install` / `gemini extensions link`).
+1. `<root>/runtime/bin/relay.mjs` (when loaded from `plugins/gemini`, `agy plugin install`, or `.agents/plugins.json`)
+2. `<root>/bin/relay.mjs` (when installed or linked from the repository root via `gemini extensions install` / `gemini extensions link`).
 
 Use the absolute resolved CLI path when invoking it from the target repository root.
 
@@ -20,7 +20,7 @@ Use the absolute resolved CLI path when invoking it from the target repository r
 
    `node "<resolved-cli-path>" import "<result-capsule.zip or reply.md>" --repo . --brief`
 
-   `--brief` prints only decisions, withheld files, and failing validation output; use `--json` only when you need the full report. Omit `--validation-policy` to use `.agent-task-bridge/config.json` when it sets `validationPolicy`. Pass `--validation-policy safe` to override that file.
+   `--brief` prints only decisions, withheld files, and failing validation output; use `--json` only when you need the full report. Omit `--validation-policy` to use `.relay/config.json` when it sets `validationPolicy`. Pass `--validation-policy safe` to override that file.
 
 3. Verify that the report matched the original stored Task Capsule and source baseline. Run `review <import-id> --repo . --brief` again later instead of re-reading full JSON.
 4. The bridge must leave the active working tree unchanged. Review `activeWorktreeModifiedByImport`, per-file drift statuses, withheld candidates, and the isolated staging path.

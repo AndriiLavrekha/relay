@@ -32,7 +32,7 @@ async function fixture() {
   };
   await persistImportReport(root, { taskId, importId, report });
   await writeLifecycle(root, { taskId, importId, state: 'reviewed', events: [{ state: 'reviewed', at: new Date().toISOString() }] });
-  await writeFile(path.join(root, '.agent-task-bridge', 'tasks', taskId, 'imports', importId, 'review.json'), JSON.stringify({ partial: false }));
+  await writeFile(path.join(root, '.relay', 'tasks', taskId, 'imports', importId, 'review.json'), JSON.stringify({ partial: false }));
   return { root, taskId, importId, head };
 }
 
@@ -65,4 +65,22 @@ test('integrateImport refuses active-tree drift before in-place mutation', async
   const value = await fixture();
   await writeFile(path.join(value.root, 'src', 'a.js'), 'changed after review\n');
   await assert.rejects(() => integrateImport({ repoRoot: value.root, importId: value.importId, mode: 'in-place', confirmed: true }), (error) => error?.code === 'INTEGRATION_ACTIVE_TREE_CHANGED');
+});
+
+test('integrateImport on legacy .agent-task-bridge import writes updated lifecycle and integration.json to .relay', async () => {
+  const { rename, access } = await import('node:fs/promises');
+  const { findImportArtifacts } = await import('../src/storage.mjs');
+  const value = await fixture();
+  await rename(path.join(value.root, '.relay'), path.join(value.root, '.agent-task-bridge'));
+  const branchName = `atb-legacy-int-${Date.now().toString(36)}`;
+
+  const result = await integrateImport({ repoRoot: value.root, importId: value.importId, mode: 'branch', branchName, confirmed: true });
+  assert.equal(result.lifecycle.state, 'integrated');
+
+  const artifacts = await findImportArtifacts(value.root, value.importId);
+  assert.equal(artifacts.lifecycle.state, 'integrated');
+
+  const relayIntegration = JSON.parse(await readFile(path.join(value.root, '.relay', 'tasks', value.taskId, 'imports', value.importId, 'integration.json'), 'utf8'));
+  assert.equal(relayIntegration.branchName, branchName);
+  await assert.rejects(access(path.join(value.root, '.agent-task-bridge', 'tasks', value.taskId, 'imports', value.importId, 'integration.json')));
 });

@@ -1,12 +1,12 @@
 {
-  "name": "awesome-task-bridge",
+  "name": "relay",
   "interface": {
-    "displayName": "Agent Task Bridge Local"
+    "displayName": "Relay"
   },
   "plugins": [
     {
-      "name": "task-bridge",
-      "version": "0.3.5",
+      "name": "relay",
+      "version": "1.0.0",
       "source": {
         "source": "local",
         "path": "./plugins/codex"

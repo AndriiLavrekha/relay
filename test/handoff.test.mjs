@@ -48,7 +48,7 @@ test('createHandoffBundle writes deterministic kickoff artifacts and summary', a
 test('formatKickoffPrompt states the untrusted worker contract', () => {
   const prompt = formatKickoffPrompt({
     taskId: 'atb_prompt',
-    capsulePath: '.agent-task-bridge/tasks/atb_prompt/task.md',
+    capsulePath: '.relay/tasks/atb_prompt/task.md',
     manifest: { schema_version: '1.1', project: { base_commit: 'b'.repeat(40) } },
     delegation: { objective: 'Do the work', acceptance_criteria: ['Tests pass'] },
   });

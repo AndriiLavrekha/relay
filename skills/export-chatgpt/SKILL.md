@@ -10,8 +10,8 @@ Use this skill when the developer wants ChatGPT to execute a bounded unit of wor
 ## Locate the deterministic bridge
 
 Resolve `<root>` as the directory two levels above this `SKILL.md` (`<root>/skills/export-chatgpt/SKILL.md`, which contains `.gemini-plugin/plugin.json` or `gemini-extension.json`). Resolve the CLI entrypoint in order:
-1. `<root>/runtime/bin/agent-task-bridge.mjs` (when loaded from `plugins/gemini`, `agy plugin install`, or `.agents/plugins.json`)
-2. `<root>/bin/agent-task-bridge.mjs` (when installed or linked from the repository root via `gemini extensions install` / `gemini extensions link`).
+1. `<root>/runtime/bin/relay.mjs` (when loaded from `plugins/gemini`, `agy plugin install`, or `.agents/plugins.json`)
+2. `<root>/bin/relay.mjs` (when installed or linked from the repository root via `gemini extensions install` / `gemini extensions link`).
 
 Use the absolute resolved CLI path when invoking it from the target repository root; do not assume `<root>` is the current working directory.
 
@@ -26,7 +26,7 @@ Use the absolute resolved CLI path when invoking it from the target repository r
 
    `node "<resolved-cli-path>" export --delegation "<temporary-json-path>" --repo . --source-agent gemini --max-tokens <budget>`
 
-   Omit `--max-tokens` when `.agent-task-bridge/config.json` should supply `maxTokens`. Extra host steps in that file apply only when the delegation omits `host_owned_steps`.
+   Omit `--max-tokens` when `.relay/config.json` should supply `maxTokens`. Extra host steps in that file apply only when the delegation omits `host_owned_steps`.
 
 7. Delete the temporary input JSON when appropriate.
 8. Return the generated `task.md` and `kickoff.md` paths, delegated boundaries, file count, and estimated context size. Before handing the capsule over, read export warnings and the upload checklist for `CONTEXT_COVERAGE_GAP` and `EDITABLE_OUTSIDE_SCOPE`. Report omitted in-scope files and editable files that fall outside `editable_scope`; a coverage warning does not block a deliberate bounded export. The developer should upload the Task Capsule and use the kickoff prompt in a fresh ChatGPT conversation. ChatGPT returns either a ZIP built by the capsule's `pack_result.py` (preferred) or a text reply the developer saves as a `.md` file; `import` accepts both.

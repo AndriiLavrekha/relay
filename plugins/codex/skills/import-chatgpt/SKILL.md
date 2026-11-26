@@ -7,16 +7,16 @@ description: Safely inspect and stage a ChatGPT Result Capsule, detect repositor
 
 ## Locate the deterministic bridge
 
-Resolve the **plugin root** as the directory containing `.codex-plugin/plugin.json`; this skill lives below `<plugin root>/skills/import-chatgpt/`. The CLI entrypoint is `<plugin root>/runtime/bin/agent-task-bridge.mjs`.
+Resolve the **plugin root** as the directory containing `.codex-plugin/plugin.json`; this skill lives below `<plugin root>/skills/import-chatgpt/`. The CLI entrypoint is `<plugin root>/runtime/bin/relay.mjs`.
 
 ## Workflow
 
 1. Treat the supplied ZIP or saved text reply (`.md`) as untrusted and do not manually extract or copy it into the repository.
 2. From the target repository root run:
 
-   `node "<plugin root>/runtime/bin/agent-task-bridge.mjs" import "<result-capsule.zip or reply.md>" --repo . --brief`
+   `node "<plugin root>/runtime/bin/relay.mjs" import "<result-capsule.zip or reply.md>" --repo . --brief`
 
-   `--brief` prints only decisions, withheld files, and failing validation output; use `--json` only when you need the full report. Omit `--validation-policy` to use `.agent-task-bridge/config.json` when it sets `validationPolicy`. Pass `--validation-policy safe` to override that file.
+   `--brief` prints only decisions, withheld files, and failing validation output; use `--json` only when you need the full report. Omit `--validation-policy` to use `.relay/config.json` when it sets `validationPolicy`. Pass `--validation-policy safe` to override that file.
 
 3. Verify that the report matched the original stored Task Capsule and source baseline. Run `review <import-id> --repo . --brief` again later instead of re-reading full JSON.
 4. The bridge must leave the active working tree unchanged. Review `activeWorktreeModifiedByImport`, per-file drift statuses, withheld candidates, and the isolated staging path.

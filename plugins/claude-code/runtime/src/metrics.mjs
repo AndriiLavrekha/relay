@@ -1,9 +1,10 @@
-import { appendFile, mkdir, readFile, readdir, stat } from 'node:fs/promises';
+import { appendFile, mkdir, readFile, readdir } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path from 'node:path';
+import { loadProjectConfig } from './config.mjs';
 import { AtbError } from './errors.mjs';
 import { loadLifecycle } from './lifecycle.mjs';
-import { assertSafeStorageRoot, atbRoot, listStoredTasks, loadStoredTask } from './storage.mjs';
+import { assertSafeStorageRoot, atbRoot, ensureLocalStorageIgnored, LEGACY_STORAGE_DIR, listStoredTasks, loadStoredTask, safeExistingStorageDir, STORAGE_DIR } from './storage.mjs';
 
 // Local-only usage metrics. Counts tokens in Claude Code session transcripts that were spent while the export/import/plan skills ran,
 // attributes them to the task they handled, and keeps an append-only ledger so the numbers survive transcript pruning.
@@ -11,7 +12,7 @@ import { assertSafeStorageRoot, atbRoot, listStoredTasks, loadStoredTask } from 
 
 // USD per million tokens for Sonnet 5.5, fitted exactly (0% error) to 100 headless runs: cache write (1h) 4, cache read 0.10, output 10.
 // Not pinned down by that data: input (about 16 tokens per run, so any price is negligible) and the 5-minute cache write (never used). Both are
-// assumptions at the usual 1.25x of 2. Other models report tokens only until you add prices to .agent-task-bridge/config.json:
+// assumptions at the usual 1.25x of 2. Other models report tokens only until you add prices to .relay/config.json:
 //   "metricsRates": { "<model>": { "input": n, "cacheWrite5m": n, "cacheWrite1h": n, "cacheRead": n, "output": n } }
 export const DEFAULT_RATES = Object.freeze({ 'claude-sonnet-5-5': { input: 2, cacheWrite5m: 2.5, cacheWrite1h: 4, cacheRead: 0.1, output: 10 } });
 
@@ -33,12 +34,27 @@ function isHumanPrompt(e) {
 }
 
 export function costOf(model, usage, rates = DEFAULT_RATES) {
-  const key = Object.keys(rates).find((m) => model === m || model?.startsWith(`${m}-`));
+  if (!model || !rates || typeof rates !== 'object') return null;
+  let key = Object.hasOwn(rates, model) ? model : null;
+  if (!key) {
+    for (const m of Object.keys(rates)) {
+      if (model.startsWith(`${m}-`) && (!key || m.length > key.length)) key = m;
+    }
+  }
   if (!key) return null;
   const r = rates[key];
+  if (!r || typeof r.input !== 'number' || !Number.isFinite(r.input) || typeof r.output !== 'number' || !Number.isFinite(r.output)) {
+    return null;
+  }
   // A config entry may give only input/output; cache prices then follow Anthropic's usual multipliers of the input price.
   const w5 = r.cacheWrite5m ?? r.input * 1.25; const w1 = r.cacheWrite1h ?? r.input * 2; const rd = r.cacheRead ?? r.input * 0.1;
-  return (usage.input * r.input + usage.cacheWrite5m * w5 + usage.cacheWrite1h * w1 + usage.cacheRead * rd + usage.output * r.output) / 1e6;
+  return (
+    (usage?.input ?? 0) * r.input
+    + (usage?.cacheWrite5m ?? 0) * w5
+    + (usage?.cacheWrite1h ?? 0) * w1
+    + (usage?.cacheRead ?? 0) * rd
+    + (usage?.output ?? 0) * r.output
+  ) / 1e6;
 }
 
 // One row per (session, skill invocation, phase). Phases: plan (plan-chatgpt), prep (export skill until the exporter runs: reading the
@@ -66,7 +82,7 @@ export function parseTranscript(text, rates = DEFAULT_RATES) {
       const skill = b.name === 'Skill' ? SKILL.exec(b.input?.skill ?? '') : null;
       const cmd = String(b.input?.command ?? '');
       if (skill) { group = { id: e.message.id ?? e.uuid, kind: skill[1], phase: skill[1] === 'export' ? 'prep' : skill[1], taskId: null }; groups.set(group.id, group); }
-      else if (group?.phase === 'prep' && /agent-task-bridge/.test(cmd) && /\bexport\b/.test(cmd)) after = 'export';
+      else if (group?.phase === 'prep' && /\b(?:relay|agent-task-bridge)(?:\.mjs)?\b/.test(cmd) && /\bexport\b/.test(cmd)) after = 'export';
     }
     const u = e.message.usage;
     const id = e.message.id ?? e.requestId ?? e.uuid;
@@ -102,31 +118,37 @@ export function parseTranscript(text, rates = DEFAULT_RATES) {
 async function readJson(file) { try { return JSON.parse(await readFile(file, 'utf8')); } catch { return null; } }
 
 export async function loadRates(repoRoot) {
-  const cfg = await readJson(path.join(atbRoot(repoRoot), 'config.json'));
+  const cfg = await loadProjectConfig(repoRoot);
   return { ...DEFAULT_RATES, ...(cfg?.metricsRates ?? {}) };
 }
 
 export async function readLedger(repoRoot) {
-  let text = '';
-  try { text = await readFile(path.join(atbRoot(repoRoot), LEDGER), 'utf8'); } catch { return { usage: new Map(), notes: new Map() }; }
+  await assertSafeStorageRoot(repoRoot, STORAGE_DIR);
+  const legacyDir = await safeExistingStorageDir(repoRoot, LEGACY_STORAGE_DIR);
   const usage = new Map(); const notes = new Map();
-  for (const line of text.split('\n')) {
-    let r; try { r = JSON.parse(line); } catch { continue; }
-    if (r.kind === 'usage') usage.set(r.key, r); else if (r.kind === 'note') notes.set(r.taskId, r);
+  for (const dir of [legacyDir, atbRoot(repoRoot)].filter(Boolean)) {
+    let text = '';
+    try { text = await readFile(path.join(dir, LEDGER), 'utf8'); } catch { continue; }
+    for (const line of text.split('\n')) {
+      let r; try { r = JSON.parse(line); } catch { continue; }
+      if (r.kind === 'usage') usage.set(r.key, r); else if (r.kind === 'note') notes.set(r.taskId, r);
+    }
   }
   return { usage, notes };
 }
 
 async function appendLedger(repoRoot, records) {
   if (!records.length) return;
-  await assertSafeStorageRoot(repoRoot);
+  await ensureLocalStorageIgnored(repoRoot);
   await mkdir(atbRoot(repoRoot), { recursive: true });
   await appendFile(path.join(atbRoot(repoRoot), LEDGER), `${records.map((r) => JSON.stringify(r)).join('\n')}\n`);
 }
 
-// Parse transcripts and append only rows that are new or changed. Never creates .agent-task-bridge/ itself: a repo that never exported has nothing to measure.
+// Parse transcripts and append only rows that are new or changed. Never creates .relay/ itself: a repo that never exported has nothing to measure.
 export async function collectMetrics(repoRoot, transcriptPaths) {
-  if (!(await stat(atbRoot(repoRoot)).then((s) => s.isDirectory(), () => false))) return { collected: 0, scanned: 0 };
+  const hasPrimary = Boolean(await safeExistingStorageDir(repoRoot, STORAGE_DIR));
+  const hasLegacy = Boolean(await safeExistingStorageDir(repoRoot, LEGACY_STORAGE_DIR));
+  if (!hasPrimary && !hasLegacy) return { collected: 0, scanned: 0 };
   const rates = await loadRates(repoRoot);
   const { usage } = await readLedger(repoRoot);
   const fresh = []; let scanned = 0;
@@ -175,16 +197,23 @@ export async function buildReport(repoRoot) {
     const row = { ...t, title: meta?.title ?? null, createdAt: meta?.createdAt ?? null, lifecycle: null, integrated: false, imports: 0, validationPassed: null, capsuleTokens: null, waitMinutes: null, claudeEstimateUsd: notes.get(t.taskId)?.claudeEstimateUsd ?? null };
     if (meta) {
       const lc = await loadLifecycle(repoRoot, t.taskId); row.lifecycle = lc?.state ?? null;
-      row.capsuleTokens = (await readJson(path.join(atbRoot(repoRoot), 'tasks', t.taskId, 'summary.json')))?.context?.estimated_tokens ?? null;
-      const dir = path.join(atbRoot(repoRoot), 'tasks', t.taskId, 'imports');
-      const ids = await readdir(dir).catch(() => []);
+      const legacyDir = await safeExistingStorageDir(repoRoot, LEGACY_STORAGE_DIR);
+      const summary = (await readJson(path.join(atbRoot(repoRoot), 'tasks', t.taskId, 'summary.json')))
+        ?? (legacyDir ? await readJson(path.join(legacyDir, 'tasks', t.taskId, 'summary.json')) : null);
+      row.capsuleTokens = summary?.context?.estimated_tokens ?? null;
+      const primaryImports = path.join(atbRoot(repoRoot), 'tasks', t.taskId, 'imports');
+      const legacyImports = legacyDir ? path.join(legacyDir, 'tasks', t.taskId, 'imports') : null;
+      const primaryIds = await readdir(primaryImports).catch(() => []);
+      const legacyIds = legacyImports ? await readdir(legacyImports).catch(() => []) : [];
+      const ids = [...new Set([...primaryIds, ...legacyIds])];
       row.imports = ids.length;
       let first = null;
       for (const id of ids) {
         const l = await loadLifecycle(repoRoot, t.taskId, id).catch(() => null);
         if (l?.state === 'integrated') row.integrated = true;
         const at = l?.events?.[0]?.at; if (at && (!first || at < first)) first = at;
-        const rep = await readJson(path.join(dir, id, 'report.json'));
+        const rep = (await readJson(path.join(primaryImports, id, 'report.json')))
+          ?? (legacyImports ? await readJson(path.join(legacyImports, id, 'report.json')) : null);
         if (rep?.validation && rep.validation.passed !== undefined) row.validationPassed = (row.validationPassed ?? true) && rep.validation.passed === true;
       }
       const exportedAt = lc?.events?.[0]?.at;
@@ -212,7 +241,7 @@ const k = (n) => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
 const inTok = (t) => t.input + t.cacheWrite + t.cacheRead;
 
 export function formatMetrics({ tasks, totals }) {
-  if (!tasks.length) return 'No delegation usage recorded yet. Run an export or import with the task-bridge skills in Claude Code, then run `metrics` again.';
+  if (!tasks.length) return 'No delegation usage recorded yet. Run an export or import with the Relay skills in Claude Code, then run `metrics` again.';
   const out = [];
   for (const t of tasks) {
     out.push(`${t.taskId}${t.title ? `  "${t.title}"` : ''}${t.lifecycle ? `  [${t.lifecycle}${t.integrated ? ', integrated' : ''}]` : ''}`);

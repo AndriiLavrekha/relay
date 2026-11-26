@@ -9,7 +9,7 @@ import { runProcess } from '../src/process.mjs';
 import { exportTask } from '../src/exporter.mjs';
 import { buildReport, collectMetrics, costOf, formatMetrics, parseTranscript, recordNote } from '../src/metrics.mjs';
 
-const CLI = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'bin', 'agent-task-bridge.mjs');
+const CLI = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'bin', 'relay.mjs');
 const MODEL = 'claude-sonnet-5-5';
 
 async function makeRepo() {
@@ -39,23 +39,23 @@ const usage = (o) => ({ input_tokens: 2, cache_creation_input_tokens: o.write ??
 const human = (text) => ({ type: 'user', sessionId: 's1', uuid: `u${seq++}`, timestamp: '2026-01-01T00:00:00Z', message: { role: 'user', content: text } });
 const assistant = (id, content, u, ts = '2026-01-01T00:00:10Z') => ({ type: 'assistant', sessionId: 's1', uuid: `a${seq++}`, timestamp: ts, message: { id, model: MODEL, role: 'assistant', content, usage: usage(u) } });
 const toolResult = (text) => ({ type: 'user', sessionId: 's1', uuid: `r${seq++}`, timestamp: '2026-01-01T00:00:11Z', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't', content: text }] } });
-const skill = (name) => ({ type: 'tool_use', id: 't', name: 'Skill', input: { skill: `task-bridge:${name}` } });
+const skill = (name, ns = 'relay') => ({ type: 'tool_use', id: 't', name: 'Skill', input: { skill: `${ns}:${name}` } });
 const bash = (command) => ({ type: 'tool_use', id: 't', name: 'Bash', input: { command } });
 const jsonl = (entries) => `${entries.map((e) => JSON.stringify(e)).join('\n')}\n`;
 
-function exportTranscript(taskId, importTaskId = taskId) {
+function exportTranscript(taskId, importTaskId = taskId, ns = 'relay', cliName = 'relay.mjs') {
   return jsonl([
     assistant('m0', [{ type: 'text', text: 'unrelated work before any skill' }], { read: 1000, out: 50 }),
     human('delegate this'),
     assistant('m1', [{ type: 'text', text: 'ok' }], { write: 500, read: 1000, out: 10 }),
-    assistant('m1', [skill('export-chatgpt')], { write: 500, read: 1000, out: 10 }), // same message, second block
+    assistant('m1', [skill('export-chatgpt', ns)], { write: 500, read: 1000, out: 10 }), // same message, second block
     toolResult('skill loaded'),
-    assistant('m2', [bash('node "/p/runtime/bin/agent-task-bridge.mjs" export --delegation d.json --repo .')], { read: 2000, out: 100 }),
+    assistant('m2', [bash(`node "/p/runtime/bin/${cliName}" export --delegation d.json --repo .`)], { read: 2000, out: 100 }),
     toolResult(`{"taskId": "${taskId}", "capsule": "x"}`),
     assistant('m3', [{ type: 'text', text: 'exported' }], { read: 2100, out: 30 }),
     human('now import it'),
-    assistant('m4', [skill('import-chatgpt')], { read: 3000, out: 20 }),
-    assistant('m5', [bash('node "/p/runtime/bin/agent-task-bridge.mjs" import r.zip --repo . --brief')], { read: 3100, out: 40 }),
+    assistant('m4', [skill('import-chatgpt', ns)], { read: 3000, out: 20 }),
+    assistant('m5', [bash(`node "/p/runtime/bin/${cliName}" import r.zip --repo . --brief`)], { read: 3100, out: 40 }),
     toolResult(`{"taskId": "${importTaskId}", "resultStatus": "complete"}`),
     assistant('m6', [{ type: 'text', text: 'integrated' }], { read: 3200, out: 60 }),
   ]);
@@ -83,10 +83,17 @@ test('parseTranscript attributes usage to prep, export and import, dedupes messa
   assert.equal(rows.reduce((n, r) => n + r.tokens.output, 0), 10 + 100 + 30 + 20 + 40 + 60); // m0 happened before any skill
 });
 
+test('parseTranscript also attributes legacy task-bridge and agent-task-bridge.mjs transcripts', () => {
+  const rows = parseTranscript(exportTranscript('atb_legacy_0123456789', 'atb_legacy_0123456789', 'task-bridge', 'agent-task-bridge.mjs'));
+  const by = Object.fromEntries(rows.map((r) => [r.phase, r]));
+  assert.deepEqual(Object.keys(by).sort(), ['export', 'import', 'prep']);
+  assert.equal(by.prep.taskId, 'atb_legacy_0123456789');
+});
+
 test('parseTranscript falls back to the last task id in the window when the CLI output was reshaped', () => {
   const rows = parseTranscript(jsonl([
     human('go'), assistant('x1', [skill('export-chatgpt')], { read: 10, out: 1 }),
-    toolResult('.agent-task-bridge/tasks/atb_old_aaaaaaaaaa\n.agent-task-bridge/tasks/atb_new_bbbbbbbbbb/task.md'),
+    toolResult('.relay/tasks/atb_old_aaaaaaaaaa\n.relay/tasks/atb_new_bbbbbbbbbb/task.md'),
     assistant('x2', [{ type: 'text', text: 'done' }], { read: 10, out: 1 }),
   ]));
   assert.equal(rows[0].taskId, 'atb_new_bbbbbbbbbb');
@@ -120,12 +127,12 @@ test('collectMetrics writes an idempotent ledger and buildReport joins it to the
   assert.match(text, /saving \d+%/);
 });
 
-test('collectMetrics never creates .agent-task-bridge in a repo that has not exported anything', async () => {
+test('collectMetrics never creates .relay in a repo that has not exported anything', async () => {
   const root = await makeRepo();
   const transcript = path.join(root, 'session.jsonl');
   await writeFile(transcript, exportTranscript('atb_aaa_0123456789'));
   assert.deepEqual(await collectMetrics(root, [transcript]), { collected: 0, scanned: 0 });
-  await assert.rejects(access(path.join(root, '.agent-task-bridge')));
+  await assert.rejects(access(path.join(root, '.relay')));
 });
 
 test('metrics --from-hook swallows bad input and a real hook payload fills the ledger', async () => {
@@ -138,9 +145,57 @@ test('metrics --from-hook swallows bad input and a real hook payload fills the l
   await writeFile(transcript, exportTranscript(task.taskId));
   const ok = spawnSync(process.execPath, [CLI, 'metrics', '--from-hook'], { input: JSON.stringify({ transcript_path: transcript, cwd: root }), encoding: 'utf8' });
   assert.equal(ok.status, 0);
-  const ledger = (await readFile(path.join(root, '.agent-task-bridge', 'metrics.jsonl'), 'utf8')).trim().split('\n').map((l) => JSON.parse(l));
+  const ledger = (await readFile(path.join(root, '.relay', 'metrics.jsonl'), 'utf8')).trim().split('\n').map((l) => JSON.parse(l));
   assert.equal(ledger.filter((r) => r.kind === 'usage').length, 3);
   const cli = spawnSync(process.execPath, [CLI, 'metrics', '--json', '--no-scan', '--repo', root], { encoding: 'utf8' });
   assert.equal(cli.status, 0);
   assert.equal(JSON.parse(cli.stdout).tasks[0].taskId, task.taskId);
+});
+
+test('costOf prefers exact match and longest prefix, and handles partial usage safely', () => {
+  const rates = {
+    'claude-opus': { input: 10, output: 50 },
+    'claude-opus-4-1': { input: 20, output: 100 },
+  };
+  assert.ok(Math.abs(costOf('claude-opus-4-1-20260101', { input: 1000, output: 500 }, rates) - 0.07) < 1e-9);
+  assert.ok(Math.abs(costOf('claude-opus', { input: 1000, output: 500 }, rates) - 0.035) < 1e-9);
+  assert.equal(costOf('claude-opus', { input: 10, output: 5 }, { 'claude-opus': { input: 'bad', output: 1 } }), null);
+});
+
+test('collectMetrics and buildReport support legacy .agent-task-bridge repos and merge split imports', async () => {
+  const { rename } = await import('node:fs/promises');
+  const root = await makeRepo();
+  const task = await exportFixture(root);
+  const { importResult } = await import('../src/importer.mjs');
+  const { createZip } = await import('../src/zip.mjs');
+  const zip = path.join(root, 'result.zip');
+  await writeFile(zip, createZip([
+    { name: 'manifest.json', data: JSON.stringify({
+      atb_protocol: '1.0', capsule_type: 'result', task_id: task.taskId,
+      source_base_commit: task.manifest.project.base_commit, result_type: 'code', summary: 'ok',
+      files: [{ path: 'src/a.js', operation: 'modify' }], validation: { executed: [], not_executed: [] }, assumptions: [], unresolved: [],
+    }) },
+    { name: 'files/src/a.js', data: 'export const a = 2;\n' },
+  ]));
+  const imp = await importResult({ repoRoot: root, resultPath: zip, validationPolicy: 'skip' });
+  await rename(path.join(root, '.relay'), path.join(root, '.agent-task-bridge'));
+
+  const transcript = path.join(root, 'session.jsonl');
+  await writeFile(transcript, exportTranscript(task.taskId));
+  const collected = await collectMetrics(root, [transcript]);
+  assert.equal(collected.collected, 3);
+
+  // Simulate v1.x follow-up/integrate writing an updated lifecycle.json under .relay/tasks/<taskId>/imports/<importId>/
+  const { loadLifecycle, transitionLifecycle, writeLifecycle } = await import('../src/lifecycle.mjs');
+  const lc = await loadLifecycle(root, task.taskId, imp.importId);
+  await writeLifecycle(root, transitionLifecycle(lc, 'integrated', { mode: 'branch', branchName: 'feat/legacy' }));
+
+  const report = await buildReport(root);
+  assert.equal(report.tasks.length, 1);
+  assert.equal(report.tasks[0].imports, 1);
+  assert.equal(report.tasks[0].integrated, true);
+
+  const excludePath = (await runProcess('git', ['rev-parse', '--git-path', 'info/exclude'], { cwd: root })).stdout.trim();
+  const excludeText = await readFile(path.isAbsolute(excludePath) ? excludePath : path.join(root, excludePath), 'utf8');
+  assert.match(excludeText, /^|\n\.relay\/\n/);
 });

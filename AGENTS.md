@@ -1,13 +1,14 @@
-# Repository Guidelines
+# Relay Repository Guidelines
 
 ## Project Structure & Module Organization
 
-- `src/` contains the bridge implementation and shared modules.
-- `bin/` contains the executable CLI entry point.
-- `plugins/` contains bundled agent integrations; `scripts/` contains build and smoke-test helpers.
-- `protocol/` defines task/message contracts, while `examples/` provides usage samples.
-- `test/` contains automated tests, and `docs/` contains architecture and contributor-facing documentation.
-- `.agents/` and `.claude-plugin/` hold agent/plugin metadata. Keep generated plugin bundles synchronized with their sources.
+- `src/` contains the deterministic Relay core implementation and shared modules.
+- `bin/relay.mjs` contains the executable CLI entry point (`relay`).
+- `assets/` contains canonical brand assets (`assets/logo.svg`).
+- `plugins/` contains bundled agent integrations (`claude-code`, `codex`, `gemini`); `scripts/` contains build and smoke-test helpers.
+- `protocol/` defines Task Capsule & Result Capsule contracts, while `examples/` provides usage samples.
+- `test/` contains automated tests, and `docs/` contains user guides, marketplace publishing guides, architecture docs, and release notes.
+- `.agents/` and `.claude-plugin/` hold agent/plugin metadata. Keep generated plugin bundles (`plugins/*/runtime/`, `plugins/*/assets/`, and root `skills/`) synchronized with their canonical sources via `npm run bundle:plugins`.
 
 ## Build, Test, and Development Commands
 
@@ -15,7 +16,7 @@ The project requires Node.js 22 or newer and uses native ESM.
 
 - `npm test` runs the Node built-in test suite.
 - `npm run smoke` executes the end-to-end smoke test.
-- `npm run bundle:plugins` rebuilds bundled plugin artifacts.
+- `npm run bundle:plugins` rebuilds bundled plugin artifacts, logos, and root skills.
 - `npm pack --dry-run` validates the package contents without publishing.
 
 ## Coding Style & Naming Conventions

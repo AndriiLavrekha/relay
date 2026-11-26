@@ -84,7 +84,10 @@ export async function discoverValidationConfigFiles(repoRoot) {
   const candidates = result.stdout.split('\0').filter(Boolean).map((value) => value.replaceAll('\\', '/'));
   const files = [];
   for (const relative of candidates) {
-    if (relative === '.git' || relative.startsWith('.git/') || relative === '.agent-task-bridge' || relative.startsWith('.agent-task-bridge/') || relative.split('/').includes('node_modules')) continue;
+    if (relative === '.git' || relative.startsWith('.git/')
+      || relative === '.relay' || relative.startsWith('.relay/')
+      || relative === '.agent-task-bridge' || relative.startsWith('.agent-task-bridge/')
+      || relative.split('/').includes('node_modules')) continue;
     if (!VALIDATION_CONFIG_BASENAMES.has(path.posix.basename(relative))) continue;
     if (await hasLinkAncestor(repoRoot, relative)) continue;
     files.push(relative);
@@ -225,7 +228,7 @@ export async function linkDependencyDirectories(repoRoot, stagingRoot) {
     const relative = entry.replaceAll('\\', '/').replace(/\/+$/, '');
     const segments = relative.split('/');
     if (!relative || !DEPENDENCY_DIR_NAMES.has(segments.at(-1))) continue;
-    if (segments.slice(0, -1).some((segment) => DEPENDENCY_DIR_NAMES.has(segment) || segment === '.git' || segment === '.agent-task-bridge')) continue;
+    if (segments.slice(0, -1).some((segment) => DEPENDENCY_DIR_NAMES.has(segment) || segment === '.git' || segment === '.relay' || segment === '.agent-task-bridge')) continue;
     // Per-entry guard: an error must never lose track of links already created (cleanup still detaches them).
     try {
       const source = path.join(repoRoot, ...segments);

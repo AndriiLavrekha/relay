@@ -5,22 +5,42 @@ import { runProcess } from './process.mjs';
 import { AtbError } from './errors.mjs';
 import { parseTaskCapsule } from './task-capsule.mjs';
 
-export function atbRoot(repoRoot) {
-  return path.join(repoRoot, '.agent-task-bridge');
+export const STORAGE_DIR = '.relay';
+export const LEGACY_STORAGE_DIR = '.agent-task-bridge';
+
+export function relayRoot(repoRoot) {
+  return path.join(repoRoot, STORAGE_DIR);
 }
 
-export async function assertSafeStorageRoot(repoRoot) {
-  const root = atbRoot(repoRoot);
+export const atbRoot = relayRoot;
+
+export function legacyAtbRoot(repoRoot) {
+  return path.join(repoRoot, LEGACY_STORAGE_DIR);
+}
+
+export async function assertSafeStorageRoot(repoRoot, dirName = STORAGE_DIR) {
+  const root = path.join(repoRoot, dirName);
   try {
     const info = await lstat(root);
     if (info.isSymbolicLink() || !info.isDirectory()) {
-      throw new AtbError('UNSAFE_STORAGE_ROOT', '.agent-task-bridge must be a real directory inside the repository, not a symlink or file');
+      throw new AtbError('UNSAFE_STORAGE_ROOT', `${dirName} must be a real directory inside the repository, not a symlink or file`);
     }
   } catch (error) {
     if (error?.code === 'ENOENT') return root;
     throw error;
   }
   return root;
+}
+
+export async function safeExistingStorageDir(repoRoot, dirName = STORAGE_DIR) {
+  const root = await assertSafeStorageRoot(repoRoot, dirName);
+  try {
+    await lstat(root);
+    return root;
+  } catch (error) {
+    if (error?.code === 'ENOENT') return null;
+    throw error;
+  }
 }
 
 export async function ensureLocalStorageIgnored(repoRoot) {
@@ -30,7 +50,7 @@ export async function ensureLocalStorageIgnored(repoRoot) {
   const excludePath = path.isAbsolute(value) ? value : path.resolve(repoRoot, value);
   let current = '';
   try { current = await readFile(excludePath, 'utf8'); } catch {}
-  const line = '.agent-task-bridge/';
+  const line = `${STORAGE_DIR}/`;
   if (!current.split(/\r?\n/).includes(line)) {
     const prefix = current && !current.endsWith('\n') ? '\n' : '';
     await writeFile(excludePath, `${current}${prefix}${line}\n`);
@@ -121,17 +141,32 @@ export async function storeTask(repoRoot, taskId, capsuleText) {
   return { outputPath, taskPath };
 }
 
+async function readTaskFromRoot(rootDir, taskId) {
+  const taskPath = path.join(rootDir, 'tasks', taskId, 'task.md');
+  const text = await readFile(taskPath, 'utf8');
+  return { ...parseTaskCapsule(text), capsuleText: text };
+}
+
 export async function loadStoredTask(repoRoot, taskId) {
   // Task IDs reach here from untrusted result manifests; only a single safe path segment may name a stored task.
   if (typeof taskId !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(taskId)) {
     throw new AtbError('UNSAFE_TASK_ID', `Task ID is not a safe stored-task name: ${String(taskId).slice(0, 80)}`);
   }
-  await assertSafeStorageRoot(repoRoot);
-  const taskPath = path.join(atbRoot(repoRoot), 'tasks', taskId, 'task.md');
-  let text;
-  try { text = await readFile(taskPath, 'utf8'); }
-  catch { throw new AtbError('TASK_NOT_FOUND', `Stored task not found: ${taskId}`); }
-  return { ...parseTaskCapsule(text), capsuleText: text };
+  await assertSafeStorageRoot(repoRoot, STORAGE_DIR);
+  try {
+    return await readTaskFromRoot(relayRoot(repoRoot), taskId);
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error;
+  }
+  const legacyDir = await safeExistingStorageDir(repoRoot, LEGACY_STORAGE_DIR);
+  if (legacyDir) {
+    try {
+      return await readTaskFromRoot(legacyDir, taskId);
+    } catch (error) {
+      if (error?.code !== 'ENOENT') throw error;
+    }
+  }
+  throw new AtbError('TASK_NOT_FOUND', `Stored task not found: ${taskId}`);
 }
 
 export async function persistImportReport(repoRoot, { taskId = null, importId, report }) {
@@ -145,31 +180,43 @@ export async function persistImportReport(repoRoot, { taskId = null, importId, r
   return reportPath;
 }
 
-export async function listStoredTasks(repoRoot) {
-  await assertSafeStorageRoot(repoRoot);
-  const tasksDir = path.join(atbRoot(repoRoot), 'tasks');
+async function listTasksInDir(repoRoot, storageDirName, seenIds, tasks) {
+  const storageDir = await safeExistingStorageDir(repoRoot, storageDirName);
+  if (!storageDir) return;
+  const tasksDir = path.join(storageDir, 'tasks');
   let names;
   try { names = await readdir(tasksDir, { withFileTypes: true }); }
-  catch { return []; }
-  const tasks = [];
+  catch { return; }
   for (const entry of names) {
-    if (!entry.isDirectory()) continue;
+    if (!entry.isDirectory() || seenIds.has(entry.name)) continue;
     try {
-      const parsed = await loadStoredTask(repoRoot, entry.name);
+      const parsed = await readTaskFromRoot(storageDir, entry.name);
+      const id = parsed.manifest.task_id;
+      if (seenIds.has(id)) continue;
+      seenIds.add(id);
       tasks.push({
-        taskId: parsed.manifest.task_id,
+        taskId: id,
         createdAt: parsed.manifest.created_at,
         title: parsed.manifest.work?.title ?? parsed.delegation.work_unit,
         sourceAgent: parsed.manifest.source_agent,
       });
     } catch {}
   }
+}
+
+export async function listStoredTasks(repoRoot) {
+  await assertSafeStorageRoot(repoRoot, STORAGE_DIR);
+  const seenIds = new Set();
+  const tasks = [];
+  await listTasksInDir(repoRoot, STORAGE_DIR, seenIds, tasks);
+  await listTasksInDir(repoRoot, LEGACY_STORAGE_DIR, seenIds, tasks);
   return tasks.sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
 }
 
-export async function findImportArtifacts(repoRoot, importId) {
-  await assertSafeStorageRoot(repoRoot);
-  const tasksDir = path.join(atbRoot(repoRoot), 'tasks');
+async function findImportInDir(repoRoot, storageDirName, importId) {
+  const storageDir = await safeExistingStorageDir(repoRoot, storageDirName);
+  if (!storageDir) return null;
+  const tasksDir = path.join(storageDir, 'tasks');
   let tasks;
   try { tasks = await readdir(tasksDir, { withFileTypes: true }); }
   catch { return null; }
@@ -183,4 +230,19 @@ export async function findImportArtifacts(repoRoot, importId) {
     } catch {}
   }
   return null;
+}
+
+export async function findImportArtifacts(repoRoot, importId) {
+  await assertSafeStorageRoot(repoRoot, STORAGE_DIR);
+  const primary = await findImportInDir(repoRoot, STORAGE_DIR, importId);
+  if (primary) return primary;
+  const legacy = await findImportInDir(repoRoot, LEGACY_STORAGE_DIR, importId);
+  if (!legacy) return null;
+  // v1.x follow-up/integrate writes updated lifecycle.json to .relay/ while report/review remain in .agent-task-bridge/.
+  try {
+    const updated = JSON.parse(await readFile(path.join(relayRoot(repoRoot), 'tasks', legacy.taskId, 'imports', importId, 'lifecycle.json'), 'utf8'));
+    return { ...legacy, lifecycle: updated };
+  } catch {
+    return legacy;
+  }
 }

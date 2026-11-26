@@ -2,9 +2,11 @@ import { lstat, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { AtbError } from './errors.mjs';
 import { VALIDATION_POLICIES } from './validation.mjs';
+import { LEGACY_STORAGE_DIR, STORAGE_DIR, assertSafeStorageRoot, safeExistingStorageDir } from './storage.mjs';
 
 export const PROJECT_CONFIG_FILENAME = 'config.json';
-export const PROJECT_CONFIG_KEYS = Object.freeze(['maxTokens', 'validationPolicy', 'extraHostOwnedSteps', 'validationCommands', 'validationTimeoutMs']);
+export const PROJECT_CONFIG_KEYS = Object.freeze(['maxTokens', 'validationPolicy', 'extraHostOwnedSteps', 'validationCommands', 'validationTimeoutMs', 'metricsRates']);
+const METRICS_RATE_KEYS = Object.freeze(['input', 'output', 'cacheWrite5m', 'cacheWrite1h', 'cacheRead']);
 
 export function emptyProjectConfig() {
   return {
@@ -15,7 +17,29 @@ export function emptyProjectConfig() {
     extraHostOwnedSteps: [],
     validationCommands: [],
     validationTimeoutMs: null,
+    metricsRates: {},
   };
+}
+
+function parseMetricsRates(value, filePath) {
+  const invalid = () => new AtbError('INVALID_PROJECT_CONFIG', 'metricsRates must map model names to { input, output, cacheWrite5m?, cacheWrite1h?, cacheRead? } non-negative finite numbers', { path: filePath });
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw invalid();
+  const rates = {};
+  for (const [model, entry] of Object.entries(value)) {
+    if (!model.trim() || ['__proto__', 'constructor', 'prototype'].includes(model) || !entry || typeof entry !== 'object' || Array.isArray(entry)) throw invalid();
+    if (Object.keys(entry).some((key) => !METRICS_RATE_KEYS.includes(key))) throw invalid();
+    if (typeof entry.input !== 'number' || !Number.isFinite(entry.input) || entry.input < 0) throw invalid();
+    if (typeof entry.output !== 'number' || !Number.isFinite(entry.output) || entry.output < 0) throw invalid();
+    const normalized = { input: entry.input, output: entry.output };
+    for (const optionalKey of ['cacheWrite5m', 'cacheWrite1h', 'cacheRead']) {
+      if (entry[optionalKey] !== undefined) {
+        if (typeof entry[optionalKey] !== 'number' || !Number.isFinite(entry[optionalKey]) || entry[optionalKey] < 0) throw invalid();
+        normalized[optionalKey] = entry[optionalKey];
+      }
+    }
+    rates[model] = normalized;
+  }
+  return rates;
 }
 
 function parseValidationCommands(value, filePath) {
@@ -32,7 +56,11 @@ function parseValidationCommands(value, filePath) {
 }
 
 export function projectConfigPath(repoRoot) {
-  return path.join(repoRoot, '.agent-task-bridge', PROJECT_CONFIG_FILENAME);
+  return path.join(repoRoot, STORAGE_DIR, PROJECT_CONFIG_FILENAME);
+}
+
+export function legacyProjectConfigPath(repoRoot) {
+  return path.join(repoRoot, LEGACY_STORAGE_DIR, PROJECT_CONFIG_FILENAME);
 }
 
 export function parseProjectConfig(text, filePath = PROJECT_CONFIG_FILENAME) {
@@ -77,11 +105,21 @@ export function parseProjectConfig(text, filePath = PROJECT_CONFIG_FILENAME) {
     }
     config.validationTimeoutMs = value.validationTimeoutMs;
   }
+  if (value.metricsRates !== undefined) config.metricsRates = parseMetricsRates(value.metricsRates, filePath);
   return config;
 }
 
 export function resolveMaxTokens(explicit, config) {
-  if (explicit !== undefined && explicit !== null && explicit !== '') return Number(explicit);
+  if (explicit !== undefined && explicit !== null && explicit !== '') {
+    if (typeof explicit === 'boolean') {
+      throw new AtbError('INVALID_ARGUMENT', '--max-tokens requires a positive integer');
+    }
+    const parsed = Number(explicit);
+    if (!Number.isInteger(parsed) || parsed < 1) {
+      throw new AtbError('INVALID_ARGUMENT', '--max-tokens must be a positive integer');
+    }
+    return parsed;
+  }
   return config?.maxTokens ?? null;
 }
 
@@ -104,16 +142,29 @@ export function applyExtraHostOwnedSteps(raw, delegation, config) {
 }
 
 export async function loadProjectConfig(repoRoot) {
-  const filePath = projectConfigPath(repoRoot);
+  const primary = projectConfigPath(repoRoot);
+  try {
+    await assertSafeStorageRoot(repoRoot, STORAGE_DIR);
+    const info = await lstat(primary);
+    if (info.isSymbolicLink() || !info.isFile()) {
+      throw new AtbError('INVALID_PROJECT_CONFIG', 'Project config must be a regular file', { path: primary });
+    }
+    return parseProjectConfig(await readFile(primary, 'utf8'), primary);
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error;
+  }
+  const legacyDir = await safeExistingStorageDir(repoRoot, LEGACY_STORAGE_DIR);
+  if (!legacyDir) return emptyProjectConfig();
+  const legacy = legacyProjectConfigPath(repoRoot);
   let info;
   try {
-    info = await lstat(filePath);
+    info = await lstat(legacy);
   } catch (error) {
     if (error?.code === 'ENOENT') return emptyProjectConfig();
     throw error;
   }
   if (info.isSymbolicLink() || !info.isFile()) {
-    throw new AtbError('INVALID_PROJECT_CONFIG', 'Project config must be a regular file', { path: filePath });
+    throw new AtbError('INVALID_PROJECT_CONFIG', 'Project config must be a regular file', { path: legacy });
   }
-  return parseProjectConfig(await readFile(filePath, 'utf8'), filePath);
+  return parseProjectConfig(await readFile(legacy, 'utf8'), legacy);
 }

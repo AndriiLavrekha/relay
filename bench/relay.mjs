@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Measures the Claude-side cost of delegating to ChatGPT with the real task-bridge plugin skills.
+// Measures the Claude-side cost of delegating to ChatGPT with the real Relay plugin skills.
 //   node bench/relay.mjs run --scenarios small-duration,big-reply-unescape,big-fingerprint-tsconfig --reps 3 --batch relay [--dry]
 //   node bench/relay.mjs report --batch relay        # writes bench/results/relay/relay-report.md
 // export stage: Claude reads the task + repo and runs the export-chatgpt skill (capsule produced, nothing implemented).
@@ -37,17 +37,17 @@ function pristineRepo(dir) {
   const work = mkdtempSync(path.join(tmpdir(), 'atb-relay-'));
   cpSync(path.join(dir, 'repo'), work, { recursive: true });
   rmSync(path.join(work, '.git', 'worktrees'), { recursive: true, force: true });
-  const tasks = path.join(work, '.agent-task-bridge', 'tasks');
+  const tasks = path.join(work, '.relay', 'tasks');
   for (const t of readdirSync(tasks)) rmSync(path.join(tasks, t, 'imports'), { recursive: true, force: true });
-  rmSync(path.join(work, '.agent-task-bridge', 'staging-ownership'), { recursive: true, force: true });
+  rmSync(path.join(work, '.relay', 'staging-ownership'), { recursive: true, force: true });
   git(['worktree', 'prune'], work);
   for (const b of git(['branch', '--format=%(refname:short)'], work).toString().split('\n').filter((x) => x && x !== 'master' && x !== 'main')) git(['branch', '-D', b], work);
   return work;
 }
 
 const PROMPTS = {
-  export: (s) => `Delegate the task below to ChatGPT with the export-chatgpt skill of the task-bridge plugin. Do not implement it yourself. Stop after the Task Capsule is exported and tell me where it is. This is a public repository with no secrets: if the exporter's privacy gate reports only low-confidence warnings (entropy-candidate, absolute-path), I confirm them, so re-run with --confirm-privacy.\n\nTask:\n${s.prompt}`,
-  import: (zip) => `A ChatGPT result for a delegated task is saved at ${zip}. Use the import-chatgpt skill of the task-bridge plugin to import and review it. Host-owned steps are yours to run locally; for this repo that includes rebuilding the generated plugins/ with npm run bundle:plugins, so a stale plugins/ in staging is not a defect. Integrate into a new branch named chatgpt-result when staged validation passes and every changed file is inside the delegated scope, even if the worker lists known limitations; mention the limitations in your report. Otherwise do not integrate and say why in one sentence.`,
+  export: (s) => `Delegate the task below to ChatGPT with the export-chatgpt skill of the relay plugin. Do not implement it yourself. Stop after the Task Capsule is exported and tell me where it is. This is a public repository with no secrets: if the exporter's privacy gate reports only low-confidence warnings (entropy-candidate, absolute-path), I confirm them, so re-run with --confirm-privacy.\n\nTask:\n${s.prompt}`,
+  import: (zip) => `A ChatGPT result for a delegated task is saved at ${zip}. Use the import-chatgpt skill of the relay plugin to import and review it. Host-owned steps are yours to run locally; for this repo that includes rebuilding the generated plugins/ with npm run bundle:plugins, so a stale plugins/ in staging is not a defect. Integrate into a new branch named chatgpt-result when staged validation passes and every changed file is inside the delegated scope, even if the worker lists known limitations; mention the limitations in your report. Otherwise do not integrate and say why in one sentence.`,
 };
 
 function execute(stage, s, rep, batchDir) {
@@ -69,7 +69,7 @@ function execute(stage, s, rep, batchDir) {
   const models = Object.keys(result?.modelUsage ?? {});
   if (models.some((m) => m !== model)) invalid.push(`model drift: ${models.join(',')}`);
   if (/PONYTAIL MODE|Build simplest complete system/.test(systemText)) invalid.push('contaminated by another arm');
-  const bridgeRoot = path.join(work, '.agent-task-bridge', 'tasks');
+  const bridgeRoot = path.join(work, '.relay', 'tasks');
   const taskDirs = existsSync(bridgeRoot) ? readdirSync(bridgeRoot) : [];
   const checks = {};
   if (stage === 'export') {
@@ -102,7 +102,7 @@ function report(batch) {
   const base = jsonl(path.join(RESULTS, opts.baseline ?? 'main', 'runs.jsonl')).filter((r) => r.valid && r.arm === 'baseline' && r.scenario !== '_calibrate');
   const grades = jsonl(path.join(GPT, 'grades.jsonl'));
   const out = [`# Relay savings (batch ${batch}) vs Claude baseline`, '',
-    'Orchestration = Claude session that exports the capsule + Claude session that imports and integrates the ChatGPT reply (real task-bridge skills, same model and effort as the baseline). ChatGPT runs on the subscription and is not billed here. Costs are list price. "Redo" prices every failed ChatGPT result as a full Claude baseline run on top (conservative: a targeted fix would be cheaper).', ''];
+    'Orchestration = Claude session that exports the capsule + Claude session that imports and integrates the ChatGPT reply (real Relay skills, same model and effort as the baseline). ChatGPT runs on the subscription and is not billed here. Costs are list price. "Redo" prices every failed ChatGPT result as a full Claude baseline run on top (conservative: a targeted fix would be cheaper).', ''];
   const total = { b: 0, o: 0, r: 0 };
   for (const s of Object.values(scenarios)) {
     const ex = rows.filter((r) => r.scenario === s.id && r.stage === 'export'); const im = rows.filter((r) => r.scenario === s.id && r.stage === 'import');

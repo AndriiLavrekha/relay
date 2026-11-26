@@ -9,7 +9,7 @@
     "forbid": ["PONYTAIL MODE"]
   },
   "ponytail": { "plugins": ["ponytail@ponytail"], "expect": ["PONYTAIL MODE"], "forbid": ["Build simplest complete system"] },
-  "relay": { "plugins": ["task-bridge@awesome-task-bridge"], "forbid": ["PONYTAIL MODE", "Build simplest complete system"] },
+  "relay": { "plugins": ["relay@relay"], "forbid": ["PONYTAIL MODE", "Build simplest complete system"] },
   "all": {
     "hooks": ["rtk hook", "caveman"],
     "env": ["ANTHROPIC_BASE_URL", "_CLAUDE_CODE_ASSUME_FIRST_PARTY_BASE_URL"],

@@ -1,2 +1,2 @@
-description = "Export one bounded unit of repository work into a Task Capsule for execution in ChatGPT"
-prompt = "Use the export-chatgpt skill to package and export this bounded unit of work to a Task Capsule with --source-agent gemini: {{args}}. Report the generated task.md and kickoff.md paths, delegated scope, file count, estimated context size, and any coverage warnings."
+description = "Relay: export one bounded unit of repository work into a Task Capsule for execution in ChatGPT"
+prompt = "Use Relay's export-chatgpt skill to package and export this bounded unit of work to a Task Capsule with --source-agent gemini: {{args}}. Report the generated task.md and kickoff.md paths, delegated scope, file count, estimated context size, and any coverage warnings."

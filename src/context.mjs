@@ -119,6 +119,7 @@ export async function collectContext(repoRoot, delegation, options = {}) {
 function isBridgeMetadataPath(repoPath) {
   const normalized = String(repoPath ?? '').replaceAll('\\', '/').replace(/^\.\//, '');
   return normalized === '.git' || normalized.startsWith('.git/')
+    || normalized === '.relay' || normalized.startsWith('.relay/')
     || normalized === '.agent-task-bridge' || normalized.startsWith('.agent-task-bridge/');
 }
 
