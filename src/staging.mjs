@@ -113,8 +113,24 @@ async function realpathWithMissingTail(candidate) {
   }
 }
 
+const DARWIN_SYSTEM_ROOT_ALIASES = new Map([
+  ['/var', '/private/var'],
+  ['/tmp', '/private/tmp'],
+  ['/etc', '/private/etc'],
+]);
+
+function normalizeSystemAliases(resolvedPath) {
+  if (process.platform !== 'darwin') return resolvedPath;
+  for (const [alias, target] of DARWIN_SYSTEM_ROOT_ALIASES) {
+    if (resolvedPath === alias || resolvedPath.startsWith(`${alias}/`)) {
+      return `${target}${resolvedPath.slice(alias.length)}`;
+    }
+  }
+  return resolvedPath;
+}
+
 async function assertRealDirectoryPath(candidate) {
-  const resolvedCandidate = path.resolve(candidate);
+  const resolvedCandidate = normalizeSystemAliases(path.resolve(candidate));
   const parsed = path.parse(resolvedCandidate);
   const relative = path.relative(parsed.root, resolvedCandidate);
   const segments = relative ? relative.split(path.sep) : [];
@@ -182,7 +198,8 @@ export async function resolveStagingParent(repoRoot, requestedDir = undefined) {
   }
 
   try {
-    const parent = await prepareStagingParent(stagingRepoRoot, tmpdir());
+    const tempBase = await realpath(tmpdir()).catch(() => tmpdir());
+    const parent = await prepareStagingParent(stagingRepoRoot, tempBase);
     if (await isSameFilesystem(stagingRepoRoot, parent)) return { parent, source: 'temp' };
   } catch {}
 

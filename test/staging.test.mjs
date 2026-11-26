@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { lstat, mkdir, mkdtemp, readFile, readdir, rm, symlink, unlink, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, mkdtemp, readFile, readdir, realpath, rm, symlink, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { runProcess } from '../src/process.mjs';
@@ -10,7 +10,7 @@ import * as staging from '../src/staging.mjs';
 const { assertOutsideRepository, cleanupIsolatedStaging, copySelectedWorkingPaths, createIsolatedStaging, resolveStagingParent } = staging;
 
 async function makeTempDir(t, prefix) {
-  return makeTempDirAt(t, tmpdir(), prefix);
+  return makeTempDirAt(t, await realpath(tmpdir()), prefix);
 }
 
 async function makeTempDirAt(t, parent, prefix) {
@@ -587,4 +587,13 @@ test('assertOutsideRepository rejects a Windows junction staging parent', { skip
     () => assertOutsideRepository(repo, junction),
     (error) => error.code === 'UNSAFE_STAGING_LOCATION'
   );
+});
+
+test('resolveStagingParent accepts raw tmpdir() paths across system aliases and short paths', async (t) => {
+  const repo = await makeRepo(t);
+  const rawRequested = path.join(tmpdir(), `relay-raw-tmp-${Date.now().toString(36)}-${Math.random().toString(16).slice(2)}`);
+  t.after(() => rm(rawRequested, { force: true, recursive: true }));
+  const result = await resolveStagingParent(repo, rawRequested);
+  assert.equal(result.source, 'explicit');
+  assert.equal(result.parent, await realpath(rawRequested));
 });

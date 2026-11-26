@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, realpath, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { runProcess } from '../src/process.mjs';
@@ -22,7 +22,7 @@ test('findGitRoot resolves the repository from a nested directory', async () => 
   const root = await makeRepo();
   const nested = path.join(root, 'src', 'deep');
   await mkdir(nested, { recursive: true });
-  assert.equal(await findGitRoot(nested), root);
+  assert.equal(await findGitRoot(nested), await realpath(root));
 });
 
 test('getGitState reports branch, head and exact dirty state', async () => {
